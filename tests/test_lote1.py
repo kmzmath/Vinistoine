@@ -169,7 +169,7 @@ def test_become_dormant_e_awaken():
     assert "DORMANT" not in m.tags
     assert not m.cant_attack
     assert not m.immune
-    assert not m.summoning_sick
+    assert m.summoning_sick
 
 
 # ============ DRAW_MINION com preferred_tribe ============

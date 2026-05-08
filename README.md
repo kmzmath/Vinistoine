@@ -415,7 +415,7 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 
@@ -452,7 +452,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 ### Lote 5 — descarte/compra/revelação e cartas recém-compradas
@@ -474,7 +474,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 
@@ -502,7 +502,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 
@@ -525,7 +525,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 
@@ -549,7 +549,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 
@@ -572,7 +572,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-226 passed, 1 skipped
+235 passed, 1 skipped
 ```
 
 
@@ -639,7 +639,7 @@ Adicionado:
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `226 passed, 1 skipped`
+- `235 passed, 1 skipped`
 
 
 ## Lote 24 — segunda auditoria de cartas
@@ -651,3 +651,21 @@ Correções:
 
 Teste adicionado:
 - `tests/test_lote24_second_audit.py`
+
+
+## Lote 25 — correções solicitadas em partida online
+
+Correções:
+- Modo Decks Aleatórios agora gera deck singleton: 30 cartas sem repetição.
+- Congelar agora consome só a próxima oportunidade de ataque.
+- Hover em lacaio agora mostra a carta completa.
+- Spaghetti abre escolha após atacar herói inimigo.
+- Mario abre escolha ao ser comprado.
+- Obansug ganha a vida roubada para si mesmo.
+- Lamboia permite escolher explicitamente 1ª/2ª/3ª carta.
+- Ramoninho Mestre da Nerf usa cargas totais, não custo de mana.
+- Dormente foi ajustado: não conta como alvo, não tem stats/Provocar ativos e acorda como recém-jogado.
+- Vic Assada agora buffa apenas outras Comidas.
+
+Teste adicionado:
+- `tests/test_lote25_requested_gameplay_fixes.py`

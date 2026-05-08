@@ -621,12 +621,33 @@ function getActivatableEffectsForMinion(m) {
   );
 }
 
-function canUseMinionAbility(m, eff) {
+function getAbilityTotalUses(m, eff, abilityIndex = 0) {
+  if (!eff) return null;
+  if (typeof eff.activation_uses === "number") return eff.activation_uses;
+  if (m.card_id === "ramoninho_mestre_da_nerf") return 3;
+  return null;
+}
+
+function getAbilityUsesRemaining(m, eff, abilityIndex = 0) {
+  const total = getAbilityTotalUses(m, eff, abilityIndex);
+  if (total === null) return null;
+  const uses = m.ability_uses_remaining || {};
+  const key = String(abilityIndex);
+  return typeof uses[key] === "number" ? uses[key] : total;
+}
+
+function getAbilityCost(m, eff, abilityIndex = 0) {
+  return getAbilityTotalUses(m, eff, abilityIndex) !== null ? 0 : (eff.activation_cost || 0);
+}
+
+function canUseMinionAbility(m, eff, abilityIndex = 0) {
   if (!state || state.current_player !== myPid) return false;
   if (m.owner !== myPid) return false;
-  if ((m.activated_abilities_this_turn || 0) > 0) return false;
   if (m.silenced || m.immune || m.frozen || (m.tags || []).includes("DORMANT")) return false;
-  const cost = eff.activation_cost || 0;
+  const remaining = getAbilityUsesRemaining(m, eff, abilityIndex);
+  if (remaining !== null) return remaining > 0;
+  if ((m.activated_abilities_this_turn || 0) > 0) return false;
+  const cost = getAbilityCost(m, eff, abilityIndex);
   if ((state.you?.mana || 0) < cost) return false;
   return true;
 }
@@ -723,9 +744,11 @@ function showMoveSelfZoneModal(m, eff, abilityIndex = 0) {
 
 function onAbilityButtonClick(e, m, eff, abilityIndex = 0) {
   e.stopPropagation();
-  if (!canUseMinionAbility(m, eff)) {
-    if ((m.activated_abilities_this_turn || 0) > 0) toast("Habilidade já usada neste turno");
-    else if ((state.you?.mana || 0) < (eff.activation_cost || 0)) toast("Mana insuficiente");
+  if (!canUseMinionAbility(m, eff, abilityIndex)) {
+    const remaining = getAbilityUsesRemaining(m, eff, abilityIndex);
+    if (remaining !== null && remaining <= 0) toast("Habilidade sem usos restantes");
+    else if ((m.activated_abilities_this_turn || 0) > 0) toast("Habilidade já usada neste turno");
+    else if ((state.you?.mana || 0) < getAbilityCost(m, eff, abilityIndex)) toast("Mana insuficiente");
     else toast("Habilidade indisponível");
     return;
   }
@@ -756,13 +779,15 @@ function renderMinion(m, isOpponent) {
 
   // Estados visuais ambientais (efeitos em torno do lacaio)
   const card = allCards[m.card_id] || {};
+  const isDormant = (m.tags || []).includes("DORMANT");
   const isPassive = hasPassiveEffect(card);
 
-  if (m.tags.includes("TAUNT") && !m.silenced) div.classList.add("taunt");
-  if (m.divine_shield) div.classList.add("divine-shield");
-  if (m.frozen) div.classList.add("frozen");
-  if (m.tags.includes("STEALTH") && !m.silenced) div.classList.add("stealth");
-  if (m.tags.includes("WINDFURY") && !m.silenced) div.classList.add("windfury");
+  if (isDormant) div.classList.add("dormant");
+  if (!isDormant && m.tags.includes("TAUNT") && !m.silenced) div.classList.add("taunt");
+  if (!isDormant && m.divine_shield) div.classList.add("divine-shield");
+  if (!isDormant && m.frozen) div.classList.add("frozen");
+  if (!isDormant && m.tags.includes("STEALTH") && !m.silenced) div.classList.add("stealth");
+  if (!isDormant && m.tags.includes("WINDFURY") && !m.silenced) div.classList.add("windfury");
   if (m.silenced) div.classList.add("silenced");
 
   if (!isOpponent && state.current_player === myPid && m.can_attack) {
@@ -821,35 +846,41 @@ function renderMinion(m, isOpponent) {
 
   const activatableEffects = getActivatableEffectsForMinion(m);
   const firstAbility = activatableEffects[0] || null;
-  const canAbility = firstAbility && !isOpponent && canUseMinionAbility(m, firstAbility);
+  const abilityRemaining = firstAbility ? getAbilityUsesRemaining(m, firstAbility, 0) : null;
+  const abilityCost = firstAbility ? getAbilityCost(m, firstAbility, 0) : 0;
+  const canAbility = firstAbility && !isOpponent && canUseMinionAbility(m, firstAbility, 0);
   const abilityLabel = firstAbility
-    ? (firstAbility.trigger === "ACTIVATED_ABILITY"
-        ? `✦${firstAbility.activation_cost || 0}`
-        : "↯")
+    ? (abilityRemaining !== null
+        ? `✦${abilityRemaining}`
+        : (firstAbility.trigger === "ACTIVATED_ABILITY" ? `✦${abilityCost}` : "↯"))
     : "";
 
   div.innerHTML = `
     <div class="${nameClass}">${escapeHtml(m.name)}</div>
-    ${firstAbility && !isOpponent ? `<button class="ability-btn ${canAbility ? "ready" : "disabled"}" title="Ativar habilidade">${abilityLabel}</button>` : ""}
-    ${tauntOverlay}
-    ${windOverlay}
+    ${firstAbility && !isOpponent && !isDormant ? `<button class="ability-btn ${canAbility ? "ready" : "disabled"}" title="Usos/custo da habilidade">${abilityLabel}</button>` : ""}
+    ${!isDormant ? tauntOverlay : ""}
+    ${!isDormant ? windOverlay : ""}
     <div class="${ringClass}" style="${portraitStyle}">${initial}</div>
-    ${stealthOverlay}
-    ${divineOverlay}
-    ${frozenOverlay}
+    ${!isDormant ? stealthOverlay : ""}
+    ${!isDormant ? divineOverlay : ""}
+    ${!isDormant ? frozenOverlay : ""}
     ${silenceOverlay}
-    <div class="atk-badge ${atkChanged}">${m.attack}</div>
-    <div class="hp-badge ${hpChanged}">${m.health}</div>
-    ${primarySeal ? `<div class="keyword-seal" data-kw="${primarySeal}" title="${KW_NAME[primarySeal] || primarySeal}"></div>` : ""}
-    ${isSick ? `<div class="zzz-anim"><span class="z z1">z</span><span class="z z2">z</span><span class="z z3">Z</span></div>` : ""}
-    <div class="tooltip">
-      <strong>${escapeHtml(m.name)}</strong>
-      ${card.text ? `<div style="margin-top:4px;">${escapeHtml(card.text)}</div>` : ""}
-      ${visibleKws.length ? `<div style="margin-top:4px; color: var(--gold); font-size: 0.7rem; letter-spacing: 0.05em;">
-        ${visibleKws.map(k => KW_NAME[k] || k).join(" · ")}
-      </div>` : ""}
-    </div>
+    ${!isDormant ? `<div class="atk-badge ${atkChanged}">${m.attack}</div><div class="hp-badge ${hpChanged}">${m.health}</div>` : `<div class="dormant-label">DORMENTE</div>`}
+    ${primarySeal && !isDormant ? `<div class="keyword-seal" data-kw="${primarySeal}" title="${KW_NAME[primarySeal] || primarySeal}"></div>` : ""}
+    ${isSick && !isDormant ? `<div class="zzz-anim"><span class="z z1">z</span><span class="z z2">z</span><span class="z z3">Z</span></div>` : ""}
+    <div class="minion-card-preview"></div>
   `;
+
+  const preview = div.querySelector(".minion-card-preview");
+  if (preview && card && card.id) {
+    const previewCard = renderCard(card, card.cost ?? 0, {
+      show_hand_stats: true,
+      effective_attack: m.attack,
+      effective_health: m.health,
+      stats_modified: m.attack !== (card.attack ?? 0) || m.max_health !== (card.health ?? 0),
+    });
+    preview.appendChild(previewCard);
+  }
 
   const abilityBtn = div.querySelector(".ability-btn");
   if (abilityBtn && firstAbility) {
@@ -1092,21 +1123,115 @@ function renderPendingChoiceOverlay() {
     return;
   }
 
-  if (choice.kind === "reorder_top_cards") {
+
+  if (choice.kind === "mario_reveal_top_choose_draw") {
     const msg = document.createElement("div");
     msg.className = "muted";
-    msg.textContent = "Reorganize as cartas reveladas do topo do seu deck.";
+    msg.textContent = "Mario revelou a carta do topo do deck. Escolha qual carta manter/comprar.";
     overlay.appendChild(msg);
 
     const cardsBox = document.createElement("div");
     cardsBox.className = "mulligan-cards";
+
+    const options = [
+      { label: "Manter Mario", choose_revealed: false, cid: choice.drawn_card?.card_id },
+      { label: "Comprar revelada", choose_revealed: true, cid: choice.revealed_card_id },
+    ];
+
+    options.forEach(opt => {
+      const card = allCards[opt.cid];
+      if (!card) return;
+      const col = document.createElement("div");
+      col.style.textAlign = "center";
+      const el = renderCard(card, card.cost ?? 0, { show_hand_stats: true });
+      el.onclick = () => {
+        send("choice_response", {
+          choice_id: choice.choice_id,
+          response: { choose_revealed: opt.choose_revealed }
+        });
+        clearPendingChoiceOverlay();
+      };
+      col.appendChild(el);
+      const btn = document.createElement("button");
+      btn.className = opt.choose_revealed ? "btn primary small" : "btn small";
+      btn.textContent = opt.label;
+      btn.onclick = el.onclick;
+      col.appendChild(btn);
+      cardsBox.appendChild(col);
+    });
+
+    overlay.appendChild(cardsBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "choose_one_effect") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha uma opção para o efeito disparado.";
+    overlay.appendChild(msg);
+
+    const optsBox = document.createElement("div");
+    optsBox.className = "choose-options";
+    (choice.choices || []).forEach((opt, idx) => {
+      const btn = document.createElement("button");
+      const num = document.createElement("div");
+      num.className = "opt-num";
+      num.textContent = `Opção ${idx + 1}`;
+      btn.appendChild(num);
+      const body = document.createElement("div");
+      body.className = "opt-text";
+      body.textContent = describeChoice(opt);
+      btn.appendChild(body);
+      btn.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { index: idx } });
+        clearPendingChoiceOverlay();
+      };
+      optsBox.appendChild(btn);
+    });
+    overlay.appendChild(optsBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "reorder_top_cards") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Clique nas cartas na ordem desejada: 1ª, 2ª, 3ª.";
+    overlay.appendChild(msg);
+
+    const selectedOrder = [];
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
     const cards = choice.cards || [];
-    cards.forEach(cid => {
+
+    const updateLabels = () => {
+      cardsBox.querySelectorAll(".reorder-card-wrap").forEach((wrap, idx) => {
+        const marker = wrap.querySelector(".reorder-position");
+        const pos = selectedOrder.indexOf(idx);
+        marker.textContent = pos >= 0 ? `${pos + 1}ª` : "";
+        wrap.classList.toggle("selected", pos >= 0);
+      });
+    };
+
+    cards.forEach((cid, idx) => {
       const card = allCards[cid];
       if (!card) return;
-      const el = renderCard(card, card.cost ?? 0);
-      el.style.pointerEvents = "none";
-      cardsBox.appendChild(el);
+      const wrap = document.createElement("div");
+      wrap.className = "reorder-card-wrap";
+      wrap.style.position = "relative";
+      const el = renderCard(card, card.cost ?? 0, { show_hand_stats: true });
+      el.onclick = () => {
+        const pos = selectedOrder.indexOf(idx);
+        if (pos >= 0) selectedOrder.splice(pos, 1);
+        else selectedOrder.push(idx);
+        updateLabels();
+      };
+      const marker = document.createElement("div");
+      marker.className = "reorder-position";
+      wrap.appendChild(el);
+      wrap.appendChild(marker);
+      cardsBox.appendChild(wrap);
     });
     overlay.appendChild(cardsBox);
 
@@ -1119,33 +1244,29 @@ function renderPendingChoiceOverlay() {
       clearPendingChoiceOverlay();
     };
 
+    const confirm = document.createElement("button");
+    confirm.className = "btn primary";
+    confirm.textContent = "Confirmar ordem";
+    confirm.onclick = () => {
+      if (selectedOrder.length !== cards.length) return;
+      sendOrder(selectedOrder);
+    };
+    btnBox.appendChild(confirm);
+
+    const reset = document.createElement("button");
+    reset.className = "btn";
+    reset.textContent = "Limpar";
+    reset.onclick = () => {
+      selectedOrder.splice(0, selectedOrder.length);
+      updateLabels();
+    };
+    btnBox.appendChild(reset);
+
     const keep = document.createElement("button");
     keep.className = "btn";
     keep.textContent = "Manter ordem";
     keep.onclick = () => sendOrder(cards.map((_, i) => i));
     btnBox.appendChild(keep);
-
-    const cheap = document.createElement("button");
-    cheap.className = "btn primary";
-    cheap.textContent = "Custo crescente";
-    cheap.onclick = () => {
-      const order = cards.map((cid, i) => ({ cid, i, cost: (allCards[cid] || {}).cost ?? 99 }))
-        .sort((a, b) => a.cost - b.cost || a.i - b.i)
-        .map(x => x.i);
-      sendOrder(order);
-    };
-    btnBox.appendChild(cheap);
-
-    const expensive = document.createElement("button");
-    expensive.className = "btn";
-    expensive.textContent = "Custo decrescente";
-    expensive.onclick = () => {
-      const order = cards.map((cid, i) => ({ cid, i, cost: (allCards[cid] || {}).cost ?? -1 }))
-        .sort((a, b) => b.cost - a.cost || a.i - b.i)
-        .map(x => x.i);
-      sendOrder(order);
-    };
-    btnBox.appendChild(expensive);
 
     overlay.appendChild(btnBox);
     document.getElementById("overlay-root").appendChild(overlay);

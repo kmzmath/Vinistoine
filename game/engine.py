@@ -144,6 +144,35 @@ def start_turn(state: GameState):
     p.hero_attacks_this_turn = 0
     p.cards_played_this_turn = 0
 
+    # Dormente por turnos: conta somente no começo dos turnos do dono.
+    dormant_keep = []
+    for pm in list(state.pending_modifiers):
+        if pm.get("kind") != "dormant_turns":
+            dormant_keep.append(pm)
+            continue
+        if pm.get("owner") != state.current_player:
+            dormant_keep.append(pm)
+            continue
+        found = state.find_minion(pm.get("minion_id"))
+        if not found:
+            continue
+        m = found[0]
+        remaining = int(pm.get("turns_remaining", 0) or 0) - 1
+        if remaining <= 0:
+            try:
+                from .effects_lote25_requested_fixes import wake_dormant_minion
+                wake_dormant_minion(state, m)
+            except Exception:
+                if "DORMANT" in m.tags:
+                    m.tags.remove("DORMANT")
+                m.cant_attack = False
+                m.immune = False
+                m.summoning_sick = True
+            continue
+        pm["turns_remaining"] = remaining
+        dormant_keep.append(pm)
+    state.pending_modifiers = dormant_keep
+
     # Aplica APPLY_START_OF_TURN_DAMAGE_STATUS (debuff de dano contínuo)
     sot_to_remove = []
     for pm in list(state.pending_modifiers):
@@ -1431,6 +1460,49 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
         cleanup(state)
         return True, "OK"
 
+
+    if kind == "mario_reveal_top_choose_draw":
+        choose_revealed = bool(response.get("choose_revealed"))
+        drawn = choice.get("drawn_card") or {}
+        revealed = choice.get("revealed_card_id")
+        if not revealed or not drawn.get("instance_id"):
+            return False, "Escolha inválida"
+        if choose_revealed and (not p.deck or p.deck[0] != revealed):
+            return False, "O topo do deck mudou; escolha expirada"
+        from .effects_lote25_requested_fixes import resolve_mario_choice
+        resolve_mario_choice(state, player_id, drawn.get("instance_id"), revealed, choose_revealed)
+        state.pending_choice = None
+        state.log_event({"type": "choice_resolved", "kind": kind,
+                         "player": player_id,
+                         "choose_revealed": choose_revealed})
+        _resume_choice_effects(state, choice)
+        return True, "OK"
+
+    if kind == "choose_one_effect":
+        try:
+            idx = int(response.get("index", response.get("chose_index", 0)))
+        except Exception:
+            return False, "Opção inválida"
+        choices = list(choice.get("choices") or [])
+        if idx < 0 or idx >= len(choices):
+            return False, "Opção inválida"
+        source_minion = None
+        mid = choice.get("source_minion_id")
+        if mid:
+            found = state.find_minion(mid)
+            if found:
+                source_minion = found[0]
+        ctx = dict(choice.get("ctx") or {})
+        ctx["chose_index"] = idx
+        from .effects import resolve_effect
+        state.pending_choice = None
+        resolve_effect(state, choices[idx], player_id, source_minion, ctx)
+        state.log_event({"type": "choice_resolved", "kind": kind,
+                         "player": player_id, "index": idx})
+        _resume_choice_effects(state, choice)
+        cleanup(state)
+        return True, "OK"
+
     return False, f"Tipo de escolha não suportado: {kind}"
 
 
@@ -1530,8 +1602,6 @@ def activate_ability(state: GameState, player_id: int, minion_instance_id: str,
         return False, "Lacaio dormente/imune não pode ativar habilidade"
     if minion.frozen:
         return False, "Lacaio congelado não pode ativar habilidade"
-    if minion.activated_abilities_this_turn > 0:
-        return False, "Habilidade já usada neste turno"
 
     effects_to_use = _activation_effects_for_minion(minion)
     if not effects_to_use:
@@ -1546,7 +1616,21 @@ def activate_ability(state: GameState, player_id: int, minion_instance_id: str,
     trigger = eff.get("trigger")
     p = state.players[player_id]
 
-    cost = int(eff.get("activation_cost", 0) or 0)
+    use_key = str(ability_index)
+    # Ramoninho: o número da habilidade representa usos totais, não mana.
+    has_total_uses = eff.get("activation_uses") is not None or minion.card_id == "ramoninho_mestre_da_nerf"
+    if has_total_uses:
+        total_uses = int(eff.get("activation_uses", 3) or 3)
+        if use_key not in minion.ability_uses_remaining:
+            minion.ability_uses_remaining[use_key] = total_uses
+        if minion.ability_uses_remaining[use_key] <= 0:
+            return False, "Habilidade sem usos restantes"
+        cost = 0
+    else:
+        if minion.activated_abilities_this_turn > 0:
+            return False, "Habilidade já usada neste turno"
+        cost = int(eff.get("activation_cost", 0) or 0)
+
     if p.mana < cost:
         return False, f"Mana insuficiente ({p.mana}/{cost})"
 
@@ -1581,7 +1665,10 @@ def activate_ability(state: GameState, player_id: int, minion_instance_id: str,
                 return False, "Posição inválida"
 
     p.mana -= cost
-    minion.activated_abilities_this_turn += 1
+    if has_total_uses:
+        minion.ability_uses_remaining[use_key] -= 1
+    else:
+        minion.activated_abilities_this_turn += 1
     state.log_event({
         "type": "activate_ability",
         "player": player_id,
@@ -1590,6 +1677,7 @@ def activate_ability(state: GameState, player_id: int, minion_instance_id: str,
         "trigger": trigger,
         "action": eff.get("action"),
         "cost": cost,
+        "uses_remaining": minion.ability_uses_remaining.get(use_key) if has_total_uses else None,
     })
 
     ctx = {
@@ -1636,6 +1724,8 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
         target_minion, target_owner = tgt
         if target_owner == player_id:
             return False, "Não pode atacar próprios lacaios"
+        if target_minion.has_tag("DORMANT"):
+            return False, "Lacaio dormente não pode ser atacado"
         target = target_minion
 
     # valida TAUNT no inimigo: se houver lacaio com TAUNT, deve atacar ele primeiro
@@ -1725,7 +1815,7 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
     attacker.attacks_this_turn += 1
 
     # triggers AFTER_ATTACK
-    effects.fire_minion_trigger(state, attacker, "AFTER_ATTACK")
+    effects.fire_minion_trigger(state, attacker, "AFTER_ATTACK", extra_ctx=attack_ctx)
     if isinstance(target, Minion):
         if not adjacent_damage_instead:
             effects.fire_minion_trigger(state, attacker, "ON_ATTACK_MINION", extra_ctx=attack_ctx)

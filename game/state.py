@@ -50,10 +50,17 @@ class Minion:
     # Habilidades ativadas / ações especiais de "durante seu turno".
     # Por padrão: uma ativação por turno enquanto o lacaio estiver em campo.
     activated_abilities_this_turn: int = 0
+    # Usos totais restantes por índice de habilidade ativada. Usado por cartas
+    # como Ramoninho Mestre da Nerf: o número entre parênteses é carga, não mana.
+    ability_uses_remaining: dict[str, int] = field(default_factory=dict)
     owner: int = 0  # 0 ou 1
 
     def has_tag(self, tag: str) -> bool:
         if self.silenced:
+            return False
+        # Dormente não existe de fato na mesa para fins de Provocar/Furtividade/etc.
+        # Mantemos a tag DORMANT visível para a UI, mas desativamos as demais.
+        if tag != "DORMANT" and "DORMANT" in self.tags:
             return False
         return tag in self.tags
 
@@ -67,6 +74,8 @@ class Minion:
         return False
 
     def can_attack(self) -> bool:
+        if self.has_tag("DORMANT"):
+            return False
         if self.cant_attack or self.frozen or self.skip_next_attack or self.attack <= 0:
             return False
         if self.has_tag("ATTACK_LOCKED") or self.has_tag("CANT_ATTACK_ONLY_FRIENDLY"):
@@ -106,6 +115,7 @@ class Minion:
             "cant_attack": self.cant_attack,
             "skip_next_attack": self.skip_next_attack,
             "activated_abilities_this_turn": self.activated_abilities_this_turn,
+            "ability_uses_remaining": dict(self.ability_uses_remaining),
             "owner": self.owner,
             # Calculados — cliente usa pra decidir quando mostrar borda verde "pode atacar"
             "can_attack": self.can_attack(),

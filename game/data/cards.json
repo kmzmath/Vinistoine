@@ -6183,7 +6183,7 @@
     "attack": 3,
     "health": 3,
     "durability": null,
-    "text": "Habilidade (4): Atire em um Lacaio inimigo, causando 3 de dano.",
+    "text": "Habilidade (3 usos): Atire em um lacaio inimigo, causando 3 de dano.",
     "tags": [
       "ACTIVATED_ABILITY"
     ],
@@ -6192,14 +6192,15 @@
       {
         "trigger": "ACTIVATED_ABILITY",
         "action": "DAMAGE",
-        "activation_cost": 4,
+        "activation_cost": 0,
         "amount": 3,
         "target": {
           "mode": "CHOSEN",
           "valid": [
             "ENEMY_MINION"
           ]
-        }
+        },
+        "activation_uses": 3
       }
     ]
   },

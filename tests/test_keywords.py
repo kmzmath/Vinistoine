@@ -90,35 +90,19 @@ def test_reduce_cost_comida_aplica_em_fruta():
 # ============ CONGELAR ============
 
 def test_freeze_perde_proximo_turno_de_ataque():
-    """Lacaio congelado por inimigo NÃO descongela ao iniciar próprio turno;
-    descongela ao FIM do turno em que ficou impedido."""
+    """Congelamento consome apenas a próxima oportunidade de ataque."""
     state = _new_blank_match()
-    pid = state.current_player  # 0
+    pid = state.current_player
     foe = 1 - pid
-    # Cria lacaio aliado pronto pra atacar
     m = _force_minion(state, pid, attack=3, health=3, ready=True)
-    other_pid = state.opponent_of(pid).player_id
 
-    # Engenheiramos o congelamento como se viesse do oponente:
-    # source_owner=foe, target=m
     eff = {"action": "FREEZE", "target": {"mode": "CHOSEN", "valid": ["ANY_MINION"]}}
     effects.resolve_effect(state, eff, foe, None, {"chosen_target": m.instance_id})
 
     assert m.frozen is True
-    assert m.freeze_pending is True
+    assert m.can_attack() is False
 
-    # Encerra turno do dono. m.frozen ainda True (não atacou), 
-    # freeze_pending vira False.
-    engine.end_turn(state, pid)
-    assert m.frozen is True
-    assert m.freeze_pending is False
-
-    # Vez do oponente. Encerra (sem fazer nada relevante a m).
-    engine.end_turn(state, foe)
-    # De volta ao pid: m ainda congelado no início do turno (NÃO descongela aqui)
-    assert m.frozen is True
-
-    # Encerra o turno do dono novamente — agora SIM descongela.
+    # Ao fim do próximo turno do dono, já descongela.
     engine.end_turn(state, pid)
     assert m.frozen is False
 

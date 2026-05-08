@@ -39,7 +39,7 @@ def _force_minion(state, pid, *, card_id="vini_zumbi", attack=None, health=None,
     return m
 
 
-def test_ramoninho_activated_ability_costs_mana_and_damages_enemy_minion():
+def test_ramoninho_activated_ability_uses_charge_and_damages_enemy_minion():
     state = _new_blank_match()
     pid = state.current_player
     foe = 1 - pid
@@ -50,39 +50,37 @@ def test_ramoninho_activated_ability_costs_mana_and_damages_enemy_minion():
     ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
     assert ok, msg
 
-    assert state.players[pid].mana == 2
+    assert state.players[pid].mana == 6
     assert enemy.health == 2
-    assert ramon.activated_abilities_this_turn == 1
+    assert ramon.ability_uses_remaining.get('0') == 2
 
 
-def test_ramoninho_activated_ability_rejects_second_use_same_turn():
+def test_ramoninho_activated_ability_has_three_total_free_uses():
     state = _new_blank_match()
     pid = state.current_player
     foe = 1 - pid
     ramon = _force_minion(state, pid, card_id="ramoninho_mestre_da_nerf")
-    enemy = _force_minion(state, foe, card_id="pizza", health=10)
-    state.players[pid].mana = 10
+    enemy = _force_minion(state, foe, card_id="pizza", health=20)
+    state.players[pid].mana = 0
 
-    ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
-    assert ok, msg
+    for _ in range(3):
+        ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
+        assert ok, msg
+
+    assert enemy.health == 11
+    assert ramon.ability_uses_remaining.get("0") == 0
 
     ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
     assert not ok
-    assert "já usada" in msg
-    assert enemy.health == 7
+    assert "sem usos" in msg
 
 
 def test_ramoninho_activated_ability_rejects_without_mana_or_target():
     state = _new_blank_match()
     pid = state.current_player
     ramon = _force_minion(state, pid, card_id="ramoninho_mestre_da_nerf")
-    state.players[pid].mana = 3
+    state.players[pid].mana = 0
 
-    ok, msg = engine.activate_ability(state, pid, ramon.instance_id)
-    assert not ok
-    assert "Mana insuficiente" in msg
-
-    state.players[pid].mana = 4
     ok, msg = engine.activate_ability(state, pid, ramon.instance_id)
     assert not ok
     assert "alvo" in msg.lower()
@@ -98,7 +96,7 @@ def test_activated_ability_resets_next_turn():
 
     ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
     assert ok, msg
-    assert ramon.activated_abilities_this_turn == 1
+    assert ramon.ability_uses_remaining.get('0') == 2
 
     engine.end_turn(state, pid)
     engine.end_turn(state, foe)

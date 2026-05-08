@@ -2018,3 +2018,87 @@ input:focus { border-color: var(--gold); }
 .minion .ability-btn:hover {
   transform: scale(1.08);
 }
+
+
+/* Hover de lacaio mostra carta completa, estilo Hearthstone */
+.minion .minion-card-preview {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%) scale(1.05);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 90;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  filter: drop-shadow(0 12px 24px rgba(0,0,0,0.85));
+}
+
+.minion:hover .minion-card-preview {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.18);
+}
+
+.minion .minion-card-preview .card {
+  margin: 0;
+}
+
+/* Dormente: não exibe stats/keywords interativas, apenas indicação visual */
+.minion.dormant {
+  filter: grayscale(0.85) brightness(0.72);
+  box-shadow: 0 0 14px rgba(120,120,140,0.35);
+}
+
+.minion.dormant .portrait-ring {
+  opacity: 0.55;
+}
+
+.minion.dormant::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(190, 200, 220, 0.45);
+  background: radial-gradient(circle, rgba(180,190,210,0.18), rgba(20,20,30,0.1) 70%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.minion .dormant-label {
+  position: absolute;
+  left: 50%;
+  bottom: -0.4rem;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 0.08rem 0.35rem;
+  border: 1px solid rgba(210,220,240,0.55);
+  border-radius: 999px;
+  background: rgba(20, 22, 32, 0.92);
+  color: #d8deee;
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.reorder-card-wrap.selected .card {
+  outline: 3px solid var(--gold-bright);
+  box-shadow: 0 0 18px rgba(245,201,105,0.6);
+}
+
+.reorder-position {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 10;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: var(--gold-bright);
+  color: #1b1208;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}

@@ -346,21 +346,23 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
         minion.cant_attack = True
         minion.immune = True
         minion.summoning_sick = True
-        state.pending_modifiers.append({
-            "kind": "friendly_summons_awaken_counter",
-            "target_id": minion.instance_id,
-            "owner": owner,
-            "count": 0,
-            "required": next(
-                (
-                    int(e.get("amount", 2) or 2)
-                    for e in (minion.effects or [])
-                    if e.get("trigger") == "FRIENDLY_MINIONS_SUMMONED"
-                    and e.get("action") == "AWAKEN"
-                ),
-                2,
+        awaken_by_summon = next(
+            (
+                int(e.get("amount", 2) or 2)
+                for e in (minion.effects or [])
+                if e.get("trigger") == "FRIENDLY_MINIONS_SUMMONED"
+                and e.get("action") == "AWAKEN"
             ),
-        })
+            None,
+        )
+        if awaken_by_summon is not None:
+            state.pending_modifiers.append({
+                "kind": "friendly_summons_awaken_counter",
+                "target_id": minion.instance_id,
+                "owner": owner,
+                "count": 0,
+                "required": awaken_by_summon,
+            })
 
     p.board.insert(position, minion)
     state.log_event({
@@ -394,7 +396,7 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
                 target.tags.remove("DORMANT")
             target.cant_attack = False
             target.immune = False
-            target.summoning_sick = False
+            target.summoning_sick = True
             state.log_event({"type": "awaken", "minion": target.instance_id,
                              "reason": "friendly_minions_summoned",
                              "count": pm["count"]})
@@ -1546,3 +1548,6 @@ effects_lote22_bugfix.register_lote22_bugfix_handlers(handler)
 
 from . import effects_lote24_second_audit
 effects_lote24_second_audit.register_lote24_second_audit_handlers(handler)
+
+from . import effects_lote25_requested_fixes
+effects_lote25_requested_fixes.register_lote25_requested_fixes_handlers(handler)

@@ -32,8 +32,15 @@ def _passes_extra_filters(target_desc: dict, candidate, source_owner: int,
                           source_minion: Optional[Minion] = None) -> bool:
     """Filtros adicionais usados pelo JSON além de target.valid."""
     if isinstance(candidate, Minion):
-        required_tribe = target_desc.get("required_tribe")
-        if required_tribe and not candidate.has_tribe(required_tribe):
+        if candidate.has_tag("DORMANT"):
+            return False
+        required_tribe = target_desc.get("required_tribe") or target_desc.get("tribe")
+        required_tribes = target_desc.get("tribes") or []
+        if isinstance(required_tribes, str):
+            required_tribes = [required_tribes]
+        if required_tribe and required_tribe not in required_tribes:
+            required_tribes.append(required_tribe)
+        if required_tribes and not any(candidate.has_tribe(t) for t in required_tribes):
             return False
         required_tag = target_desc.get("required_tag")
         if required_tag and not candidate.has_tag(required_tag):
@@ -50,6 +57,8 @@ def is_valid_target(state: GameState, target_desc: dict, candidate, source_owner
     """Verifica se um candidato concreto satisfaz os filtros do target."""
     # FILTROS GLOBAIS: stealth e immune (independem do filtro 'valid')
     if isinstance(candidate, Minion):
+        if candidate.has_tag("DORMANT"):
+            return False
         if _is_trigger_immune(candidate, source_owner):
             return False
         # Inimigo com STEALTH não pode ser alvo escolhido por feitiços/battlecries.

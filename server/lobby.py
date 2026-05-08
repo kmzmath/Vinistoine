@@ -40,16 +40,18 @@ def generate_random_deck(size: int = DECK_SIZE, rng: random.Random | None = None
     if not eligible:
         raise RuntimeError("Nenhuma carta colecionável disponível para gerar deck aleatório")
 
-    pool: list[str] = []
-    for cid in eligible:
-        pool.extend([cid] * max(1, int(card_max_copies(cid) or 1)))
+    # Modo aleatório usa singleton: no máximo 1 cópia de cada carta.
+    unique_pool = list(dict.fromkeys(eligible))
+    rng.shuffle(unique_pool)
+    if len(unique_pool) >= size:
+        return unique_pool[:size]
 
-    if len(pool) >= size:
-        rng.shuffle(pool)
-        return pool[:size]
-
-    # Fallback defensivo caso o JSON tenha poucas cartas.
-    return [rng.choice(eligible) for _ in range(size)]
+    # Fallback defensivo caso o JSON tenha menos cartas colecionáveis que o tamanho do deck.
+    # Só neste caso inevitável repetimos.
+    deck = list(unique_pool)
+    while len(deck) < size:
+        deck.append(rng.choice(unique_pool))
+    return deck
 
 
 @dataclass
