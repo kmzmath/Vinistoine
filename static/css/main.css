@@ -1,0 +1,2020 @@
+/* ============================
+   Card Game — visual escuro/dramático
+   Tipografia + atmosfera
+   ============================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #0c0a08;
+  --bg-2: #161310;
+  --panel: #1d1814;
+  --panel-2: #2a2218;
+  --line: #3a2f22;
+  --gold: #d4a64a;
+  --gold-bright: #f5c969;
+  --gold-dim: #8a6a2a;
+  --ink: #e9e0cc;
+  --ink-dim: #a89e88;
+  --ink-faint: #6e6450;
+  --crimson: #b53e2c;
+  --crimson-bright: #e85a3f;
+  --emerald: #4a8f6a;
+  --azure: #4a7fa8;
+  --shadow: 0 8px 24px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5);
+  --glow-gold: 0 0 12px rgba(212,166,74,0.45);
+  --glow-red:  0 0 12px rgba(232, 90, 63,0.55);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 16px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 20% -10%, rgba(212,166,74,0.06), transparent 50%),
+    radial-gradient(ellipse at 80% 110%, rgba(181,62,44,0.08), transparent 50%),
+    var(--bg);
+}
+
+/* textura sutil de "papel envelhecido" */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 5px);
+  z-index: 0;
+}
+
+h1, h2, h3, .title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+}
+
+h1 { font-size: 2.4rem; }
+h2 { font-size: 1.6rem; }
+
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-bright); }
+
+/* ============= Botões ============= */
+.btn {
+  display: inline-block;
+  padding: 0.6em 1.2em;
+  font-family: 'Cinzel', serif;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  background: linear-gradient(180deg, #2c2418, #1a140d);
+  color: var(--gold-bright);
+  border: 1px solid var(--gold-dim);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.5);
+}
+.btn:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  box-shadow: var(--glow-gold), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn.primary {
+  background: linear-gradient(180deg, #6a3a1a, #3a1d08);
+  border-color: var(--crimson);
+  color: #ffe0bc;
+}
+.btn.primary:hover {
+  box-shadow: var(--glow-red), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.btn.danger {
+  background: linear-gradient(180deg, #4a1a1a, #2a0a0a);
+  border-color: var(--crimson);
+  color: var(--crimson-bright);
+}
+.btn.small {
+  padding: 0.35em 0.8em;
+  font-size: 0.75rem;
+}
+
+input, select, textarea {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 0.5em 0.7em;
+  font-family: 'EB Garamond', serif;
+  font-size: 1rem;
+  border-radius: 2px;
+  outline: none;
+}
+input:focus { border-color: var(--gold); }
+
+/* ============= Layout helpers ============= */
+.container {
+  position: relative; z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 1.5rem;
+  border-radius: 3px;
+  box-shadow: var(--shadow);
+}
+.row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.sep { height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); margin: 1.5rem 0; }
+.muted { color: var(--ink-dim); }
+.faint { color: var(--ink-faint); font-size: 0.85rem; }
+
+/* ============= Login ============= */
+.login-wrap {
+  display: flex; min-height: 100vh; align-items: center; justify-content: center;
+  position: relative; z-index: 1;
+}
+.login-card {
+  width: 100%; max-width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  padding: 3rem 2.5rem;
+  position: relative;
+}
+.login-card::before, .login-card::after {
+  content: "";
+  position: absolute;
+  width: 30px; height: 30px;
+  border: 1px solid var(--gold);
+}
+.login-card::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.login-card::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+.login-card h1 { text-align: center; margin: 0 0 0.5rem; }
+.login-card .subtitle {
+  text-align: center; font-style: italic;
+  color: var(--ink-dim); margin-bottom: 2rem;
+  letter-spacing: 0.05em;
+}
+.login-card form { display: flex; flex-direction: column; gap: 0.8rem; }
+.login-card .tabs { display: flex; gap: 0; margin-bottom: 1.2rem; }
+.login-card .tab {
+  flex: 1; padding: 0.5em; text-align: center;
+  font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer; color: var(--ink-dim); text-transform: uppercase;
+}
+.login-card .tab.active {
+  color: var(--gold-bright);
+  border-bottom-color: var(--gold);
+}
+
+/* ============= Topbar ============= */
+.topbar {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+  position: relative; z-index: 2;
+}
+.topbar .logo {
+  font-family: 'Cinzel', serif; font-weight: 900;
+  font-size: 1.3rem;
+  letter-spacing: 0.2em;
+  color: var(--gold-bright);
+}
+.topbar .nav { display: flex; gap: 1.5rem; flex: 1; margin-left: 2rem; }
+.topbar .nav a {
+  font-family: 'Cinzel', serif; font-size: 0.85rem; letter-spacing: 0.15em;
+  color: var(--ink-dim); text-transform: uppercase;
+}
+.topbar .nav a.active, .topbar .nav a:hover { color: var(--gold-bright); }
+
+/* ============= Cartas (genérico) ============= */
+.card {
+  width: 180px; height: 260px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #2a2218 0%, #1a140e 100%);
+  border: 2px solid var(--gold-dim);
+  position: relative;
+  display: flex; flex-direction: column;
+  padding: 0.4rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+}
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--gold);
+  box-shadow: var(--glow-gold);
+}
+.card.minion::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(212,166,74,0.08), transparent 70%);
+  pointer-events: none;
+}
+.card.spell {
+  background: linear-gradient(180deg, #1a1828 0%, #0c0a18 100%);
+  border-color: #5a4a8a;
+}
+.card.spell:hover { box-shadow: 0 0 12px rgba(120,100,180,0.5); border-color: #8a72d4; }
+.card.spell::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(120,100,180,0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.card .cost {
+  position: absolute; top: 4px; left: 4px;
+  width: 32px; height: 32px;
+  background: radial-gradient(circle, #4a7fa8, #1a3a58);
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-weight: 900; color: white;
+  font-size: 1.1rem;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.card .name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--gold-bright); text-align: center;
+  margin-top: 36px;
+  padding: 0.2em 0.4em;
+  background: rgba(0,0,0,0.4);
+  border-radius: 2px;
+  line-height: 1.1;
+  min-height: 2.4em;
+  display: flex; align-items: center; justify-content: center;
+}
+.card .text {
+  flex: 1; padding: 0.4rem 0.3rem;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.75rem; font-style: italic;
+  color: var(--ink); line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  z-index: 1;
+}
+.card .footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.2rem 0.3rem;
+}
+.card .atk, .card .hp {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-weight: 900; font-size: 1rem;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.card .atk {
+  background: radial-gradient(circle, #d44, #720);
+  border: 2px solid var(--gold);
+}
+.card .hp {
+  background: radial-gradient(circle, #4c4, #062);
+  border: 2px solid var(--gold);
+}
+.card .tags {
+  position: absolute; bottom: 38px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 2px; flex-wrap: wrap;
+  padding: 0 4px;
+}
+.card .tag {
+  font-family: 'Cinzel', serif;
+  font-size: 0.55rem; padding: 1px 4px;
+  background: rgba(0,0,0,0.5); border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  letter-spacing: 0.05em;
+}
+.card.unimplemented {
+  outline: 2px dashed var(--crimson);
+}
+
+/* ====== CARTA FULL-ART ======
+   Quando a imagem da carta já é o "full Hearthstone" (com custo, atk, hp,
+   nome e texto pintados na própria arte), renderizamos só a imagem
+   preenchendo todo o retângulo. Os overlays internos ficam ocultos.
+*/
+.card.full-art {
+  /* Limpa background-image herdado do .card base (que é gradiente). 
+     A imagem real vem via style.backgroundImage do JS. */
+  background-color: #0c0806;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 2px solid var(--gold-dim);
+  overflow: hidden;
+  padding: 0;
+}
+.card.full-art:hover {
+  border-color: var(--gold);
+  box-shadow: var(--glow-gold);
+}
+/* Esconde TODOS os filhos diretos (overlays de cost/name/text/atk/hp) */
+.card.full-art > * { display: none !important; }
+/* CRÍTICO: anula os ::after de .minion e .spell que cobririam a imagem
+   com gradientes radiais. Sem isso, a imagem fica obscurecida. */
+.card.full-art.minion::after,
+.card.full-art.spell::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+.card.full-art.selected {
+  outline: 3px solid var(--crimson-bright);
+  filter: brightness(0.7);
+}
+
+/* Overlays de valores atuais para cartas full-art na mão.
+   Os valores usam os próprios ícones (mana/ataque/vida) como fundo,
+   alinhados diretamente sobre os ícones originais impressos na arte. */
+.card.full-art > .hand-stat-overlay {
+  display: block !important;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.card.full-art .hand-cost,
+.card.full-art .hand-atk,
+.card.full-art .hand-hp {
+  display: flex !important;
+  position: absolute;
+  align-items: center;
+  justify-content: center;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #fff;
+  text-align: center;
+  text-shadow:
+    0 1px 0 #000,
+    0 2px 0 rgba(0,0,0,0.9),
+    0 0 4px rgba(0,0,0,0.95);
+  -webkit-text-stroke: 2.6px #111;
+  paint-order: stroke fill;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.card.full-art .hand-cost {
+    left: 0%;
+    top: 2%;
+    width: 25%;
+    height: 16.8%;
+    padding-top: 1%;
+    background-image: url(/static/ui/mana.webp);
+    font-size: 1.55rem;
+}
+.card.full-art .hand-atk {
+    left: -5%;
+    bottom: 0%;
+    width: 31%;
+    height: 24%;
+    padding-top: 6%;
+    padding-left: 4%;
+    background-image: url(/static/ui/attack.webp);
+    font-size: 1.35rem;
+}
+.card.full-art .hand-hp {
+    right: -3.5%;
+    bottom: -0.5%;
+    width: 25%;
+    height: 23%;
+    padding-top: 4.5%;
+    padding-left: 2%;
+    background-image: url(/static/ui/health.webp);
+    font-size: 1.35rem;
+}
+.card.full-art .hand-cost.modified,
+.card.full-art .hand-atk.modified,
+.card.full-art .hand-hp.modified {
+  color: #ffe9a8;
+  text-shadow:
+    0 1px 0 #000,
+    0 2px 0 rgba(0,0,0,0.95),
+    0 0 6px rgba(17,17,17,0.95),
+    0 0 10px rgba(245, 201, 105, 0.45);
+}
+.hand-row .card.full-art .hand-cost { font-size: 1.42rem; }
+.hand-row .card.full-art .hand-atk,
+.hand-row .card.full-art .hand-hp { font-size: 1.25rem; }
+.mulligan-cards .card.full-art .hand-cost { font-size: 1.72rem; }
+.mulligan-cards .card.full-art .hand-atk,
+.mulligan-cards .card.full-art .hand-hp { font-size: 1.5rem; }
+.card.full-art .hand-modified-dot {
+  display: block !important;
+  position: absolute;
+  right: 8.2%;
+  top: 9.6%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(245, 201, 105, 0.95);
+}
+.hand-row .card.full-art .hand-modified-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.card.full-art.discarded,
+.card.discarded {
+  filter: brightness(0.35) saturate(0.5);
+  opacity: 0.7;
+}
+
+/* DeckBuilder específico */
+.deckbuilder { display: grid; grid-template-columns: 1fr 360px; gap: 2rem; }
+@media (max-width: 900px) { .deckbuilder { grid-template-columns: 1fr; } }
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.8rem;
+}
+.card-grid .card { width: 100%; height: 260px; }
+
+.deck-side {
+  position: sticky; top: 1rem;
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 1.2rem; max-height: calc(100vh - 2rem);
+  display: flex; flex-direction: column;
+}
+.deck-list {
+  flex: 1; overflow-y: auto; margin: 0.5rem 0;
+}
+.deck-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.3em 0.4em; border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.deck-row:hover { background: rgba(212,166,74,0.06); }
+.deck-row .cost-badge {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: radial-gradient(circle, #4a7fa8, #1a3a58);
+  border: 1px solid var(--gold-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel'; font-weight: 700; font-size: 0.8rem;
+  color: white; flex-shrink: 0;
+}
+.deck-row .nm { flex: 1; }
+.deck-row .qty { color: var(--gold); font-family: 'JetBrains Mono'; }
+
+.filters {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.filter-chip {
+  padding: 0.3em 0.7em;
+  font-family: 'Cinzel'; font-size: 0.75rem; letter-spacing: 0.08em;
+  border: 1px solid var(--line);
+  background: transparent; color: var(--ink-dim);
+  cursor: pointer;
+}
+.filter-chip.active { color: var(--gold-bright); border-color: var(--gold); }
+
+/* ============= Game ============= */
+/* ============================================================
+   TABULEIRO ESTILO HEARTHSTONE
+   ============================================================
+   Estrutura visual:
+   - Fundo: tábuas de madeira escura (com listras horizontais azuis na lateral)
+   - Mesa: arena central de pedra/pergaminho com bordas douradas
+   - Molduras de herói: arcos góticos com retrato + medalha de vida
+   - Decks: pilhas de pergaminho à direita, com contador
+   - Botão Encerrar Turno: medalhão circular grande à direita do meio
+
+   Tudo desenhado em CSS (gradientes, clip-path, box-shadow). Sem dependência
+   de imagens externas além das fotos das cartas.
+*/
+
+.board-wrap {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  /* Fundo de tábuas de madeira escura */
+  background:
+    /* listras azuis nas laterais (decoração) */
+    linear-gradient(90deg,
+      #2c4866 0,
+      #2c4866 40px,
+      #0c0a08 41px,
+      #0c0a08 calc(100% - 41px),
+      #2c4866 calc(100% - 40px),
+      #2c4866 100%
+    ),
+    /* tábuas horizontais da madeira */
+    repeating-linear-gradient(
+      0deg,
+      #3a2418 0,
+      #3a2418 2px,
+      #4a2e1c 3px,
+      #4a2e1c 30px,
+      #321e12 31px,
+      #321e12 32px
+    );
+  background-blend-mode: multiply;
+  background-color: #2a1810;
+}
+
+/* === ARENA: a "mesa" central onde o jogo acontece === */
+.arena-layout {
+  position: relative;
+  width: calc(100vw - 110px);
+  height: 100vh;
+  margin: 0 auto;
+  background:
+    radial-gradient(ellipse 75% 80% at 50% 50%,
+      #ead7a8 0%,
+      #d2bc8a 35%,
+      #b39568 70%,
+      #806132 100%
+    );
+  border: 14px solid;
+  border-image: linear-gradient(
+    180deg,
+    #c8b88a 0%,
+    #8a7050 50%,
+    #5a4530 100%
+  ) 1;
+  box-shadow:
+    inset 0 0 80px rgba(80, 50, 20, 0.55),
+    inset 0 8px 20px rgba(60, 35, 15, 0.4),
+    0 0 40px rgba(0, 0, 0, 0.7);
+}
+
+.arena-center {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* padding direito maior pra dar espaço ao botão (~100px) e decks (~80px) */
+  padding: 4% 230px 5% 5%;
+  box-sizing: border-box;
+}
+
+/* === DECKS NA LATERAL DIREITA DA MESA === */
+.deck-sidebar {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+  z-index: 10;
+}
+.deck-pile {
+  position: relative;
+  width: 80px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.deck-stack {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.deck-back {
+  position: absolute;
+  width: 64px;
+  height: 92px;
+  border-radius: 5px;
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(212,166,74,0.4) 8%,
+      transparent 9%),
+    radial-gradient(circle at 30% 30%, rgba(255, 220, 150, 0.2), transparent 50%),
+    linear-gradient(135deg, #5a3a22, #2a1812 50%, #1a0c08);
+  border: 2px solid #8a6a30;
+  box-shadow:
+    1px 2px 4px rgba(0,0,0,0.6),
+    inset 0 0 8px rgba(255, 200, 130, 0.15);
+}
+.deck-back:nth-child(1) { top: 0; left: 0; transform: rotate(-2deg); }
+.deck-back:nth-child(2) { top: 2px; left: 4px; transform: rotate(0deg); }
+.deck-back:nth-child(3) { top: 4px; left: 8px; transform: rotate(2deg); }
+.deck-back:nth-child(4) { top: 6px; left: 12px; transform: rotate(3deg); }
+
+.deck-count {
+  position: relative;
+  z-index: 5;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 1.4rem;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #5a4a2a, #2a1808);
+  border: 3px solid #d4a64a;
+  border-radius: 50%;
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  text-shadow:
+    0 2px 4px rgba(0,0,0,0.9),
+    0 0 8px rgba(0,0,0,0.7);
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.8),
+    inset 0 0 8px rgba(0,0,0,0.5),
+    inset 0 0 0 2px rgba(255, 220, 150, 0.3);
+  margin-left: 6px;
+}
+.deck-label {
+  position: absolute;
+  bottom: -16px; left: 50%; transform: translateX(-50%);
+  font-family: 'Cinzel'; font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: #2a1808;
+  white-space: nowrap;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* === ZONAS: mão do oponente (cards-back) e do jogador === */
+.zone {
+  display: flex; justify-content: center; align-items: center;
+  padding: 4px 2rem;
+  position: relative;
+}
+.zone-opp-hand {
+  min-height: 60px;
+}
+.zone-my-hand {
+  min-height: 180px;
+  padding: 0.4rem 2rem;
+}
+
+/* === STRIP do jogador: nome à esquerda, herói no centro, mana à direita === */
+.player-strip {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.4rem 1.5rem;
+  position: relative;
+}
+.player-strip .left-info {
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: 0.3rem;
+}
+.player-strip .right-info {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 0.3rem;
+}
+.player-name {
+  font-family: 'Cinzel'; font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: #2a1808;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(255, 230, 180, 0.4);
+}
+
+/* === LINHA DIVISÓRIA do meio do tabuleiro === */
+.field-divider {
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(120, 80, 40, 0.4) 15%,
+    rgba(120, 80, 40, 0.7) 50%,
+    rgba(120, 80, 40, 0.4) 85%,
+    transparent);
+  margin: 0.4rem 8%;
+  box-shadow: 0 0 6px rgba(120, 80, 40, 0.3);
+}
+
+/* === HERÓI: moldura em arco gótico estilo Hearthstone === */
+.hero {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+  position: relative;
+  padding: 0.2rem;
+}
+.hero .portrait-wrap {
+  position: relative;
+  width: 110px; height: 130px;
+}
+.hero .portrait {
+  width: 100px; height: 120px;
+  position: absolute;
+  left: 5px; top: 5px;
+  /* Arco gótico: topo arredondado, base reta */
+  border-radius: 50px 50px 4px 4px;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255,210,140,0.5), transparent 50%),
+    linear-gradient(180deg, #5a3a22, #1a0c08);
+  background-size: cover;
+  background-position: center 20%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel'; font-size: 2.4rem; font-weight: 900;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.85);
+  box-shadow: inset 0 -10px 20px rgba(0,0,0,0.7);
+  z-index: 1;
+}
+/* Moldura dourada em volta do retrato — pseudo-elemento mais largo */
+.hero .portrait-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 55px 55px 6px 6px;
+  background:
+    /* Borda externa em "metal velho" */
+    linear-gradient(180deg, #f5c969, #b88d35 30%, #8a5e1c 60%, #5a3e10);
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.75),
+    inset 0 0 0 2px rgba(60, 35, 10, 0.6);
+  z-index: 0;
+}
+/* Detalhes ornamentais nas laterais (ferraduras douradas) */
+.hero .portrait-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 55px 55px 6px 6px;
+  pointer-events: none;
+  /* Faixa de brilho no topo do arco */
+  background:
+    radial-gradient(ellipse 60% 30% at 50% 12%,
+      rgba(255, 230, 160, 0.4), transparent 70%);
+  z-index: 2;
+}
+.hero.active .portrait-wrap::before {
+  background:
+    linear-gradient(180deg, #ffe070, #d4a64a 30%, #aa7a18 60%, #6a4e10);
+  box-shadow:
+    0 0 18px rgba(245, 201, 105, 0.7),
+    0 4px 14px rgba(0,0,0,0.75),
+    inset 0 0 0 2px rgba(60, 35, 10, 0.6);
+}
+.hero:hover .portrait-wrap { transform: scale(1.04); transition: transform 0.2s; }
+.hero.target-hover .portrait-wrap::before {
+  background:
+    linear-gradient(180deg, #ff7762, #d4533a 30%, #8a2818 60%, #4a1408);
+  box-shadow:
+    0 0 22px rgba(232, 90, 63, 0.85),
+    0 4px 14px rgba(0,0,0,0.75);
+}
+/* HP em moeda na base central do retrato (estilo Hearthstone) */
+.hero .hp-badge {
+  position: absolute;
+  left: 50%; bottom: -8px; transform: translateX(-50%);
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff7762, #b53e2c 60%, #4a0e08);
+  border: 3px solid #d4a64a;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 1.15rem;
+  color: white;
+  text-shadow: 0 2px 3px rgba(0,0,0,0.9);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.7);
+  z-index: 4;
+}
+.hero .armor-badge {
+  position: absolute; right: -8px; top: 4px;
+  width: 30px; height: 30px;
+  background: radial-gradient(circle at 35% 30%, #aac8e6, #4a7fa8 60%, #1a3a58);
+  clip-path: polygon(50% 0, 100% 30%, 100% 70%, 50% 100%, 0% 70%, 0% 30%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 0.8rem;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+  z-index: 4;
+}
+.hero .nm {
+  font-family: 'Cinzel'; font-size: 0.78rem; letter-spacing: 0.18em;
+  color: #2a1808;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-top: 0.6rem;
+}
+
+/* Mana — pequenos cristais */
+.mana-display {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  max-width: 140px;
+}
+.mana-crystal {
+  width: 22px; height: 26px;
+  background: radial-gradient(ellipse at 50% 30%, #6cf, #18a, #024);
+  clip-path: polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%);
+  position: relative;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+}
+.mana-crystal.spent {
+  background: radial-gradient(ellipse at 50% 30%, #444, #222, #000);
+  opacity: 0.5;
+}
+.mana-crystal.locked {
+  background: radial-gradient(ellipse at 50% 30%, #555, #2a2a2a);
+  opacity: 0.3;
+}
+.mana-text {
+  font-family: 'Cinzel'; font-weight: 900;
+  color: #1a3a58; font-size: 1.1rem; letter-spacing: 0.12em;
+  text-align: right;
+  text-shadow:
+    0 1px 2px rgba(255, 240, 200, 0.6),
+    0 0 4px rgba(255, 255, 255, 0.4);
+}
+
+.deck-info {
+  font-family: 'JetBrains Mono'; color: var(--ink-dim); font-size: 0.78rem;
+  display: flex; gap: 1rem;
+}
+.deck-info span { color: var(--gold-bright); }
+
+/* ===== CAMPO DE BATALHA ===== */
+.battlefield {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  gap: 0;
+  padding: 0.4rem 1rem;
+  position: relative;
+}
+.row-board {
+  display: flex; gap: 0.5rem; align-items: center;
+  justify-content: center; flex-wrap: nowrap;
+  min-height: 160px;
+  padding: 0.8rem 0.4rem;
+  position: relative;
+}
+/* Áreas vagamente "carved" no pergaminho */
+.row-board.opp::before,
+.row-board.you::before {
+  content: "";
+  position: absolute;
+  inset: 8% 6%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.row-board.opp::before {
+  background:
+    radial-gradient(ellipse at center,
+      rgba(150, 50, 30, 0.06) 0%,
+      transparent 70%);
+}
+.row-board.you::before {
+  background:
+    radial-gradient(ellipse at center,
+      rgba(212, 166, 74, 0.10) 0%,
+      transparent 70%);
+}
+
+/* ============ MINION REDONDO (estilo Hearthstone) ============ */
+.minion {
+  width: 110px; height: 144px;
+  padding-top: 14px;
+  box-sizing: border-box;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center;
+  transition: transform 0.18s ease;
+}
+.minion:hover { transform: translateY(-4px); }
+
+/* Anel/foto do lacaio */
+.minion .portrait-ring {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255,210,140,0.35), transparent 55%),
+    radial-gradient(circle, #4a3a26, #1a0e08);
+  border: 4px solid var(--gold-dim);
+  background-size: cover;
+  background-position: center 22%;
+  position: relative;
+  box-shadow:
+    inset 0 -6px 10px rgba(0,0,0,0.5),
+    0 3px 8px rgba(0,0,0,0.6);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2;
+}
+.minion .portrait-ring.has-image {
+  background-size: 200% auto;
+  background-position: center 12%;
+}
+.minion .portrait-ring .initial {
+  font-family: 'Cinzel'; font-weight: 900; font-size: 2rem;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* === NAMEPLATE NO TOPO === */
+.minion .nameplate {
+  position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  background: linear-gradient(180deg, #2a1810, #1a0c08);
+  border: 1px solid var(--gold-dim);
+  padding: 1px 8px;
+  font-family: 'Cinzel'; font-size: 0.62rem; font-weight: 700;
+  color: var(--gold-bright);
+  letter-spacing: 0.04em;
+  white-space: nowrap; max-width: 124px;
+  overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.85);
+  z-index: 7;
+  border-radius: 2px;
+}
+.minion .nameplate.long      { font-size: 0.55rem; letter-spacing: 0.02em; padding: 1px 6px; }
+.minion .nameplate.very-long { font-size: 0.5rem;  letter-spacing: 0;       padding: 1px 5px; max-width: 132px; }
+.minion .nameplate.huge      { font-size: 0.44rem; letter-spacing: -0.02em; padding: 1px 4px; max-width: 138px; }
+
+/* Atk e HP em moedas — embaixo do lacaio (espaço livre agora que nome subiu) */
+.minion .atk-badge,
+.minion .hp-badge {
+  position: absolute;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 1.1rem;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+  border: 2px solid var(--gold);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.7);
+  z-index: 5;
+  transition: transform 0.2s, color 0.2s;
+}
+.minion .atk-badge {
+  left: 4px; bottom: 0;
+  background: radial-gradient(circle at 35% 30%, #ff7762, #b53e2c 60%, #4a0e08);
+}
+.minion .hp-badge {
+  right: 4px; bottom: 0;
+  background: radial-gradient(circle at 35% 30%, #7fd49a, #4a8f6a 60%, #0e3a22);
+}
+.minion .hp-badge.damaged { color: #ffaaaa; }
+.minion .hp-badge.buffed { color: #b6ffb6; }
+.minion .atk-badge.buffed { color: #fff7c8; }
+
+/* === Indicadores de keyword (anéis e ícones) === */
+/* === PROVOCAR: escudo grande envolvendo o lacaio === */
+.minion.taunt .portrait-ring {
+  border-color: #c8b888;
+  border-width: 4px;
+}
+/* Camada extra: anel decorativo dourado-marrom mais largo simulando o escudo
+   medieval do Hearthstone (com pontos cardeais marcados como ornamentos). */
+.minion.taunt .taunt-shield {
+  position: absolute;
+  top: 2px; left: 50%; transform: translateX(-50%);
+  width: 116px; height: 116px;
+  pointer-events: none;
+  z-index: 1;
+}
+.minion.taunt .taunt-shield svg {
+  width: 100%; height: 100%;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+}
+/* Pulse sutil pra chamar atenção sem cansar */
+.minion.taunt .taunt-shield {
+  animation: tauntBreathe 4s ease-in-out infinite;
+}
+@keyframes tauntBreathe {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.15); }
+}
+
+/* === ESCUDO DIVINO: bolha dourada translúcida envolvendo o lacaio === */
+.minion.divine-shield .portrait-ring {
+  border-color: #ffd860;
+}
+.minion.divine-shield .divine-bubble {
+  position: absolute;
+  top: 6px; left: 50%; transform: translateX(-50%);
+  width: 108px; height: 108px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 6;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,200,0.55), rgba(255,220,90,0.18) 35%, transparent 65%),
+    radial-gradient(circle, transparent 60%, rgba(255,210,100,0.35) 72%, rgba(255,180,40,0.55) 86%, transparent 100%);
+  border: 2px solid rgba(255,225,140,0.7);
+  box-shadow: 0 0 18px rgba(255,210,100,0.7);
+  animation: divineBubble 3s ease-in-out infinite;
+}
+.minion.divine-shield .divine-bubble::before {
+  content: "";
+  position: absolute;
+  top: 12%; left: 22%;
+  width: 30%; height: 25%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255,255,255,0.85), transparent 70%);
+  filter: blur(1px);
+}
+@keyframes divineBubble {
+  0%, 100% { box-shadow: 0 0 14px rgba(255,210,100,0.55), inset 0 0 12px rgba(255,240,180,0.4); transform: translateX(-50%) scale(1); }
+  50%      { box-shadow: 0 0 24px rgba(255,225,140,0.95), inset 0 0 18px rgba(255,250,200,0.6); transform: translateX(-50%) scale(1.04); }
+}
+
+/* === FURTIVIDADE: névoa cinza cobrindo o lacaio === */
+.minion.stealth .portrait-ring {
+  filter: brightness(0.5) saturate(0.4) blur(0.5px);
+  border-style: dashed;
+  border-color: #8a8478;
+}
+.minion.stealth .stealth-mist {
+  position: absolute;
+  top: 8px; left: 50%; transform: translateX(-50%);
+  width: 104px; height: 104px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 6;
+  background:
+    radial-gradient(circle at 25% 30%, rgba(120,120,140,0.5), transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(80,80,100,0.55), transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(100,100,120,0.5), transparent 55%),
+    radial-gradient(circle, rgba(40,40,50,0.35) 40%, rgba(20,20,30,0.6) 100%);
+  animation: mistDrift 7s ease-in-out infinite;
+}
+@keyframes mistDrift {
+  0%, 100% { background-position: 0% 0%, 0% 0%, 0% 0%, center; opacity: 0.85; }
+  50%      { background-position: 8% 4%, -6% 3%, 4% -5%, center;  opacity: 1; }
+}
+
+/* === CONGELAR: lacaio coberto de gelo azul === */
+.minion.frozen .portrait-ring {
+  filter: hue-rotate(180deg) brightness(0.7) saturate(0.6);
+  border-color: #aaddee;
+  box-shadow:
+    inset 0 0 18px rgba(160,210,255,0.7),
+    0 0 14px rgba(120,180,230,0.7);
+}
+.minion.frozen .freeze-ice {
+  position: absolute;
+  top: 4px; left: 50%; transform: translateX(-50%);
+  width: 112px; height: 112px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 6;
+  /* Mistura: cobertura gelada + cristais via SVG inline */
+  background:
+    radial-gradient(circle at 50% 30%, rgba(220,240,255,0.45), rgba(140,200,240,0.3) 50%, transparent 80%),
+    radial-gradient(circle, transparent 65%, rgba(180,220,255,0.5) 80%, rgba(110,170,220,0.6) 100%);
+  border: 2px solid rgba(200,230,255,0.85);
+  box-shadow:
+    inset 0 0 16px rgba(255,255,255,0.5),
+    0 0 14px rgba(160,210,255,0.7);
+}
+.minion.frozen .freeze-ice svg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0.85;
+}
+
+/* === FÚRIA DOS VENTOS: linhas de vento girando ao redor === */
+.minion.windfury .wind-around {
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 116px; height: 116px;
+  pointer-events: none;
+  z-index: 1;
+  animation: windSpin 3s linear infinite;
+}
+.minion.windfury .wind-around svg {
+  width: 100%; height: 100%;
+  opacity: 0.85;
+}
+@keyframes windSpin { to { transform: translateX(-50%) rotate(360deg); } }
+.minion.windfury .portrait-ring {
+  border-color: #aac8e6;
+}
+
+/* === PODE ATACAR: borda verde brilhante === */
+.minion.can-attack .portrait-ring {
+  border-color: #66ff7a;
+  box-shadow:
+    inset 0 -6px 10px rgba(0,0,0,0.4),
+    0 0 14px rgba(102,255,122,0.75),
+    0 0 24px rgba(102,255,122,0.35);
+  animation: readyPulse 1.6s ease-in-out infinite;
+}
+@keyframes readyPulse {
+  0%, 100% { box-shadow:
+    inset 0 -6px 10px rgba(0,0,0,0.4),
+    0 0 14px rgba(102,255,122,0.7),
+    0 0 24px rgba(102,255,122,0.3); }
+  50% { box-shadow:
+    inset 0 -6px 10px rgba(0,0,0,0.4),
+    0 0 22px rgba(102,255,122,1),
+    0 0 36px rgba(102,255,122,0.55); }
+}
+
+/* Hover de alvo */
+.minion.target-hover .portrait-ring,
+.minion.targeting-active .portrait-ring {
+  border-color: var(--crimson-bright);
+  box-shadow:
+    0 0 16px rgba(232,90,63,0.85),
+    0 0 28px rgba(232,90,63,0.5);
+}
+
+/* Selo de keyword CENTRAL — entre atk-badge e hp-badge, estilo Hearthstone.
+   Mostra 1 keyword principal (a mais "forte" disponível). */
+/* === SELO CENTRAL DE KEYWORD ===
+   Posicionado entre atk-badge e hp-badge (centro inferior, estilo Hearthstone).
+   Apenas UM selo por lacaio — escolhido por prioridade no JS.
+   Conteúdo: ícone SVG embutido (caveira para Deathrattle, raio para Passive).
+*/
+.minion .keyword-seal {
+  position: absolute;
+  left: 50%; bottom: 4px;
+  transform: translateX(-50%);
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #1a0e08;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.85);
+  z-index: 5;
+  pointer-events: none;
+}
+.minion .keyword-seal::before {
+  content: "";
+  width: 18px; height: 18px;
+  -webkit-mask-size: contain;
+          mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+          mask-position: center;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.85));
+}
+
+/* Ícone CAVEIRA com ossos cruzados (DEATHRATTLE) */
+.minion .keyword-seal[data-kw="DEATHRATTLE"] {
+  background: radial-gradient(circle at 35% 30%, #f0e6d2, #8a7a58 60%, #3a2e18);
+  border-color: #2a1808;
+}
+.minion .keyword-seal[data-kw="DEATHRATTLE"]::before {
+  /* Caveira frontal + dois ossos em X por trás */
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M2.5 14.5 L21.5 9.5 L21.5 11.2 L2.5 16.2 Z M2.5 9.5 L21.5 14.5 L21.5 16.2 L2.5 11.2 Z' fill='white'/><circle cx='5' cy='14.7' r='1.5' fill='white'/><circle cx='5' cy='11' r='1.5' fill='white'/><circle cx='19' cy='14.7' r='1.5' fill='white'/><circle cx='19' cy='11' r='1.5' fill='white'/><path d='M12 4 C8.5 4 6 6.5 6 10 C6 12.2 7 13.8 8.5 14.8 L8 17 H10 L10.5 16 C11 16.1 11.5 16.2 12 16.2 C12.5 16.2 13 16.1 13.5 16 L14 17 H16 L15.5 14.8 C17 13.8 18 12.2 18 10 C18 6.5 15.5 4 12 4 Z M9.5 9.5 A1.4 1.4 0 1 1 9.5 12.3 A1.4 1.4 0 1 1 9.5 9.5 Z M14.5 9.5 A1.4 1.4 0 1 1 14.5 12.3 A1.4 1.4 0 1 1 14.5 9.5 Z M11 13.4 H13 V14.6 H11 Z' fill='white'/></svg>");
+          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M2.5 14.5 L21.5 9.5 L21.5 11.2 L2.5 16.2 Z M2.5 9.5 L21.5 14.5 L21.5 16.2 L2.5 11.2 Z' fill='white'/><circle cx='5' cy='14.7' r='1.5' fill='white'/><circle cx='5' cy='11' r='1.5' fill='white'/><circle cx='19' cy='14.7' r='1.5' fill='white'/><circle cx='19' cy='11' r='1.5' fill='white'/><path d='M12 4 C8.5 4 6 6.5 6 10 C6 12.2 7 13.8 8.5 14.8 L8 17 H10 L10.5 16 C11 16.1 11.5 16.2 12 16.2 C12.5 16.2 13 16.1 13.5 16 L14 17 H16 L15.5 14.8 C17 13.8 18 12.2 18 10 C18 6.5 15.5 4 12 4 Z M9.5 9.5 A1.4 1.4 0 1 1 9.5 12.3 A1.4 1.4 0 1 1 9.5 9.5 Z M14.5 9.5 A1.4 1.4 0 1 1 14.5 12.3 A1.4 1.4 0 1 1 14.5 9.5 Z M11 13.4 H13 V14.6 H11 Z' fill='white'/></svg>");
+  background: #f5ecd6;
+}
+
+/* Ícone RAIO (PASSIVE / AURA / efeito contínuo) */
+.minion .keyword-seal[data-kw="PASSIVE"] {
+  background: radial-gradient(circle at 35% 30%, #ffe070, #aa7a18 60%, #4a3408);
+  border-color: #2a1808;
+  animation: passivePulse 2s ease-in-out infinite;
+}
+.minion .keyword-seal[data-kw="PASSIVE"]::before {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M14 2 L4 13 H10 L8 22 L20 9 H13 L14 2 Z' fill='white'/></svg>");
+          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M14 2 L4 13 H10 L8 22 L20 9 H13 L14 2 Z' fill='white'/></svg>");
+  background: #fff8d0;
+}
+@keyframes passivePulse {
+  0%, 100% { box-shadow: 0 2px 4px rgba(0,0,0,0.85), 0 0 6px rgba(255,224,112,0.55); }
+  50%      { box-shadow: 0 2px 4px rgba(0,0,0,0.85), 0 0 14px rgba(255,224,112,0.95); }
+}
+
+/* === Animação zZz para summoning sickness (lacaio recém-chegado) === */
+.minion.sick .zzz-anim {
+  position: absolute;
+  top: -10px; right: 4px;
+  pointer-events: none;
+  z-index: 6;
+  width: 32px; height: 30px;
+}
+.minion.sick .zzz-anim .z {
+  position: absolute;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  color: #b0d4ff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(160,200,255,0.6);
+  opacity: 0;
+}
+.minion.sick .zzz-anim .z1 {
+  font-size: 0.85rem;
+  left: 0; top: 14px;
+  animation: zzzFloat 2.4s ease-in-out infinite;
+  animation-delay: 0s;
+}
+.minion.sick .zzz-anim .z2 {
+  font-size: 1.05rem;
+  left: 8px; top: 4px;
+  animation: zzzFloat 2.4s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+.minion.sick .zzz-anim .z3 {
+  font-size: 1.3rem;
+  left: 16px; top: -8px;
+  animation: zzzFloat 2.4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+@keyframes zzzFloat {
+  0%   { opacity: 0; transform: translate(0, 0) rotate(-12deg) scale(0.8); }
+  20%  { opacity: 1; }
+  60%  { opacity: 1; transform: translate(8px, -16px) rotate(0deg) scale(1.1); }
+  100% { opacity: 0; transform: translate(16px, -28px) rotate(8deg) scale(1.3); }
+}
+
+/* Lacaio com summoning sickness fica levemente apagado para reforçar */
+.minion.sick .portrait-ring {
+  filter: brightness(0.78) saturate(0.85);
+}
+
+/* === SILENCIADO === Cobertura cinza com X grande sobre o lacaio */
+.minion.silenced .portrait-ring {
+  filter: grayscale(1) brightness(0.6);
+  border-style: dashed;
+  border-color: #6e6e6e;
+}
+.minion.silenced .silence-mark {
+  position: absolute;
+  top: 14px; left: 50%; transform: translateX(-50%);
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 6;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.minion.silenced .silence-mark::before,
+.minion.silenced .silence-mark::after {
+  content: "";
+  position: absolute;
+  width: 70px; height: 4px;
+  background: #aaa;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(0,0,0,0.7);
+}
+.minion.silenced .silence-mark::before { transform: rotate(45deg); }
+.minion.silenced .silence-mark::after  { transform: rotate(-45deg); }
+
+/* === ECO TEMPORÁRIO === Carta na mão que vai sumir no fim do turno */
+.card.echo-temporary {
+  border-color: #66e0c0 !important;
+  position: relative;
+  animation: echoPulse 2.4s ease-in-out infinite;
+}
+.card.echo-temporary::after {
+  content: "ECO";
+  position: absolute;
+  top: 6px; right: 8px;
+  font-family: 'Cinzel', serif; font-weight: 900; font-size: 0.65rem;
+  color: #66e0c0;
+  background: rgba(0,0,0,0.7);
+  padding: 2px 6px;
+  border: 1px solid #66e0c0;
+  border-radius: 3px;
+  letter-spacing: 0.15em;
+  z-index: 10;
+}
+@keyframes echoPulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(120,220,200,0.6), inset 0 0 12px rgba(120,220,200,0.25); }
+  50%      { box-shadow: 0 0 22px rgba(120,220,200,0.95), inset 0 0 18px rgba(120,220,200,0.4); }
+}
+
+/* === MODAL DE ESCOLHA (CHOOSE_ONE) === */
+.choose-one-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 200;
+  gap: 1.2rem;
+}
+.choose-one-overlay h2 {
+  font-family: 'Cinzel'; font-size: 1.3rem; letter-spacing: 0.18em;
+  color: var(--gold-bright);
+  margin: 0;
+  text-align: center;
+}
+.choose-one-overlay .subtitle {
+  font-family: 'EB Garamond', serif; font-style: italic;
+  color: var(--ink-dim);
+  margin: 0;
+  text-align: center;
+}
+.choose-options {
+  display: flex; gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+.choose-options button {
+  width: 220px;
+  min-height: 130px;
+  padding: 1.4rem;
+  background: linear-gradient(180deg, #2a2218, #1a140e);
+  border: 2px solid var(--gold-dim);
+  color: var(--ink);
+  font-family: 'EB Garamond', serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.6rem;
+  border-radius: 4px;
+}
+.choose-options button:hover {
+  border-color: var(--gold);
+  box-shadow: var(--glow-gold);
+  transform: translateY(-3px);
+}
+.choose-options button .opt-num {
+  font-family: 'Cinzel'; font-weight: 900; font-size: 1.4rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.15em;
+}
+.choose-options button .opt-text {
+  text-align: center;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+/* ============= ANIMAÇÃO DE COMPRA: carta voa do deck até a mão ============= */
+.draw-fly {
+  position: fixed;
+  width: 100px; height: 144px;
+  border-radius: 7px;
+  z-index: 90;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.5) rotate(-12deg);
+  opacity: 0;
+  transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              top  0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.4s ease-out;
+  box-shadow:
+    0 0 18px rgba(212,166,74,0.5),
+    0 8px 22px rgba(0,0,0,0.65);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #0c0806;
+  border: 2px solid var(--gold);
+  display: flex; flex-direction: column;
+  padding: 0.3rem;
+  overflow: hidden;
+}
+/* Face down: padrão de back */
+.draw-fly.face-down {
+  background:
+    radial-gradient(circle at 50% 50%, var(--gold-dim) 8%, transparent 9%),
+    radial-gradient(circle at 0% 0%, rgba(212,166,74,0.3), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(181,62,44,0.2), transparent 50%),
+    linear-gradient(135deg, #2a1812, #0c0806);
+}
+/* Face up sem imagem: fallback textual */
+.draw-fly.face-up {
+  background: linear-gradient(180deg, #2a2218 0%, #1a140e 100%);
+}
+.draw-fly.face-up.with-image {
+  /* background-image vem inline; fallback se quebrar */
+  background-color: #0c0806;
+}
+.draw-fly .fly-cost {
+  position: absolute; top: 4px; left: 4px;
+  width: 22px; height: 22px;
+  background: radial-gradient(circle, #4a7fa8, #1a3a58);
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 0.85rem;
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.85);
+}
+.draw-fly .fly-name {
+  margin: auto;
+  font-family: 'Cinzel'; font-size: 0.7rem;
+  color: var(--gold-bright);
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+  padding: 0 0.2rem;
+}
+.draw-fly .fly-stats {
+  display: flex; justify-content: space-between;
+  padding: 0.2rem;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 0.85rem;
+}
+.draw-fly .fly-stats span:first-child { color: #ff7762; }
+.draw-fly .fly-stats span:last-child { color: #7fd49a; }
+
+/* Estado inicial: pequeno, fora do destino */
+.draw-fly.start {
+  transform: translate(-50%, -50%) rotate(-22deg) scale(0.35);
+  opacity: 0;
+}
+/* Voo: cresce e se endireita */
+.draw-fly.flying {
+  transform: translate(-50%, -50%) rotate(0) scale(1);
+  opacity: 1;
+}
+/* Ao chegar: dissolve mantendo posição */
+.draw-fly.land {
+  transform: translate(-50%, -50%) rotate(4deg) scale(0.85);
+  opacity: 0;
+}
+
+/* ============= ANUNCIADOR DE CARTA JOGADA PELO ADVERSÁRIO ============= */
+/* Container fixo na ESQUERDA da tela, no meio verticalmente — não tampa o
+   tabuleiro central. */
+.opp-play-announce {
+  position: fixed;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 95;
+  pointer-events: none;
+}
+.opp-play-announce .card-anim {
+  width: 170px; height: 248px;
+  border-radius: 10px;
+  background-color: #0c0806;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 3px solid var(--gold);
+  box-shadow:
+    0 0 22px rgba(212,166,74,0.6),
+    0 0 50px rgba(0,0,0,0.85),
+    inset 0 0 18px rgba(0,0,0,0.5);
+  position: relative;
+  animation: announceCard 1s ease-out forwards;
+  display: flex; flex-direction: column;
+  padding: 0.5rem;
+}
+.opp-play-announce .card-anim.fallback {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,210,140,0.18), transparent 50%),
+    linear-gradient(180deg, #2a2218 0%, #1a140e 100%);
+}
+.opp-play-announce .card-anim .label {
+  position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+  font-family: 'Cinzel'; font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  color: var(--crimson-bright);
+  background: rgba(0,0,0,0.85);
+  padding: 3px 12px;
+  border: 1px solid var(--crimson);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.opp-play-announce .card-anim .name-fallback {
+  margin: auto;
+  font-family: 'Cinzel'; font-size: 1.05rem;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+  text-align: center; padding: 0 0.5rem;
+}
+.opp-play-announce .card-anim .text-fallback {
+  font-family: 'EB Garamond', serif; font-size: 0.78rem;
+  color: var(--ink); text-align: center;
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+@keyframes announceCard {
+  /* 0–15%: surge crescendo de fora da tela */
+  0%   { transform: translateX(-80px) scale(0.4) rotate(-12deg); opacity: 0; }
+  15%  { transform: translateX(0) scale(1.05) rotate(2deg); opacity: 1; }
+  /* 20–80%: estável */
+  20%  { transform: translateX(0) scale(1) rotate(0); }
+  80%  { transform: translateX(0) scale(1) rotate(0); opacity: 1; }
+  /* 80–100%: encolhe levemente e some */
+  100% { transform: translateX(0) scale(0.85) translateY(-20px); opacity: 0; }
+}
+
+/* opponent: NÃO espelhar (lacaio redondo é simétrico no eixo, fica natural).
+   Mantemos só uma diferença visual: anel mais avermelhado. */
+.minion.opponent .portrait-ring {
+  border-color: #8a4a3a;
+}
+.minion.opponent.can-attack .portrait-ring { border-color: #66ff7a; }
+.minion.opponent.taunt .portrait-ring { border-color: #d8d8d8; }
+.minion.opponent.divine-shield .portrait-ring { border-color: var(--gold-bright); }
+
+/* Tooltip de descrição da carta no hover do lacaio */
+.minion .tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  width: 220px;
+  background: rgba(20,15,10,0.97);
+  border: 1px solid var(--gold-dim);
+  padding: 0.5rem 0.6rem;
+  font-family: 'EB Garamond', serif; font-size: 0.78rem;
+  color: var(--ink); font-style: italic;
+  pointer-events: none;
+  opacity: 0; transition: opacity 0.15s;
+  z-index: 30;
+  text-align: center; line-height: 1.3;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+}
+.minion:hover .tooltip { opacity: 1; }
+
+/* Animações de combate e dano */
+.minion.attacking-up { animation: attackUp 0.45s ease-out; }
+.minion.attacking-down { animation: attackDown 0.45s ease-out; }
+.minion.attacking-left { animation: attackLeft 0.45s ease-out; }
+.minion.attacking-right { animation: attackRight 0.45s ease-out; }
+@keyframes attackUp {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-90px) scale(1.08); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes attackDown {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(90px) scale(1.08); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes attackLeft {
+  0% { transform: translateX(0); }
+  40% { transform: translateX(-50px) scale(1.05); }
+  100% { transform: translateX(0) scale(1); }
+}
+@keyframes attackRight {
+  0% { transform: translateX(0); }
+  40% { transform: translateX(50px) scale(1.05); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+.minion.taking-damage { animation: takeDmg 0.5s ease-out; }
+.hero.taking-damage   { animation: takeDmg 0.5s ease-out; }
+@keyframes takeDmg {
+  0% { transform: translate(0,0); filter: brightness(1); }
+  10% { transform: translate(-4px,-2px); filter: brightness(2) saturate(1.5); }
+  20% { transform: translate(4px,2px); }
+  30% { transform: translate(-3px,1px); }
+  40% { transform: translate(3px,-1px); }
+  60% { filter: brightness(0.5) hue-rotate(-20deg); }
+  100% { transform: translate(0,0); filter: brightness(1); }
+}
+
+.minion.dying { animation: dying 0.55s ease-in forwards; }
+@keyframes dying {
+  0% { transform: scale(1) rotate(0); opacity: 1; }
+  100% { transform: scale(0.4) rotate(20deg); opacity: 0; filter: blur(4px); }
+}
+
+.minion.entering { animation: entering 0.4s ease-out; }
+@keyframes entering {
+  0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(0); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* Números flutuantes de dano/cura */
+.float-num {
+  position: absolute;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 1.6rem;
+  pointer-events: none;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.6);
+  z-index: 25;
+  animation: floatUp 1.1s ease-out forwards;
+  white-space: nowrap;
+}
+.float-num.damage { color: #ff5a3f; }
+.float-num.heal   { color: #6fff8c; }
+.float-num.shield { color: #ffd860; font-size: 1.1rem; }
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+  20%  { transform: translateY(-6px) scale(1.2); opacity: 1; }
+  60%  { transform: translateY(-30px) scale(1); opacity: 1; }
+  100% { transform: translateY(-60px) scale(0.9); opacity: 0; }
+}
+
+/* Faisca de impacto */
+.spark-burst {
+  position: absolute;
+  width: 70px; height: 70px;
+  pointer-events: none;
+  z-index: 22;
+  animation: sparkBurst 0.45s ease-out forwards;
+}
+.spark-burst::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(circle, rgba(255,200,80,0.95) 0%, rgba(255,80,40,0.5) 30%, transparent 65%);
+  border-radius: 50%;
+}
+@keyframes sparkBurst {
+  0%   { transform: scale(0.2); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* HAND (suas cartas) */
+.hand-row {
+  display: flex; justify-content: center;
+  padding: 0.4rem 1rem;
+  min-height: 200px;
+  position: relative;
+}
+.hand-row .card {
+  width: 130px; height: 200px;
+  margin-left: -22px;
+  transition: transform 0.22s, margin-top 0.22s, box-shadow 0.22s;
+}
+.hand-row .card:first-child { margin-left: 0; }
+.hand-row .card:hover {
+  transform: translateY(-40px) scale(1.18);
+  z-index: 10;
+}
+.hand-row .card.unaffordable { filter: grayscale(0.7) brightness(0.55); }
+.hand-row .card.unaffordable:hover { transform: translateY(-8px) scale(1.04); }
+.hand-row .card.playable { box-shadow: 0 -8px 14px rgba(102,255,122,0.25); }
+
+.opponent-hand {
+  display: flex; justify-content: center;
+  padding: 0.2rem;
+  min-height: 64px;
+}
+.card-back {
+  width: 60px; height: 84px;
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 50% 50%, var(--gold-dim) 8%, transparent 9%),
+    radial-gradient(circle at 0% 0%, rgba(212,166,74,0.2), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(181,62,44,0.15), transparent 50%),
+    linear-gradient(135deg, #2a1812, #0c0806);
+  border: 2px solid var(--gold-dim);
+  margin-left: -16px;
+  flex-shrink: 0;
+}
+.card-back:first-child { margin-left: 0; }
+
+/* === BOTÃO ENCERRAR TURNO: medalhão circular estilo Hearthstone === */
+.controls-bar {
+  position: absolute;
+  right: 100px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 20;
+}
+.end-turn-btn {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-family: 'Cinzel'; font-weight: 900;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.2;
+  color: #fff8d0;
+  text-shadow:
+    0 2px 4px rgba(0,0,0,0.9),
+    0 0 6px rgba(0,0,0,0.5);
+  /* Pedra/metal: anel externo dourado e centro avermelhado quando ativo */
+  background:
+    radial-gradient(circle at 35% 30%,
+      #f5c969 0%,
+      #b88d35 40%,
+      #6a4710 100%
+    );
+  border: 4px solid #5a3e10;
+  box-shadow:
+    0 6px 16px rgba(0,0,0,0.7),
+    inset 0 -8px 14px rgba(0,0,0,0.45),
+    inset 0 4px 10px rgba(255, 230, 160, 0.45),
+    inset 0 0 0 2px rgba(255, 230, 160, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.2s;
+  user-select: none;
+}
+/* Anel ornamental girando — 4 pontos cardeais */
+.end-turn-btn::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 0%, #d4a64a 6%, transparent 7%),
+    radial-gradient(circle at 100% 50%, #d4a64a 6%, transparent 7%),
+    radial-gradient(circle at 50% 100%, #d4a64a 6%, transparent 7%),
+    radial-gradient(circle at 0% 50%, #d4a64a 6%, transparent 7%);
+  pointer-events: none;
+  z-index: -1;
+}
+/* Quando é meu turno: pulsa em verde-dourado */
+.end-turn-btn.active {
+  background:
+    radial-gradient(circle at 35% 30%,
+      #ffe070 0%,
+      #d4a64a 40%,
+      #aa7a18 100%
+    );
+  animation: endTurnPulse 2.2s ease-in-out infinite;
+}
+@keyframes endTurnPulse {
+  0%, 100% {
+    box-shadow:
+      0 6px 16px rgba(0,0,0,0.7),
+      inset 0 -8px 14px rgba(0,0,0,0.45),
+      inset 0 4px 10px rgba(255, 230, 160, 0.45),
+      inset 0 0 0 2px rgba(255, 230, 160, 0.5),
+      0 0 18px rgba(255, 220, 130, 0.6);
+  }
+  50% {
+    box-shadow:
+      0 6px 16px rgba(0,0,0,0.7),
+      inset 0 -8px 14px rgba(0,0,0,0.45),
+      inset 0 4px 10px rgba(255, 230, 160, 0.5),
+      inset 0 0 0 2px rgba(255, 230, 160, 0.6),
+      0 0 30px rgba(255, 230, 130, 0.95);
+  }
+}
+.end-turn-btn:hover { transform: scale(1.06); }
+.end-turn-btn:active { transform: scale(0.96); }
+.end-turn-btn[disabled] {
+  filter: grayscale(0.7) brightness(0.6);
+  cursor: not-allowed;
+  animation: none;
+}
+.end-turn-btn[disabled]:hover { transform: none; }
+
+/* Quando é turno do oponente: ampulheta animada */
+.end-turn-btn.waiting {
+  background: radial-gradient(circle at 35% 30%, #6e5028, #3a2410);
+  cursor: not-allowed;
+}
+.end-turn-btn.waiting::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 35%, rgba(255,200,80,0.15) 50%, transparent 60%);
+  animation: waitingPulse 2s linear infinite;
+}
+@keyframes waitingPulse {
+  0%   { transform: scale(0.8); opacity: 0; }
+  50%  { opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.surrender-btn {
+  font-family: 'Cinzel'; font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  background: rgba(60, 20, 20, 0.85);
+  color: #c08070;
+  padding: 4px 10px;
+  border: 1px solid rgba(120, 40, 40, 0.6);
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.7);
+  transition: all 0.2s;
+}
+.surrender-btn:hover {
+  background: rgba(120, 40, 40, 0.85);
+  color: #ffaa90;
+}
+
+.turn-indicator {
+  text-align: center;
+  font-family: 'Cinzel'; letter-spacing: 0.25em;
+  padding: 0.2em 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.turn-indicator.your { color: #2a1808; text-shadow: 0 1px 2px rgba(255,230,160,0.4); }
+.turn-indicator.opp { color: rgba(60, 30, 20, 0.5); }
+
+/* Linha de targeting (seta de ataque) */
+.aim-line {
+  position: fixed;
+  pointer-events: none;
+  z-index: 60;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(255,80,60,0.95), rgba(255,200,80,0.7));
+  border-radius: 2px;
+  transform-origin: 0 50%;
+  box-shadow: 0 0 12px rgba(255,80,60,0.85);
+}
+.aim-line::after {
+  content: "";
+  position: absolute; right: -10px; top: 50%; transform: translateY(-50%);
+  border-left: 14px solid rgba(255,80,60,0.95);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+
+/* Cartas na mão com IMG ao topo */
+
+
+/* Mulligan */
+.mulligan-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 100;
+  gap: 1.5rem;
+}
+.mulligan-overlay h2 { margin: 0; }
+.mulligan-cards {
+  display: flex; gap: 1rem;
+  position: relative; min-height: 240px; align-items: center;
+}
+.mulligan-cards .card { width: 160px; height: 240px; transition: transform 0.4s; }
+.mulligan-cards .card.selected {
+  outline: 3px solid var(--crimson-bright);
+  filter: brightness(0.7);
+}
+
+/* Animação: carta selecionada VOA pra fora (em direção ao deck no canto superior direito) */
+.mulligan-cards .card.flying-out {
+  animation: cardFlyOut 0.55s ease-in forwards;
+  pointer-events: none;
+}
+@keyframes cardFlyOut {
+  0%   { transform: translate(0,0) rotate(0) scale(1); opacity: 1; }
+  100% { transform: translate(40vw, -45vh) rotate(120deg) scale(0.3); opacity: 0; }
+}
+
+/* Carta nova chega "do baralho" voando até a posição */
+.mulligan-cards .card.flying-in {
+  animation: cardFlyIn 0.55s ease-out backwards;
+}
+@keyframes cardFlyIn {
+  0%   { transform: translate(40vw, -45vh) rotate(-120deg) scale(0.3); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: translate(0,0) rotate(0) scale(1); opacity: 1; }
+}
+
+/* Estado pós-confirmação: cartas que vão ser DESCARTADAS aparecem com véu vermelho */
+.mulligan-overlay.confirmed .card.selected {
+  filter: brightness(0.4) saturate(0.4);
+  outline: 2px dashed var(--crimson);
+}
+.mulligan-overlay.confirmed .card:not(.selected) {
+  outline: 2px solid var(--emerald);
+  box-shadow: 0 0 12px rgba(74,143,106,0.4);
+}
+
+/* Painel "Aguardando" enquanto o oponente decide */
+.waiting-overlay {
+  display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+  padding: 1.5rem 2.5rem;
+  background: rgba(20, 16, 12, 0.9);
+  border: 1px solid var(--gold-dim);
+  margin-top: 0.5rem;
+  border-radius: 4px;
+}
+.waiting-overlay .pulse-dots {
+  display: flex; gap: 6px;
+}
+.waiting-overlay .pulse-dots span {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gold);
+  animation: dotPulse 1.4s infinite ease-in-out;
+}
+.waiting-overlay .pulse-dots span:nth-child(2) { animation-delay: 0.2s; }
+.waiting-overlay .pulse-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Toast / log */
+.log-overlay {
+  position: fixed;
+  left: 0.6rem; bottom: 0.6rem;
+  width: 240px;
+  max-height: 180px;
+  overflow: hidden;
+  background: rgba(20, 16, 12, 0.78);
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--ink-dim);
+  border-radius: 3px;
+  z-index: 8;
+  transition: max-height 0.25s ease, opacity 0.25s ease;
+  opacity: 0.55;
+}
+.log-overlay:hover {
+  opacity: 1;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.log-overlay .log-title {
+  font-family: 'Cinzel'; color: var(--gold);
+  font-size: 0.65rem; letter-spacing: 0.15em;
+  padding: 0 0 4px 0;
+  border-bottom: 1px dashed var(--line);
+  margin-bottom: 4px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.log-overlay .log-title .hint {
+  font-family: 'JetBrains Mono'; color: var(--ink-faint);
+  font-size: 0.55rem; letter-spacing: 0; font-weight: 400;
+}
+.log-entry { padding: 0.1em 0; border-bottom: 1px dashed rgba(255,255,255,0.04); }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  top: 30%;
+  padding: 0.6em 1.2em;
+  background: rgba(120, 30, 30, 0.95);
+  color: white;
+  font-family: 'Cinzel'; letter-spacing: 0.08em;
+  border: 1px solid var(--crimson);
+  z-index: 200;
+  pointer-events: none;
+  animation: toastFade 2.4s ease forwards;
+}
+@keyframes toastFade {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  10%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+/* Modal */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  padding: 2rem;
+  max-width: 480px;
+  width: 90%;
+}
+.modal h2 { margin-top: 0; }
+
+/* targeting line (visual feedback ao escolher alvo) */
+.targeting-overlay {
+  position: fixed; inset: 0;
+  background: rgba(180, 30, 30, 0.08);
+  pointer-events: none;
+  z-index: 40;
+  animation: pulse 1.4s infinite ease-in-out;
+}
+@keyframes pulse {
+  0%, 100% { background: rgba(180, 30, 30, 0.05); }
+  50% { background: rgba(180, 30, 30, 0.15); }
+}
+
+
+/* Botão de habilidade ativada em lacaios */
+.minion .ability-btn {
+  position: absolute;
+  right: -0.35rem;
+  top: -0.35rem;
+  z-index: 8;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  border: 2px solid var(--gold-bright);
+  background: radial-gradient(circle at 35% 30%, #513c83, #1c1134 70%);
+  color: #fff4c0;
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 8px rgba(245,201,105,0.4);
+  cursor: pointer;
+}
+
+.minion .ability-btn.ready {
+  filter: brightness(1.15);
+}
+
+.minion .ability-btn.disabled {
+  opacity: 0.45;
+  filter: grayscale(0.5);
+  cursor: not-allowed;
+}
+
+.minion .ability-btn:hover {
+  transform: scale(1.08);
+}

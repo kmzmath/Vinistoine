@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carta & Lâmina</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1>Carta &amp; Lâmina</h1>
+      <div class="subtitle">— um jogo entre amigos —</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="login">Entrar</div>
+        <div class="tab" data-tab="register">Criar conta</div>
+      </div>
+      <form id="login-form">
+        <input type="text" name="nickname" placeholder="Nickname" required maxlength="30" autocomplete="username" />
+        <input type="password" name="password" placeholder="Senha" required minlength="4" autocomplete="current-password" />
+        <button class="btn primary" type="submit">Entrar</button>
+        <div class="error muted" id="error"></div>
+      </form>
+    </div>
+  </div>
+  <script>
+    const form = document.getElementById("login-form");
+    const errBox = document.getElementById("error");
+    const tabs = document.querySelectorAll(".tab");
+    let mode = "login";
+    tabs.forEach(t => t.addEventListener("click", () => {
+      tabs.forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+      mode = t.dataset.tab;
+      form.querySelector("button").textContent = mode === "login" ? "Entrar" : "Criar Conta";
+    }));
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errBox.textContent = "";
+      const fd = new FormData(form);
+      const body = JSON.stringify({ nickname: fd.get("nickname"), password: fd.get("password") });
+      const url = mode === "login" ? "/api/login" : "/api/register";
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+      const data = await res.json();
+      if (!res.ok) {
+        errBox.textContent = data.detail || "Erro";
+        return;
+      }
+      localStorage.setItem("auth_token", data.token);
+      localStorage.setItem("nickname", data.nickname);
+      localStorage.setItem("user_id", data.user_id);
+      window.location.href = "/lobby";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Construtor de Decks — Carta &amp; Lâmina</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">Carta &amp; Lâmina</div>
+    <nav class="nav">
+      <a href="/lobby">Saguão</a>
+      <a href="/deckbuilder" class="active">Decks</a>
+    </nav>
+    <span class="muted" id="user-label"></span>
+    <button class="btn small" id="logout-btn">Sair</button>
+  </header>
+
+  <div class="container">
+    <div class="row" style="margin-bottom: 1rem;">
+      <h2 style="margin: 0;">Construtor de Decks</h2>
+      <span class="spacer"></span>
+      <input type="text" id="deck-name" placeholder="Nome do deck" maxlength="60" />
+      <button class="btn primary" id="save-btn">Salvar Deck</button>
+      <button class="btn small" id="new-btn">Novo</button>
+    </div>
+
+    <div class="panel" style="margin-bottom: 1rem;">
+      <h3 style="margin-top: 0;">Decks Salvos</h3>
+      <div id="saved-decks"></div>
+    </div>
+
+    <div class="deckbuilder">
+      <div>
+        <div class="filters" id="filters"></div>
+        <input type="text" id="search-input" placeholder="Buscar por nome ou texto..." style="width: 100%; margin-bottom: 0.8rem;" />
+        <div class="card-grid" id="card-grid"></div>
+      </div>
+
+      <div class="deck-side">
+        <div class="row">
+          <h3 style="margin: 0;">Deck Atual</h3>
+          <span class="spacer"></span>
+          <span id="deck-counter" style="font-family: 'Cinzel'; color: var(--gold);">0/30</span>
+        </div>
+        <div class="sep" style="margin: 0.5rem 0;"></div>
+        <div class="deck-list" id="deck-list"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const token = localStorage.getItem("auth_token");
+const nickname = localStorage.getItem("nickname");
+if (!token) window.location.href = "/";
+document.getElementById("user-label").textContent = nickname || "?";
+document.getElementById("logout-btn").onclick = () => { localStorage.clear(); window.location.href = "/"; };
+
+async function api(path, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), "X-Auth-Token": token, "Content-Type": "application/json" };
+  const r = await fetch(path, opts);
+  if (r.status === 401) { localStorage.clear(); window.location.href = "/"; return; }
+  return r;
+}
+
+let allCards = [];
+let cardImages = {};   // card_id -> url
+let currentDeck = []; // lista de card_ids
+let currentDeckId = null;
+let currentFilter = "ALL";
+let currentSearch = "";
+
+const TYPES = [
+  { id: "ALL", label: "Todas" },
+  { id: "MINION", label: "Lacaios" },
+  { id: "SPELL", label: "Feitiços" },
+  { id: "C0", label: "0" },
+  { id: "C1", label: "1" },
+  { id: "C2", label: "2" },
+  { id: "C3", label: "3" },
+  { id: "C4", label: "4" },
+  { id: "C5", label: "5" },
+  { id: "C6", label: "6" },
+  { id: "C7+", label: "7+" },
+];
+
+function renderFilters() {
+  const f = document.getElementById("filters");
+  f.innerHTML = "";
+  for (const t of TYPES) {
+    const btn = document.createElement("div");
+    btn.className = "filter-chip" + (currentFilter === t.id ? " active" : "");
+    btn.textContent = t.label;
+    btn.onclick = () => { currentFilter = t.id; renderFilters(); renderCardGrid(); };
+    f.appendChild(btn);
+  }
+}
+
+function passesFilter(c) {
+  if (currentFilter === "ALL") return true;
+  if (currentFilter === "MINION") return c.type === "MINION";
+  if (currentFilter === "SPELL") return c.type === "SPELL";
+  if (currentFilter.startsWith("C")) {
+    const n = currentFilter === "C7+" ? 7 : parseInt(currentFilter.slice(1));
+    if (currentFilter === "C7+") return (c.cost || 0) >= 7;
+    return (c.cost || 0) === n;
+  }
+  return true;
+}
+
+function passesSearch(c) {
+  if (!currentSearch) return true;
+  const s = currentSearch.toLowerCase();
+  return (c.name || "").toLowerCase().includes(s) || (c.text || "").toLowerCase().includes(s);
+}
+
+function cardElement(c, opts = {}) {
+  const div = document.createElement("div");
+  div.dataset.cardId = c.id;
+  const hasImg = !!cardImages[c.id];
+
+  // Carta full-art: a imagem da carta já é completa estilo Hearthstone
+  if (hasImg) {
+    div.className = "card full-art " + (c.type === "SPELL" ? "spell" : "minion");
+    div.style.backgroundImage = `url('${cardImages[c.id]}')`;
+    div.title = `${c.name}\n${c.text || ""}`;
+    return div;
+  }
+
+  // Fallback: layout textual
+  div.className = "card " + (c.type === "SPELL" ? "spell" : "minion");
+  div.innerHTML = `
+    <div class="cost">${c.cost ?? 0}</div>
+    <div class="name">${escapeHtml(c.name)}</div>
+    <div class="text">${escapeHtml(c.text || "")}</div>
+    <div class="tags">${(c.tags || []).slice(0, 4).map(t => `<span class="tag">${tagShort(t)}</span>`).join("")}</div>
+    ${c.type === "MINION" ? `<div class="footer"><div class="atk">${c.attack ?? 0}</div><div class="hp">${c.health ?? 0}</div></div>` : `<div class="footer" style="height:32px;"></div>`}
+  `;
+  return div;
+}
+
+const TAG_SHORT = {
+  TAUNT: "PROVOCAR", CHARGE: "INVESTIDA", RUSH: "AVANÇO",
+  DIVINE_SHIELD: "ESCUDO", LIFESTEAL: "VAMPIR.", POISONOUS: "VENENO",
+  STEALTH: "FURTIVO", WINDFURY: "FÚRIA", BATTLECRY: "GRITO",
+  DEATHRATTLE: "MORTE", CHOOSE_ONE: "ESCOLHA", COMBO: "COMBO",
+  ECHO: "ECO", FREEZE: "CONGELAR",
+};
+function tagShort(t) { return TAG_SHORT[t] || t.slice(0, 8); }
+
+function renderCardGrid() {
+  const grid = document.getElementById("card-grid");
+  grid.innerHTML = "";
+  const filtered = allCards.filter(c => passesFilter(c) && passesSearch(c));
+  filtered.sort((a, b) => (a.cost || 0) - (b.cost || 0) || (a.name || "").localeCompare(b.name || ""));
+  for (const c of filtered) {
+    const el = cardElement(c);
+    el.addEventListener("click", () => addToDeck(c.id));
+    grid.appendChild(el);
+  }
+}
+
+function addToDeck(cardId) {
+  if (currentDeck.length >= 30) { toast("Deck cheio (30 cartas)"); return; }
+  const count = currentDeck.filter(x => x === cardId).length;
+  if (count >= 2) { toast("Máximo 2 cópias de cada carta"); return; }
+  currentDeck.push(cardId);
+  renderDeck();
+}
+
+function removeFromDeck(cardId) {
+  const idx = currentDeck.lastIndexOf(cardId);
+  if (idx >= 0) currentDeck.splice(idx, 1);
+  renderDeck();
+}
+
+function renderDeck() {
+  document.getElementById("deck-counter").textContent = `${currentDeck.length}/30`;
+  const list = document.getElementById("deck-list");
+  list.innerHTML = "";
+  // agrupa
+  const counts = {};
+  for (const cid of currentDeck) counts[cid] = (counts[cid] || 0) + 1;
+  // ordena por custo
+  const entries = Object.entries(counts).map(([cid, q]) => {
+    const c = allCards.find(x => x.id === cid);
+    return { cid, qty: q, card: c };
+  }).filter(e => e.card);
+  entries.sort((a, b) => (a.card.cost || 0) - (b.card.cost || 0) || a.card.name.localeCompare(b.card.name));
+  for (const e of entries) {
+    const row = document.createElement("div");
+    row.className = "deck-row";
+    row.innerHTML = `
+      <div class="cost-badge">${e.card.cost ?? 0}</div>
+      <div class="nm">${escapeHtml(e.card.name)}</div>
+      <div class="qty">×${e.qty}</div>
+    `;
+    row.title = e.card.text || "";
+    row.onclick = () => removeFromDeck(e.cid);
+    list.appendChild(row);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
+document.getElementById("save-btn").onclick = async () => {
+  if (currentDeck.length !== 30) { toast(`Deck precisa de 30 cartas (tem ${currentDeck.length})`); return; }
+  const name = document.getElementById("deck-name").value.trim() || "Deck Sem Nome";
+  const r = await api("/api/decks", { method: "POST", body: JSON.stringify({ name, cards: currentDeck }) });
+  const data = await r.json();
+  if (!r.ok) { toast(data.detail || "Erro ao salvar"); return; }
+  toast("Deck salvo!");
+  loadSavedDecks();
+};
+
+document.getElementById("new-btn").onclick = () => {
+  currentDeck = [];
+  currentDeckId = null;
+  document.getElementById("deck-name").value = "";
+  renderDeck();
+};
+
+document.getElementById("search-input").addEventListener("input", (e) => {
+  currentSearch = e.target.value;
+  renderCardGrid();
+});
+
+async function loadSavedDecks() {
+  const r = await api("/api/decks");
+  const decks = await r.json();
+  const box = document.getElementById("saved-decks");
+  if (decks.length === 0) {
+    box.innerHTML = '<div class="faint">Nenhum deck salvo ainda.</div>';
+    return;
+  }
+  box.innerHTML = "";
+  for (const d of decks) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.padding = "0.4em 0";
+    row.style.borderBottom = "1px solid var(--line)";
+    row.innerHTML = `
+      <span style="font-family: 'Cinzel'; color: var(--gold-bright); flex: 1;">${escapeHtml(d.name)}</span>
+      <span class="muted">${d.cards.length} cartas</span>
+    `;
+    const editBtn = document.createElement("button");
+    editBtn.className = "btn small";
+    editBtn.textContent = "Editar";
+    editBtn.onclick = () => loadDeckIntoEditor(d);
+    row.appendChild(editBtn);
+    const delBtn = document.createElement("button");
+    delBtn.className = "btn small danger";
+    delBtn.textContent = "Excluir";
+    delBtn.onclick = async () => {
+      if (!confirm(`Excluir o deck "${d.name}"?`)) return;
+      await api(`/api/decks/${d.id}`, { method: "DELETE" });
+      loadSavedDecks();
+    };
+    row.appendChild(delBtn);
+    box.appendChild(row);
+  }
+}
+
+function loadDeckIntoEditor(d) {
+  currentDeck = [...d.cards];
+  currentDeckId = d.id;
+  document.getElementById("deck-name").value = d.name;
+  renderDeck();
+  window.scrollTo(0, 0);
+}
+
+async function init() {
+  const [cardsRes, imgsRes] = await Promise.all([
+    fetch("/api/cards"),
+    fetch("/api/card-images").catch(() => null),
+  ]);
+  allCards = await cardsRes.json();
+  if (imgsRes && imgsRes.ok) {
+    const data = await imgsRes.json();
+    cardImages = data.cards || {};
+  }
+  renderFilters();
+  renderCardGrid();
+  renderDeck();
+  await loadSavedDecks();
+}
+
+init();
+</script>
+</body>
+</html>

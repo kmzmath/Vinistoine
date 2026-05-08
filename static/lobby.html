@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saguão — Carta &amp; Lâmina</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">Carta &amp; Lâmina</div>
+    <nav class="nav">
+      <a href="/lobby" class="active">Saguão</a>
+      <a href="/deckbuilder">Decks</a>
+    </nav>
+    <span class="muted" id="user-label"></span>
+    <button class="btn small" id="logout-btn">Sair</button>
+  </header>
+
+  <div class="container">
+    <h2>Iniciar uma Partida</h2>
+    <div class="panel" style="margin-bottom: 1.5rem;">
+      <div class="row">
+        <label>Modo:</label>
+        <select id="mode-select">
+          <option value="constructed">Deck construído</option>
+          <option value="random">Decks aleatórios</option>
+        </select>
+        <label id="deck-label">Deck:</label>
+        <select id="deck-select"></select>
+        <button class="btn primary" id="create-match-btn">Criar Sala</button>
+        <span class="spacer"></span>
+        <input type="text" id="join-code" placeholder="Código da sala" style="width: 140px; text-transform:uppercase;" />
+        <button class="btn" id="join-match-btn">Entrar</button>
+      </div>
+      <div class="sep"></div>
+      <div class="muted" id="status"></div>
+    </div>
+
+    <h2>Salas Abertas</h2>
+    <div class="panel">
+      <div id="match-list"></div>
+      <div class="sep"></div>
+      <button class="btn small" id="refresh-btn">Atualizar</button>
+    </div>
+  </div>
+
+<script>
+const token = localStorage.getItem("auth_token");
+const nickname = localStorage.getItem("nickname");
+if (!token) window.location.href = "/";
+document.getElementById("user-label").textContent = nickname || "?";
+
+let savedDecks = [];
+
+document.getElementById("logout-btn").onclick = () => {
+  localStorage.clear();
+  window.location.href = "/";
+};
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function api(path, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), "X-Auth-Token": token, "Content-Type": "application/json" };
+  const r = await fetch(path, opts);
+  if (r.status === 401) { localStorage.clear(); window.location.href = "/"; return; }
+  return r;
+}
+
+async function loadDecks() {
+  const r = await api("/api/decks");
+  savedDecks = await r.json();
+  const sel = document.getElementById("deck-select");
+  sel.innerHTML = "";
+  if (savedDecks.length === 0) {
+    sel.innerHTML = '<option value="">— Nenhum deck salvo —</option>';
+  } else {
+    for (const d of savedDecks) {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = `${d.name} (${d.cards.length} cartas)`;
+      sel.appendChild(opt);
+    }
+  }
+  updateModeControls();
+}
+
+function currentMode() {
+  return document.getElementById("mode-select").value || "constructed";
+}
+
+function updateModeControls() {
+  const mode = currentMode();
+  const hasDeck = savedDecks.length > 0;
+  const deckSelect = document.getElementById("deck-select");
+  const deckLabel = document.getElementById("deck-label");
+  const createBtn = document.getElementById("create-match-btn");
+  const joinBtn = document.getElementById("join-match-btn");
+  const status = document.getElementById("status");
+
+  if (mode === "random") {
+    deckSelect.disabled = true;
+    deckLabel.style.opacity = "0.45";
+    createBtn.disabled = false;
+    joinBtn.disabled = false;
+    status.innerHTML = "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";
+    return;
+  }
+
+  deckSelect.disabled = false;
+  deckLabel.style.opacity = "1";
+  createBtn.disabled = !hasDeck;
+  joinBtn.disabled = !hasDeck;
+  if (!hasDeck) {
+    status.textContent = "Você precisa montar um deck para jogar no modo construído. ";
+    const a = document.createElement("a");
+    a.href = "/deckbuilder";
+    a.textContent = "Ir para o Deck Builder →";
+    status.appendChild(a);
+  } else {
+    status.textContent = "Modo Deck construído: escolha seu deck salvo para criar ou entrar em uma sala.";
+  }
+}
+
+
+async function loadMatches() {
+  const r = await api("/api/match/list");
+  const matches = await r.json();
+  const box = document.getElementById("match-list");
+  if (matches.length === 0) {
+    box.innerHTML = '<div class="faint">Nenhuma sala aberta. Crie a sua e compartilhe o código com um amigo.</div>';
+    return;
+  }
+  box.innerHTML = "";
+  for (const m of matches) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.padding = "0.5em 0";
+    row.style.borderBottom = "1px solid var(--line)";
+    row.innerHTML = `<span style="font-family: 'Cinzel'; color: var(--gold-bright);">${escapeHtml(m.host)}</span>
+                     <span class="muted" style="margin-left: 0.75rem;">${escapeHtml(m.mode_label || "Deck construído")}</span>
+                     <span class="spacer"></span>
+                     <span style="font-family: 'JetBrains Mono'">${escapeHtml(m.code)}</span>`;
+    box.appendChild(row);
+  }
+}
+
+document.getElementById("create-match-btn").onclick = async () => {
+  const mode = currentMode();
+  const deckId = parseInt(document.getElementById("deck-select").value);
+  const payload = { mode };
+  if (mode === "constructed") {
+    if (!deckId) return;
+    payload.deck_id = deckId;
+  }
+  const r = await api("/api/match/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const data = await r.json();
+  if (!r.ok) { alert(data.detail || "Erro"); return; }
+  localStorage.setItem("current_match", data.match_id);
+  localStorage.setItem("current_code", data.code);
+  alert(`Sala criada! Compartilhe este código com seu oponente: ${data.code}`);
+  window.location.href = `/play?match=${data.match_id}`;
+};
+
+document.getElementById("join-match-btn").onclick = async () => {
+  const code = document.getElementById("join-code").value.trim().toUpperCase();
+  const mode = currentMode();
+  const deckId = parseInt(document.getElementById("deck-select").value);
+  if (!code) return;
+  const payload = { code };
+  if (mode === "constructed" && deckId) {
+    payload.deck_id = deckId;
+  }
+  const r = await api("/api/match/join", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const data = await r.json();
+  if (!r.ok) { alert(data.detail || "Erro"); return; }
+  localStorage.setItem("current_match", data.match_id);
+  window.location.href = `/play?match=${data.match_id}`;
+};
+
+document.getElementById("refresh-btn").onclick = loadMatches;
+document.getElementById("mode-select").onchange = updateModeControls;
+
+loadDecks();
+loadMatches();
+setInterval(loadMatches, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+"""
+Estado do jogo: classes que representam o mundo do jogo em um momento específico.
+Isso é o "modelo" puro - sem lógica de regras complexa.
+"""
+from __future__ import annotations
+import random
+import uuid
+from dataclasses import dataclass, field
+from typing import Optional
+
+
+# ======================== CONSTANTES ========================
+STARTING_HEALTH = 30
+MAX_MANA = 10
+MAX_HAND_SIZE = 10
+MAX_BOARD_SIZE = 7
+DECK_SIZE = 30
+STARTING_HAND_FIRST = 3
+STARTING_HAND_SECOND = 4  # segundo jogador compra 1 a mais (fairness)
+FATIGUE_START = 1  # dano por fadiga começa em 1
+
+
+@dataclass
+class Minion:
+    """Lacaio em campo. Cada instância tem um id único pra referenciar via rede."""
+    instance_id: str
+    card_id: str
+    name: str
+    attack: int
+    health: int
+    max_health: int
+    tags: list[str] = field(default_factory=list)
+    tribes: list[str] = field(default_factory=list)
+    effects: list[dict] = field(default_factory=list)
+    # Estado durante o turno
+    attacks_this_turn: int = 0
+    summoning_sick: bool = True  # acabou de entrar em campo, não pode atacar
+    divine_shield: bool = False
+    frozen: bool = False
+    # Quando o lacaio é congelado, freeze_pending começa True. No primeiro
+    # end_turn do dono, vira False (significando "passou um turno congelado").
+    # No segundo end_turn (sem ter atacado), descongela completamente.
+    freeze_pending: bool = False
+    silenced: bool = False
+    cant_attack: bool = False
+    immune: bool = False
+    # SKIP_NEXT_ATTACK: perde a próxima oportunidade de ataque; limpo no fim
+    # do turno do dono, depois que essa oportunidade foi consumida.
+    skip_next_attack: bool = False
+    # Habilidades ativadas / ações especiais de "durante seu turno".
+    # Por padrão: uma ativação por turno enquanto o lacaio estiver em campo.
+    activated_abilities_this_turn: int = 0
+    owner: int = 0  # 0 ou 1
+
+    def has_tag(self, tag: str) -> bool:
+        if self.silenced:
+            return False
+        return tag in self.tags
+
+    def has_tribe(self, tribe: str) -> bool:
+        """Considera tribos derivadas. Toda FRUTA é também COMIDA."""
+        if tribe in self.tribes:
+            return True
+        # FRUTA implica COMIDA
+        if tribe == "COMIDA" and "FRUTA" in self.tribes:
+            return True
+        return False
+
+    def can_attack(self) -> bool:
+        if self.cant_attack or self.frozen or self.skip_next_attack or self.attack <= 0:
+            return False
+        if self.has_tag("ATTACK_LOCKED") or self.has_tag("CANT_ATTACK_ONLY_FRIENDLY"):
+            return False
+        max_attacks = 2 if self.has_tag("WINDFURY") else 1
+        if self.attacks_this_turn >= max_attacks:
+            return False
+        # Charge / Rush podem atacar no turno em que entram
+        if self.summoning_sick:
+            return self.has_tag("CHARGE") or self.has_tag("RUSH")
+        return True
+
+    def can_attack_hero(self) -> bool:
+        """RUSH não pode atacar herói no turno que entra. CHARGE pode."""
+        if not self.can_attack():
+            return False
+        if self.summoning_sick and self.has_tag("RUSH") and not self.has_tag("CHARGE"):
+            return False
+        return True
+
+    def to_dict(self) -> dict:
+        return {
+            "instance_id": self.instance_id,
+            "card_id": self.card_id,
+            "name": self.name,
+            "attack": self.attack,
+            "health": self.health,
+            "max_health": self.max_health,
+            "tags": list(self.tags),
+            "tribes": list(self.tribes),
+            "summoning_sick": self.summoning_sick,
+            "attacks_this_turn": self.attacks_this_turn,
+            "divine_shield": self.divine_shield,
+            "frozen": self.frozen,
+            "silenced": self.silenced,
+            "immune": self.immune,
+            "cant_attack": self.cant_attack,
+            "skip_next_attack": self.skip_next_attack,
+            "activated_abilities_this_turn": self.activated_abilities_this_turn,
+            "owner": self.owner,
+            # Calculados — cliente usa pra decidir quando mostrar borda verde "pode atacar"
+            "can_attack": self.can_attack(),
+            "can_attack_hero": self.can_attack_hero(),
+            # Lista de keywords ativas (visíveis), considerando silence
+            "keywords": [] if self.silenced else [
+                t for t in self.tags
+                if t in ("TAUNT", "DIVINE_SHIELD", "STEALTH", "LIFESTEAL",
+                         "POISONOUS", "WINDFURY", "CHARGE", "RUSH",
+                         "DEATHRATTLE", "BATTLECRY", "RESISTANT",
+                         "SPELL_TARGET_IMMUNITY", "ENEMY_SPELL_TARGET_IMMUNITY",
+                         "FRIENDLY_SPELL_TARGET_ONLY")
+            ],
+        }
+
+
+@dataclass
+class CardInHand:
+    """Carta na mão. Carrega card_id pra resolver o template."""
+    instance_id: str
+    card_id: str
+    cost_override: Optional[int] = None  # se não None, usa este custo
+    # Modificador acumulado de custo (REDUCE_COST: -X, INCREASE_COST: +X). 
+    # Aplicado em cima do custo base ao calcular o custo efetivo.
+    cost_modifier: int = 0
+    # Modificadores de stats (BUFF_DRAWN_CARD, ADD_MODIFIED_COPY_TO_HAND, etc).
+    # São aplicados quando a carta é jogada como lacaio.
+    stat_modifier: dict = field(default_factory=dict)  # {"attack": +X, "health": +X}
+    extra_tags: list[str] = field(default_factory=list)
+    # ECHO: cartas que foram jogadas com ECHO retornam à mão como temporárias.
+    # No fim do turno são descartadas.
+    echo_temporary: bool = False
+
+    def effective_cost(self) -> int:
+        """Custo final considerando override e modificador."""
+        from .cards import get_card
+        base = self.cost_override if self.cost_override is not None else (get_card(self.card_id) or {}).get("cost", 0)
+        return max(0, base + self.cost_modifier)
+
+    def to_dict(self, hidden: bool = False) -> dict:
+        if hidden:
+            return {"instance_id": self.instance_id, "hidden": True}
+        from .cards import get_card
+        card = get_card(self.card_id) or {}
+        base_attack = card.get("attack")
+        base_health = card.get("health")
+        effective_attack = None
+        effective_health = None
+        stats_modified = False
+        if card.get("type") == "MINION":
+            effective_attack = (base_attack if base_attack is not None else 0) + self.stat_modifier.get("attack", 0)
+            effective_health = (base_health if base_health is not None else 1) + self.stat_modifier.get("health", 0)
+            stats_modified = bool(self.stat_modifier)
+        eff_cost = self.effective_cost()
+        base_cost = self.cost_override if self.cost_override is not None else card.get("cost", 0)
+        return {
+            "instance_id": self.instance_id,
+            "card_id": self.card_id,
+            "cost_override": self.cost_override,
+            "cost_modifier": self.cost_modifier,
+            "effective_cost": eff_cost,
+            "effective_attack": effective_attack,
+            "effective_health": effective_health,
+            "stats_modified": stats_modified,
+            "cost_modified": eff_cost != base_cost,
+            "echo_temporary": self.echo_temporary,
+            "hidden": False,
+        }
+
+
+@dataclass
+class PlayerState:
+    player_id: int  # 0 ou 1
+    name: str
+    hero_health: int = STARTING_HEALTH
+    hero_armor: int = 0
+    hero_max_health: int = STARTING_HEALTH
+    mana: int = 0
+    max_mana: int = 0
+    deck: list[str] = field(default_factory=list)  # lista de card_ids
+    hand: list[CardInHand] = field(default_factory=list)
+    board: list[Minion] = field(default_factory=list)
+    fatigue_counter: int = 0
+    hero_attack: int = 0
+    hero_attacks_this_turn: int = 0
+    hero_immune: bool = False
+    # Bloqueia targeting de feitiços inimigos contra o herói. Usado por
+    # efeitos temporários como Zé Droguinha.
+    hero_spell_target_immune: bool = False
+    hero_frozen: bool = False
+    hero_freeze_pending: bool = False
+    # Cartas jogadas neste turno. Usado por Combo e pela UI.
+    cards_played_this_turn: int = 0
+
+    def is_dead(self) -> bool:
+        return self.hero_health <= 0
+
+    def to_dict(self, hide_hand: bool = False) -> dict:
+        return {
+            "player_id": self.player_id,
+            "name": self.name,
+            "hero_health": self.hero_health,
+            "hero_armor": self.hero_armor,
+            "hero_max_health": self.hero_max_health,
+            "mana": self.mana,
+            "max_mana": self.max_mana,
+            "hand": [c.to_dict(hidden=hide_hand) for c in self.hand],
+            "hand_size": len(self.hand),
+            "deck_size": len(self.deck),
+            "board": [m.to_dict() for m in self.board],
+            "hero_attack": self.hero_attack,
+            "hero_immune": self.hero_immune,
+            "hero_spell_target_immune": self.hero_spell_target_immune,
+            "hero_frozen": self.hero_frozen,
+            "cards_played_this_turn": self.cards_played_this_turn,
+        }
+
+
+@dataclass
+class GameState:
+    """Estado completo do jogo."""
+    game_id: str
+    players: list[PlayerState]
+    current_player: int = 0
+    turn_number: int = 0
+    rng: random.Random = field(default_factory=random.Random)
+    # log de eventos (visível pra ambos)
+    event_log: list[dict] = field(default_factory=list)
+    winner: Optional[int] = None  # None=jogando, -1=empate, 0/1=vencedor
+    phase: str = "WAITING"  # WAITING, MULLIGAN, PLAYING, ENDED
+    # mulligan: cada jogador retorna cartas que não quer
+    mulligan_done: list[bool] = field(default_factory=lambda: [False, False])
+    # Modificadores diferidos: ativados quando algum evento futuro acontece.
+    # Exemplo: REDUCE_COST com mode=NEXT_CARD_PLAYED_THIS_TURN. Cada modifier
+    # tem campos {kind, owner, amount, valid_filter, expires_on, etc}.
+    pending_modifiers: list[dict] = field(default_factory=list)
+    # Cemitério: lacaios que morreram, em ordem cronológica. Usado por
+    # RESURRECT_LAST_FRIENDLY_DEAD_MINION e similares.
+    graveyard: list[dict] = field(default_factory=list)
+    # Escolha pendente de jogador. Quando não for None, a engine bloqueia
+    # novas ações normais até o dono responder via WebSocket/API. Usado para
+    # decisões que não devem ser resolvidas por heurística no servidor.
+    pending_choice: Optional[dict] = None
+    # Em testes unitários a engine pode continuar usando fallbacks/heurísticas.
+    # O servidor habilita escolhas manuais nas partidas reais.
+    manual_choices: bool = False
+    # Cartas compradas pela última ação de compra. Usado por efeitos encadeados
+    # como Investidor, Foco e Guilãozinho. Armazenamos instance_ids da mão.
+    last_drawn_card_instance_ids: list[str] = field(default_factory=list)
+    # Lacaios ressurrectíveis recentemente (por turno) — limpado entre turnos
+    # se o usuário decidir.
+    last_target_id: Optional[str] = None  # último alvo de uma ação (pra ADJACENT_TO_PREVIOUS_TARGET)
+
+    def opponent_of(self, player_id: int) -> PlayerState:
+        return self.players[1 - player_id]
+
+    def player_at(self, player_id: int) -> PlayerState:
+        return self.players[player_id]
+
+    def all_minions(self) -> list[Minion]:
+        return [m for p in self.players for m in p.board]
+
+    def find_minion(self, instance_id: str) -> Optional[tuple[Minion, int]]:
+        """Retorna (minion, player_id) ou None."""
+        for p in self.players:
+            for m in p.board:
+                if m.instance_id == instance_id:
+                    return (m, p.player_id)
+        return None
+
+    def _pending_choice_for_viewer(self, viewer_id: int) -> Optional[dict]:
+        """Retorna a escolha pendente visível ao viewer.
+
+        O dono da escolha recebe detalhes completos. O oponente recebe apenas
+        um marcador de espera, para não vazar informação privada do deck/mão.
+        """
+        if not self.pending_choice:
+            return None
+        owner = self.pending_choice.get("owner")
+        if owner == viewer_id:
+            # Não exponha detalhes internos de continuação/resolução para o cliente.
+            return {k: v for k, v in self.pending_choice.items() if k not in ("resume",)}
+        return {
+            "choice_id": self.pending_choice.get("choice_id"),
+            "owner": owner,
+            "kind": self.pending_choice.get("kind"),
+            "waiting": True,
+        }
+
+    def to_dict(self, viewer_id: int) -> dict:
+        """Serializa o estado pra um jogador específico, escondendo info privada."""
+        return {
+            "game_id": self.game_id,
+            "current_player": self.current_player,
+            "turn_number": self.turn_number,
+            "winner": self.winner,
+            "phase": self.phase,
+            "viewer_id": viewer_id,
+            "mulligan_done": list(self.mulligan_done),
+            "pending_choice": self._pending_choice_for_viewer(viewer_id),
+            "you": self.players[viewer_id].to_dict(hide_hand=False),
+            "opponent": self.players[1 - viewer_id].to_dict(hide_hand=True),
+            "log": self.event_log[-50:],  # últimos 50 eventos
+        }
+
+    def log_event(self, event: dict):
+        self.event_log.append(event)
+
+
+def gen_id(prefix: str = "") -> str:
+    return f"{prefix}{uuid.uuid4().hex[:8]}"

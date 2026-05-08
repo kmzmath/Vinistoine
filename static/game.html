@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Partida — Carta &amp; Lâmina</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+  <div class="board-wrap" id="board-root"></div>
+  <div class="log-overlay" id="log-overlay"></div>
+  <div id="overlay-root"></div>
+  <div id="fx-layer" style="position: fixed; inset: 0; pointer-events: none; z-index: 20;"></div>
+
+<script>
+const token = localStorage.getItem("auth_token");
+if (!token) window.location.href = "/";
+const params = new URLSearchParams(window.location.search);
+const matchId = params.get("match");
+if (!matchId) window.location.href = "/lobby";
+
+let allCards = {};
+let cardImages = {};   // card_id -> url
+let heroImages = {};   // username (lower) -> url
+let state = null;
+let prevState = null;  // pra detectar deltas e animar
+let myPid = null;
+let ws = null;
+let mulliganSelections = new Set();
+let targetingMode = null;  // { hand_id, card }
+let attackingMode = null;  // { attacker_id }
+let abilityMode = null;    // { minion_id, effect, ability_index }
+let mousePos = { x: 0, y: 0 };
+
+// =========== Network ===========
+async function loadCards() {
+  const r = await fetch("/api/cards");
+  const list = await r.json();
+  for (const c of list) allCards[c.id] = c;
+}
+async function loadCardImages() {
+  try {
+    const r = await fetch("/api/card-images");
+    const data = await r.json();
+    cardImages = data.cards || {};
+    heroImages = data.heroes || {};
+  } catch (e) {
+    console.warn("Não foi possível carregar lista de imagens:", e);
+  }
+}
+
+function connect() {
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${window.location.host}/ws/match/${matchId}?token=${encodeURIComponent(token)}`);
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === "joined") {
+      myPid = msg.your_player_id;
+      // Se o primeiro state chegou ANTES de joined, agora finalmente sabemos
+      // quem somos — re-renderiza com a perspectiva certa
+      if (state) render();
+    }
+    if (msg.type === "state") {
+      const newState = msg.state;
+      // Detecta mudanças e dispara animações ANTES de atualizar prevState.
+      // Importante: só anima se já sabemos quem somos (myPid !== null).
+      // Caso contrário guardamos como "primeira foto" do estado, sem animação.
+      if (state && myPid !== null) animateFromDelta(state, newState);
+      prevState = state;
+      state = newState;
+      if (newState.phase === "MULLIGAN") onMulliganStateUpdate(newState);
+      // Só renderiza se já temos myPid (caso contrário esperamos joined chegar)
+      if (myPid !== null) render();
+    }
+    if (msg.type === "error") toast(msg.message || msg.msg);
+    if (msg.type === "opponent_disconnected") toast("Oponente desconectou");
+  };
+  ws.onclose = () => toast("Conexão encerrada");
+}
+
+function send(action, data = {}) {
+  ws.send(JSON.stringify({ action, ...data }));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
+// =========== Render principal ===========
+function render() {
+  const root = document.getElementById("board-root");
+  if (!state) {
+    root.innerHTML = `<div style="margin: auto; text-align: center;">
+      <h2>Aguardando oponente entrar...</h2>
+      <div class="faint">Compartilhe o código da sala para que um amigo entre.</div>
+    </div>`;
+    return;
+  }
+  if (state.phase === "MULLIGAN") { renderMulligan(); return; }
+  renderBoard();
+  renderLog();
+  renderPendingChoiceOverlay();
+  if (state.phase === "ENDED") renderEndOverlay();
+}
+
+// Snapshot da mão usado pra detectar cartas novas chegando após confirmar
+let mulliganOldHandIds = null;  // Set de instance_ids antes do swap
+let mulliganConfirming = false;
+
+function renderMulligan() {
+  const root = document.getElementById("board-root");
+  root.innerHTML = "";
+
+  const myDone = (state.mulligan_done || [])[myPid] === true;
+  const oppDone = (state.mulligan_done || [])[1 - myPid] === true;
+
+  const overlay = document.createElement("div");
+  overlay.className = "mulligan-overlay" + (myDone ? " confirmed" : "");
+
+  let headerHtml;
+  if (myDone) {
+    headerHtml = `
+      <h2 style="color: var(--gold-bright);">Cartas confirmadas</h2>
+      <div class="muted">Aguarde o oponente terminar a troca de cartas.</div>`;
+  } else {
+    headerHtml = `
+      <h2>Selecione cartas para descartar</h2>
+      <div class="muted">Clique nas cartas que NÃO quer manter. Elas voltam ao baralho e você compra novas.</div>`;
+  }
+
+  overlay.innerHTML = `
+    ${headerHtml}
+    <div class="mulligan-cards" id="mull-cards"></div>
+    <div id="mull-action"></div>
+  `;
+  root.appendChild(overlay);
+
+  const handBox = document.getElementById("mull-cards");
+  for (const c of state.you.hand) {
+    const card = allCards[c.card_id];
+    if (!card) continue;
+    const el = renderCard(card, c.effective_cost ?? c.cost_override, {
+      echo_temporary: c.echo_temporary,
+      effective_attack: c.effective_attack,
+      effective_health: c.effective_health,
+      stats_modified: c.stats_modified,
+      cost_modified: c.cost_modified,
+      show_hand_stats: true,
+    });
+    if (mulliganSelections.has(c.instance_id)) el.classList.add("selected");
+    if (!myDone) {
+      el.onclick = () => {
+        if (mulliganSelections.has(c.instance_id)) mulliganSelections.delete(c.instance_id);
+        else mulliganSelections.add(c.instance_id);
+        renderMulligan();
+      };
+    }
+    // Se essa carta é "nova" (chegou após o swap), entra com animação
+    if (myDone && mulliganOldHandIds && !mulliganOldHandIds.has(c.instance_id)) {
+      el.classList.add("flying-in");
+    }
+    handBox.appendChild(el);
+  }
+
+  const actionBox = document.getElementById("mull-action");
+  if (myDone) {
+    if (!oppDone) {
+      actionBox.innerHTML = `
+        <div class="waiting-overlay">
+          <div style="font-family: 'Cinzel'; letter-spacing: 0.18em; color: var(--gold-bright);">
+            Aguardando oponente
+          </div>
+          <div class="pulse-dots"><span></span><span></span><span></span></div>
+        </div>
+      `;
+    } else {
+      actionBox.innerHTML = `<div class="muted" style="font-family: Cinzel; letter-spacing: 0.15em;">Iniciando partida...</div>`;
+    }
+  } else {
+    actionBox.innerHTML = `<button class="btn primary" id="mull-confirm">Confirmar</button>`;
+    document.getElementById("mull-confirm").onclick = () => doConfirmMulligan();
+  }
+}
+
+function doConfirmMulligan() {
+  // Snapshot dos IDs ATUAIS — depois do swap, os instance_ids das cartas
+  // trocadas mudam, então comparar com este set identifica as "novas".
+  mulliganOldHandIds = new Set(state.you.hand.map(c => c.instance_id));
+  mulliganConfirming = true;
+
+  const btn = document.getElementById("mull-confirm");
+  if (btn) btn.disabled = true;
+
+  const swapList = Array.from(mulliganSelections);
+  const cardsEls = Array.from(document.querySelectorAll("#mull-cards .card"));
+  const handIds = state.you.hand.map(c => c.instance_id);
+
+  // Anima as cartas selecionadas saindo (voando pro baralho)
+  cardsEls.forEach((el, i) => {
+    if (swapList.includes(handIds[i])) el.classList.add("flying-out");
+  });
+
+  // Aguarda a animação de saída antes de mandar pro servidor
+  setTimeout(() => {
+    send("mulligan", { swap: swapList });
+    mulliganSelections = new Set();
+  }, 580);
+}
+
+// Chamada quando recebemos novo estado durante MULLIGAN —
+// usa mulliganOldHandIds pra que renderMulligan saiba quais cartas
+// devem entrar com animação flying-in
+function onMulliganStateUpdate(newState) {
+  // se temos snapshot de IDs antigos, mantemos pra renderMulligan usar
+  // até a próxima atualização (quando ambos confirmam, sai do MULLIGAN)
+  if (mulliganConfirming) {
+    mulliganConfirming = false;
+    // mulliganOldHandIds permanece — renderMulligan vai detectar cartas novas
+  }
+}
+
+// ====== CARD na mão ======
+function renderCard(card, costOverride, opts = {}) {
+  const div = document.createElement("div");
+  const hasImg = !!cardImages[card.id];
+  const isEchoTemp = !!opts.echo_temporary;
+
+  // Se a carta tem imagem, renderizamos full-art. Na mão, colocamos
+  // pequenos overlays com os valores atuais para cartas modificadas/temporárias.
+  if (hasImg) {
+    div.className = "card full-art " + (card.type === "SPELL" ? "spell" : "minion");
+    div.style.backgroundImage = `url('${cardImages[card.id]}')`;
+    if (isEchoTemp) div.classList.add("echo-temporary");
+
+    if (opts.show_hand_stats) {
+      const cost = costOverride ?? card.cost ?? 0;
+      const atk = opts.effective_attack ?? card.attack;
+      const hp = opts.effective_health ?? card.health;
+      const costModified = !!(opts.cost_modified || isEchoTemp || cost !== (card.cost ?? 0));
+      const atkModified = !!(opts.stats_modified || (card.type === "MINION" && atk !== (card.attack ?? 0)));
+      const hpModified = !!(opts.stats_modified || (card.type === "MINION" && hp !== (card.health ?? 0)));
+      const modified = !!(costModified || atkModified || hpModified || isEchoTemp);
+      const overlay = document.createElement("div");
+      overlay.className = "hand-stat-overlay";
+      overlay.innerHTML = `
+        <div class="hand-cost${costModified ? " modified" : ""}">${cost}</div>
+        ${card.type === "MINION" ? `<div class="hand-atk${atkModified ? " modified" : ""}">${atk ?? 0}</div><div class="hand-hp${hpModified ? " modified" : ""}">${hp ?? 0}</div>` : ""}
+        ${modified ? `<div class="hand-modified-dot" title="Carta modificada"></div>` : ""}
+      `;
+      div.appendChild(overlay);
+    }
+    return div;
+  }
+
+  // Fallback: renderiza com overlays como antes
+  div.className = "card " + (card.type === "SPELL" ? "spell" : "minion");
+  if (isEchoTemp) div.classList.add("echo-temporary");
+  const cost = costOverride ?? card.cost ?? 0;
+  div.innerHTML = `
+    <div class="cost">${cost}</div>
+    <div class="name">${escapeHtml(card.name)}</div>
+    <div class="text">${escapeHtml(card.text || "")}</div>
+    <div class="tags">${(card.tags || []).slice(0, 3).map(t => `<span class="tag">${tagShort(t)}</span>`).join("")}</div>
+    ${card.type === "MINION"
+      ? `<div class="footer"><div class="atk">${card.attack ?? 0}</div><div class="hp">${card.health ?? 0}</div></div>`
+      : `<div class="footer" style="height:32px;"></div>`}
+  `;
+  return div;
+}
+
+const TAG_SHORT = {
+  TAUNT: "PROVOCAR", CHARGE: "INVESTIDA", RUSH: "AVANÇO",
+  DIVINE_SHIELD: "ESCUDO", LIFESTEAL: "VAMPIR.", POISONOUS: "VENENO",
+  STEALTH: "FURTIVO", WINDFURY: "FÚRIA", BATTLECRY: "GRITO",
+  DEATHRATTLE: "MORTE", CHOOSE_ONE: "ESCOLHA", COMBO: "COMBO",
+  ECHO: "ECO", FREEZE: "CONGELAR",
+};
+function tagShort(t) { return TAG_SHORT[t] || t.slice(0, 8); }
+
+// Símbolos curtos pros selos no minion (1-2 letras)
+// Mantido só pra referência/legenda — o selo central usa SVGs via CSS agora
+const KW_SYMBOL = {
+  DEATHRATTLE: "☠",   // Último suspiro (caveira via SVG)
+  PASSIVE: "⚡",       // Efeito contínuo (raio via SVG)
+};
+const KW_NAME = {
+  TAUNT: "Provocar",
+  DIVINE_SHIELD: "Escudo Divino",
+  LIFESTEAL: "Roubo de Vida",
+  POISONOUS: "Veneno",
+  STEALTH: "Furtividade",
+  WINDFURY: "Fúria dos Ventos",
+  DEATHRATTLE: "Último Suspiro",
+  PASSIVE: "Efeito Contínuo",
+  CHARGE: "Investida",
+  RUSH: "Avanço",
+  BATTLECRY: "Grito de Guerra",
+};
+
+// ====== Tabuleiro ======
+function renderBoard() {
+  const root = document.getElementById("board-root");
+  root.innerHTML = "";
+
+  const isMyTurn = state.current_player === myPid;
+  const opp = state.opponent;
+  const me = state.you;
+
+  // Layout: arena central com 4 zonas verticais + coluna direita com decks
+  // ┌────────────────── ARENA ──────────────────┐ ┌── DECKS ──┐
+  // │  mão do oponente (cards-back)             │ │  oponente │
+  // │  hero oponente + mana                      │ │           │
+  // │ ─── linha divisória (campo do oponente) ── │ │           │
+  // │  campo do oponente (lacaios)               │ │           │
+  // │ ─── linha do meio ──────────────────────── │ │           │
+  // │  campo do jogador (lacaios)                │ │           │
+  // │ ─── linha divisória (sua mão) ───────────  │ │           │
+  // │  hero jogador + mana                       │ │  jogador  │
+  // │  mão do jogador                            │ │           │
+  // └────────────────────────────────────────────┘ └───────────┘
+
+  const layout = document.createElement("div");
+  layout.className = "arena-layout";
+
+  // ============== COLUNA CENTRAL (ARENA) ==============
+  const arena = document.createElement("div");
+  arena.className = "arena-center";
+
+  // 1) Mão do oponente (back das cartas)
+  const oppHandBox = document.createElement("div");
+  oppHandBox.className = "zone zone-opp-hand";
+  for (let i = 0; i < opp.hand_size; i++) {
+    const back = document.createElement("div");
+    back.className = "card-back";
+    oppHandBox.appendChild(back);
+  }
+  arena.appendChild(oppHandBox);
+
+  // 2) Strip do oponente (hero centralizado + mana)
+  const oppStrip = document.createElement("div");
+  oppStrip.className = "player-strip opponent";
+  // esquerda: nome
+  const oppLeft = document.createElement("div");
+  oppLeft.className = "left-info";
+  oppLeft.innerHTML = `<div class="player-name">${escapeHtml(opp.name)}</div>`;
+  oppStrip.appendChild(oppLeft);
+  oppStrip.appendChild(renderHero(opp, !isMyTurn, true));
+  const oppRight = document.createElement("div");
+  oppRight.className = "right-info";
+  oppRight.innerHTML = `
+    <div class="mana-text">${opp.mana} / ${opp.max_mana}</div>
+    <div class="mana-display">${renderManaCrystals(opp.mana, opp.max_mana)}</div>
+  `;
+  oppStrip.appendChild(oppRight);
+  arena.appendChild(oppStrip);
+
+  // 4) Campo de batalha (2 fileiras com divisão clara no meio)
+  const battlefield = document.createElement("div");
+  battlefield.className = "battlefield";
+
+  const oppBoard = document.createElement("div");
+  oppBoard.className = "row-board opp";
+  oppBoard.dataset.zone = "opp-field";
+  for (const m of opp.board) oppBoard.appendChild(renderMinion(m, true));
+  battlefield.appendChild(oppBoard);
+
+  // linha divisória do meio do tabuleiro
+  const midLine = document.createElement("div");
+  midLine.className = "field-divider";
+  battlefield.appendChild(midLine);
+
+  const myBoard = document.createElement("div");
+  myBoard.className = "row-board you";
+  myBoard.dataset.zone = "my-field";
+  for (const m of me.board) myBoard.appendChild(renderMinion(m, false));
+  battlefield.appendChild(myBoard);
+  arena.appendChild(battlefield);
+
+  // 5) Strip do jogador (hero centralizado + mana)
+  const myStrip = document.createElement("div");
+  myStrip.className = "player-strip you";
+  const myLeft = document.createElement("div");
+  myLeft.className = "left-info";
+  myLeft.innerHTML = `<div class="player-name">${escapeHtml(me.name)}</div>`;
+  myStrip.appendChild(myLeft);
+  myStrip.appendChild(renderHero(me, isMyTurn, false));
+  const myRight = document.createElement("div");
+  myRight.className = "right-info";
+  myRight.innerHTML = `
+    <div class="mana-text">${me.mana} / ${me.max_mana}</div>
+    <div class="mana-display">${renderManaCrystals(me.mana, me.max_mana)}</div>
+  `;
+  myStrip.appendChild(myRight);
+  arena.appendChild(myStrip);
+
+  // 6) Mão do jogador (cartas reais)
+  const myHand = document.createElement("div");
+  myHand.className = "zone zone-my-hand hand-row";
+  myHand.dataset.zone = "my-hand";
+  for (const c of me.hand) {
+    const card = allCards[c.card_id];
+    if (!card) continue;
+    const el = renderCard(card, c.effective_cost ?? c.cost_override, {
+      echo_temporary: c.echo_temporary,
+      effective_attack: c.effective_attack,
+      effective_health: c.effective_health,
+      stats_modified: c.stats_modified,
+      cost_modified: c.cost_modified,
+      show_hand_stats: true,
+    });
+    const cost = c.effective_cost ?? c.cost_override ?? card.cost ?? 0;
+    if (!isMyTurn || me.mana < cost) el.classList.add("unaffordable");
+    else el.classList.add("playable");
+    el.onclick = () => onHandCardClick(c, card);
+    myHand.appendChild(el);
+  }
+  arena.appendChild(myHand);
+
+  // Decks à direita da mesa (absoluto, dentro do arena)
+  const sidebar = document.createElement("div");
+  sidebar.className = "deck-sidebar";
+  sidebar.appendChild(renderDeckPile(opp, true));
+  sidebar.appendChild(renderDeckPile(me, false));
+  arena.appendChild(sidebar);
+
+  // === Medalhão de Encerrar Turno (estilo Hearthstone, à direita do meio) ===
+  const ctrl = document.createElement("div");
+  ctrl.className = "controls-bar";
+  const endBtn = document.createElement("button");
+  endBtn.className = "end-turn-btn " + (isMyTurn ? "active" : "waiting");
+  endBtn.disabled = !isMyTurn;
+  endBtn.innerHTML = isMyTurn
+    ? `<div>Encerrar<br/>Turno</div>`
+    : `<div>Vez do<br/>Oponente</div>`;
+  endBtn.onclick = () => { if (isMyTurn) { cancelModes(); send("end_turn"); } };
+  ctrl.appendChild(endBtn);
+
+  const concBtn = document.createElement("button");
+  concBtn.className = "surrender-btn";
+  concBtn.textContent = "Render-se";
+  concBtn.onclick = () => { if (confirm("Tem certeza que deseja se render?")) send("concede"); };
+  ctrl.appendChild(concBtn);
+  arena.appendChild(ctrl);
+
+  layout.appendChild(arena);
+  root.appendChild(layout);
+
+  if (targetingMode || attackingMode) {
+    decorateTargetCandidates();
+  }
+}
+
+// Renderiza pilha do deck à direita, estilo Hearthstone: 3-4 cartas
+// empilhadas, com contador grande no centro e identificação de qual jogador
+function renderDeckPile(player, isOpponent) {
+  const wrap = document.createElement("div");
+  wrap.className = "deck-pile " + (isOpponent ? "opp" : "you");
+  wrap.dataset.pileOwner = String(player.player_id);
+
+  // 3 backs empilhados sob o contador (visualmente sugere espessura)
+  const stack = document.createElement("div");
+  stack.className = "deck-stack";
+  for (let i = 0; i < Math.min(4, player.deck_size); i++) {
+    const back = document.createElement("div");
+    back.className = "deck-back";
+    back.style.transform = `translate(${i*1.5}px, ${-i*1.5}px)`;
+    stack.appendChild(back);
+  }
+  wrap.appendChild(stack);
+
+  // Contador
+  const count = document.createElement("div");
+  count.className = "deck-count";
+  count.textContent = player.deck_size;
+  wrap.appendChild(count);
+
+  // Etiqueta
+  const label = document.createElement("div");
+  label.className = "deck-label";
+  label.textContent = isOpponent ? "Deck do oponente" : "Seu deck";
+  wrap.appendChild(label);
+
+  return wrap;
+}
+
+function renderHero(player, isActive, isOpponent) {
+  const div = document.createElement("div");
+  div.className = "hero" + (isActive ? " active" : "") + (isOpponent ? " opponent" : "");
+  div.dataset.targetId = `hero:${player.player_id}`;
+  div.dataset.heroOwner = player.player_id;
+
+  const key = (player.name || "").toLowerCase();
+  const heroImg = heroImages[key];
+  const initial = (player.name || "?").charAt(0).toUpperCase();
+  const portraitStyle = heroImg ? `background-image: url('${heroImg}');` : "";
+  const portraitContent = heroImg ? "" : initial;
+
+  div.innerHTML = `
+    <div class="portrait-wrap">
+      <div class="portrait" style="${portraitStyle}">${escapeHtml(portraitContent)}</div>
+      ${player.hero_armor > 0 ? `<div class="armor-badge">${player.hero_armor}</div>` : ""}
+      <div class="hp-badge">${player.hero_health}</div>
+    </div>
+    <div class="nm">${escapeHtml(player.name)}</div>
+  `;
+  div.onclick = () => onTargetClick(`hero:${player.player_id}`);
+  return div;
+}
+
+function renderManaCrystals(curr, max) {
+  let html = "";
+  for (let i = 0; i < 10; i++) {
+    let cls = "mana-crystal";
+    if (i >= max) cls += " locked";
+    else if (i >= curr) cls += " spent";
+    html += `<div class="${cls}"></div>`;
+  }
+  return html;
+}
+
+// Detecta se a carta tem efeito contínuo/passivo: qualquer trigger que NÃO
+// seja ON_PLAY (battlecry/grito de guerra) nem ON_DEATH (último suspiro).
+// Inclui AURA, START_OF_TURN, END_OF_TURN, AFTER_FRIENDLY_MINION_PLAY, etc.
+function hasPassiveEffect(card) {
+  const effects = card.effects || [];
+  return effects.some(e => {
+    const t = e.trigger;
+    return t && t !== "ON_PLAY" && t !== "ON_DEATH";
+  });
+}
+
+// SVGs reutilizáveis pros efeitos visuais ambientes
+const SVG_TAUNT_SHIELD = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <radialGradient id="shGrad" cx="0.4" cy="0.3" r="0.7">
+      <stop offset="0%" stop-color="#f8e0a0"/>
+      <stop offset="55%" stop-color="#a07838"/>
+      <stop offset="100%" stop-color="#3a2818"/>
+    </radialGradient>
+  </defs>
+  <!-- Forma de escudo: anel grosso com lóbulos nas 4 pontas cardeais -->
+  <path d="M60 4
+           C68 6 72 12 80 14
+           C92 16 100 14 108 18
+           C108 28 106 38 102 48
+           C108 58 108 70 102 80
+           C100 92 92 100 80 104
+           C72 110 68 116 60 116
+           C52 116 48 110 40 104
+           C28 100 20 92 18 80
+           C12 70 12 58 18 48
+           C14 38 12 28 12 18
+           C20 14 28 16 40 14
+           C48 12 52 6 60 4 Z"
+        fill="url(#shGrad)"
+        stroke="#2a1a08" stroke-width="2"/>
+  <!-- furo interno para o lacaio aparecer -->
+  <circle cx="60" cy="60" r="50" fill="#0c0806"/>
+  <!-- detalhes em cruz no escudo -->
+  <path d="M60 14 V20 M60 100 V106 M14 60 H20 M100 60 H106"
+        stroke="#f5c969" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+</svg>`;
+
+const SVG_WIND = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#cfe6f5" stroke-width="2.5" stroke-linecap="round" opacity="0.85">
+    <path d="M22 30 Q40 22 56 30" />
+    <path d="M14 50 Q34 42 52 50" />
+    <path d="M98 70 Q80 78 64 70" />
+    <path d="M106 90 Q86 98 68 90" />
+    <path d="M30 100 Q42 92 58 100" />
+    <path d="M90 22 Q78 30 62 22" />
+  </g>
+  <g fill="#e8f3fa" opacity="0.9">
+    <circle cx="56" cy="30" r="2.5"/>
+    <circle cx="52" cy="50" r="2.5"/>
+    <circle cx="64" cy="70" r="2.5"/>
+    <circle cx="68" cy="90" r="2.5"/>
+  </g>
+</svg>`;
+
+const SVG_FREEZE = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <g fill="rgba(255,255,255,0.85)" stroke="#80b8e0" stroke-width="0.6">
+    <!-- Cristais de gelo nas 6 pontas -->
+    <path d="M60 8 L64 18 L60 22 L56 18 Z"/>
+    <path d="M60 98 L64 108 L60 112 L56 108 Z"/>
+    <path d="M8 60 L18 56 L22 60 L18 64 Z"/>
+    <path d="M98 60 L108 56 L112 60 L108 64 Z"/>
+    <path d="M22 22 L30 24 L28 32 L20 30 Z"/>
+    <path d="M98 22 L90 24 L92 32 L100 30 Z"/>
+    <path d="M22 98 L30 96 L28 88 L20 90 Z"/>
+    <path d="M98 98 L90 96 L92 88 L100 90 Z"/>
+  </g>
+  <!-- riscos diagonais finos sugerindo fissuras de gelo -->
+  <g stroke="rgba(220,240,255,0.6)" stroke-width="1" fill="none" stroke-linecap="round">
+    <path d="M30 40 L50 60 L40 80"/>
+    <path d="M80 30 L70 50 L88 70"/>
+    <path d="M50 90 L60 75 L78 85"/>
+  </g>
+</svg>`;
+
+// ====== MINION (redondo, com foto) ======
+
+function getActivatableEffectsForMinion(m) {
+  const card = allCards[m.card_id] || {};
+  if (m.silenced || m.immune || m.frozen || (m.tags || []).includes("DORMANT")) return [];
+  return (card.effects || []).filter(e =>
+    e.trigger === "ACTIVATED_ABILITY" || e.trigger === "DURING_YOUR_TURN"
+  );
+}
+
+function canUseMinionAbility(m, eff) {
+  if (!state || state.current_player !== myPid) return false;
+  if (m.owner !== myPid) return false;
+  if ((m.activated_abilities_this_turn || 0) > 0) return false;
+  if (m.silenced || m.immune || m.frozen || (m.tags || []).includes("DORMANT")) return false;
+  const cost = eff.activation_cost || 0;
+  if ((state.you?.mana || 0) < cost) return false;
+  return true;
+}
+
+function abilityNeedsChosenTarget(eff) {
+  if (!eff) return false;
+  if (eff.target && eff.target.mode === "CHOSEN") return true;
+  if (eff.source && eff.source.mode === "CHOSEN") return true;
+  for (const sub of (eff.effects || [])) {
+    if (abilityNeedsChosenTarget(sub)) return true;
+  }
+  for (const sub of (eff.additional_effects || [])) {
+    if (abilityNeedsChosenTarget(sub)) return true;
+  }
+  return false;
+}
+
+function showMoveSelfZoneModal(m, eff, abilityIndex = 0) {
+  clearPendingChoiceOverlay();
+
+  const overlay = document.createElement("div");
+  overlay.className = "choose-one-overlay pending-choice-overlay";
+
+  const title = document.createElement("h2");
+  title.textContent = "Escolha para onde mover";
+  overlay.appendChild(title);
+
+  const msg = document.createElement("div");
+  msg.className = "muted";
+  msg.textContent = "Escolha a zona de destino para este lacaio.";
+  overlay.appendChild(msg);
+
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.justifyContent = "center";
+  row.style.flexWrap = "wrap";
+
+  const sendMove = (zone, position = null) => {
+    const payload = {
+      minion_id: m.instance_id,
+      ability_index: abilityIndex,
+      zone
+    };
+    if (position !== null) payload.position = position;
+    send("activate_ability", payload);
+    clearPendingChoiceOverlay();
+  };
+
+  const valid = eff.valid_zones || [];
+  if (valid.includes("HAND")) {
+    const btn = document.createElement("button");
+    btn.className = "btn primary";
+    btn.textContent = "Mão";
+    btn.onclick = () => sendMove("HAND");
+    row.appendChild(btn);
+  }
+  if (valid.includes("GRAVEYARD")) {
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.textContent = "Mortos";
+    btn.onclick = () => sendMove("GRAVEYARD");
+    row.appendChild(btn);
+  }
+  if (valid.includes("DECK")) {
+    ["TOP", "MIDDLE", "BOTTOM"].forEach(pos => {
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = pos === "TOP" ? "Topo do deck" : pos === "BOTTOM" ? "Fundo do deck" : "Meio do deck";
+      btn.onclick = () => sendMove("DECK", pos);
+      row.appendChild(btn);
+    });
+  }
+  if (valid.includes("BOARD_POSITION")) {
+    const boardSize = (state.you?.board || []).length;
+    for (let i = 0; i < boardSize; i++) {
+      const btn = document.createElement("button");
+      btn.className = "btn small";
+      btn.textContent = `Campo ${i + 1}`;
+      btn.onclick = () => sendMove("BOARD_POSITION", i);
+      row.appendChild(btn);
+    }
+  }
+
+  overlay.appendChild(row);
+
+  const cancel = document.createElement("button");
+  cancel.className = "btn";
+  cancel.textContent = "Cancelar";
+  cancel.onclick = () => clearPendingChoiceOverlay();
+  overlay.appendChild(cancel);
+
+  document.getElementById("overlay-root").appendChild(overlay);
+}
+
+function onAbilityButtonClick(e, m, eff, abilityIndex = 0) {
+  e.stopPropagation();
+  if (!canUseMinionAbility(m, eff)) {
+    if ((m.activated_abilities_this_turn || 0) > 0) toast("Habilidade já usada neste turno");
+    else if ((state.you?.mana || 0) < (eff.activation_cost || 0)) toast("Mana insuficiente");
+    else toast("Habilidade indisponível");
+    return;
+  }
+
+  if (eff.trigger === "DURING_YOUR_TURN" && eff.action === "MOVE_SELF_TO_ZONE") {
+    showMoveSelfZoneModal(m, eff, abilityIndex);
+    return;
+  }
+
+  if (abilityNeedsChosenTarget(eff)) {
+    abilityMode = { minion_id: m.instance_id, effect: eff, ability_index: abilityIndex };
+    attackingMode = null;
+    targetingMode = null;
+    toast("Escolha um alvo para a habilidade (ESC para cancelar)");
+    render();
+    return;
+  }
+
+  send("activate_ability", { minion_id: m.instance_id, ability_index: abilityIndex });
+}
+
+
+function renderMinion(m, isOpponent) {
+  const div = document.createElement("div");
+  div.className = "minion" + (isOpponent ? " opponent" : "");
+  div.dataset.minionId = m.instance_id;
+  div.dataset.owner = isOpponent ? "opp" : "me";
+
+  // Estados visuais ambientais (efeitos em torno do lacaio)
+  const card = allCards[m.card_id] || {};
+  const isPassive = hasPassiveEffect(card);
+
+  if (m.tags.includes("TAUNT") && !m.silenced) div.classList.add("taunt");
+  if (m.divine_shield) div.classList.add("divine-shield");
+  if (m.frozen) div.classList.add("frozen");
+  if (m.tags.includes("STEALTH") && !m.silenced) div.classList.add("stealth");
+  if (m.tags.includes("WINDFURY") && !m.silenced) div.classList.add("windfury");
+  if (m.silenced) div.classList.add("silenced");
+
+  if (!isOpponent && state.current_player === myPid && m.can_attack) {
+    div.classList.add("can-attack");
+  }
+  const isSick = m.summoning_sick
+    && !(m.tags.includes("CHARGE") || m.tags.includes("RUSH"));
+  if (isSick) div.classList.add("sick");
+
+  // Imagem do retrato
+  const hasImg = !!cardImages[m.card_id];
+  const portraitStyle = hasImg
+    ? `background-image: url('${cardImages[m.card_id]}');`
+    : "";
+  const initial = hasImg ? "" : `<span class="initial">${(m.name || "?").charAt(0)}</span>`;
+  const ringClass = "portrait-ring" + (hasImg ? " has-image" : "");
+
+  // === SELO CENTRAL ===
+  // Apenas Deathrattle ou Passive (efeito contínuo) ganham selo central.
+  // Battlecry/Charge/Rush/Windfury NÃO recebem selo (Windfury vira anel de vento).
+  let primarySeal = null;
+  if (m.tags.includes("DEATHRATTLE") && !m.silenced) {
+    primarySeal = "DEATHRATTLE";
+  } else if (isPassive && !m.silenced) {
+    primarySeal = "PASSIVE";
+  }
+
+  // Lista completa de keywords visíveis (pra tooltip)
+  const visibleKws = (m.keywords || []);
+  if (isPassive && !visibleKws.includes("PASSIVE")) visibleKws.push("PASSIVE");
+
+  const atkChanged = m.attack > (card.attack ?? 0) ? "buffed" : "";
+  const hpChanged =
+    m.health < m.max_health ? "damaged" :
+    m.max_health > (card.health ?? 0) ? "buffed" : "";
+
+  // Fonte dinâmica do nameplate baseada no comprimento do nome
+  let nameClass = "nameplate";
+  const nLen = (m.name || "").length;
+  if (nLen > 26) nameClass += " huge";
+  else if (nLen > 20) nameClass += " very-long";
+  else if (nLen > 14) nameClass += " long";
+
+  // Overlays ambientais
+  const tauntOverlay = (m.tags.includes("TAUNT") && !m.silenced)
+    ? `<div class="taunt-shield">${SVG_TAUNT_SHIELD}</div>` : "";
+  const divineOverlay = m.divine_shield
+    ? `<div class="divine-bubble"></div>` : "";
+  const stealthOverlay = (m.tags.includes("STEALTH") && !m.silenced)
+    ? `<div class="stealth-mist"></div>` : "";
+  const frozenOverlay = m.frozen
+    ? `<div class="freeze-ice">${SVG_FREEZE}</div>` : "";
+  const windOverlay = (m.tags.includes("WINDFURY") && !m.silenced)
+    ? `<div class="wind-around">${SVG_WIND}</div>` : "";
+  const silenceOverlay = m.silenced ? `<div class="silence-mark"></div>` : "";
+
+  const activatableEffects = getActivatableEffectsForMinion(m);
+  const firstAbility = activatableEffects[0] || null;
+  const canAbility = firstAbility && !isOpponent && canUseMinionAbility(m, firstAbility);
+  const abilityLabel = firstAbility
+    ? (firstAbility.trigger === "ACTIVATED_ABILITY"
+        ? `✦${firstAbility.activation_cost || 0}`
+        : "↯")
+    : "";
+
+  div.innerHTML = `
+    <div class="${nameClass}">${escapeHtml(m.name)}</div>
+    ${firstAbility && !isOpponent ? `<button class="ability-btn ${canAbility ? "ready" : "disabled"}" title="Ativar habilidade">${abilityLabel}</button>` : ""}
+    ${tauntOverlay}
+    ${windOverlay}
+    <div class="${ringClass}" style="${portraitStyle}">${initial}</div>
+    ${stealthOverlay}
+    ${divineOverlay}
+    ${frozenOverlay}
+    ${silenceOverlay}
+    <div class="atk-badge ${atkChanged}">${m.attack}</div>
+    <div class="hp-badge ${hpChanged}">${m.health}</div>
+    ${primarySeal ? `<div class="keyword-seal" data-kw="${primarySeal}" title="${KW_NAME[primarySeal] || primarySeal}"></div>` : ""}
+    ${isSick ? `<div class="zzz-anim"><span class="z z1">z</span><span class="z z2">z</span><span class="z z3">Z</span></div>` : ""}
+    <div class="tooltip">
+      <strong>${escapeHtml(m.name)}</strong>
+      ${card.text ? `<div style="margin-top:4px;">${escapeHtml(card.text)}</div>` : ""}
+      ${visibleKws.length ? `<div style="margin-top:4px; color: var(--gold); font-size: 0.7rem; letter-spacing: 0.05em;">
+        ${visibleKws.map(k => KW_NAME[k] || k).join(" · ")}
+      </div>` : ""}
+    </div>
+  `;
+
+  const abilityBtn = div.querySelector(".ability-btn");
+  if (abilityBtn && firstAbility) {
+    abilityBtn.onclick = (e) => onAbilityButtonClick(e, m, firstAbility, 0);
+  }
+
+  if (isOpponent) {
+    div.onclick = () => onTargetClick(m.instance_id);
+  } else {
+    div.onclick = () => onMyMinionClick(m);
+  }
+  return div;
+}
+
+// ============ Detecção de candidatos a alvo ============
+function decorateTargetCandidates() {
+  // marca apenas alvos válidos (escolha de feitiço/battlecry, ou ataque)
+  document.querySelectorAll(".minion, .hero").forEach(el => {
+    el.classList.remove("targeting-active");
+  });
+  if (targetingMode || abilityMode) {
+    // Validação final é do backend; aqui só indicamos alvos clicáveis.
+    document.querySelectorAll(".minion, .hero").forEach(el => el.classList.add("targeting-active"));
+  }
+  if (attackingMode) {
+    // valid targets: lacaios oponentes e (se nenhum taunt) o herói
+    const oppHasTaunt = state.opponent.board.some(m => (m.keywords || []).includes("TAUNT"));
+    document.querySelectorAll(".minion[data-owner='opp']").forEach(el => {
+      const id = el.dataset.minionId;
+      const m = state.opponent.board.find(x => x.instance_id === id);
+      if (!m) return;
+      if (oppHasTaunt) {
+        if ((m.keywords || []).includes("TAUNT")) el.classList.add("targeting-active");
+      } else {
+        el.classList.add("targeting-active");
+      }
+    });
+    if (!oppHasTaunt) {
+      const oppHero = document.querySelector(`.hero[data-hero-owner='${state.opponent.player_id}']`);
+      if (oppHero) oppHero.classList.add("targeting-active");
+    }
+  }
+}
+
+// ============ Interações ============
+
+function effectNeedsChosenTargetForPlay(eff) {
+  if (!eff) return false;
+  if (eff.action === "CHOOSE_ONE") {
+    const choices = eff.choices || [];
+    return choices.some(effectNeedsChosenTargetForPlay);
+  }
+  const src = eff.source || {};
+  const tgt = eff.target || {};
+  if (src.mode === "CHOSEN") return true;
+  if (["CHOSEN", "CHOSEN_EACH", "CHOSEN_ADJACENT_DIRECTION"].includes(tgt.mode)) return true;
+  for (const sub of (eff.effects || [])) {
+    if (effectNeedsChosenTargetForPlay(sub)) return true;
+  }
+  for (const sub of (eff.additional_effects || [])) {
+    if (effectNeedsChosenTargetForPlay(sub)) return true;
+  }
+  return false;
+}
+
+
+function collectChosenTargetDescsForEffect(eff, out = []) {
+  if (!eff) return out;
+  if (eff.action === "CHOOSE_ONE") {
+    // Para CHOOSE_ONE genérico, a opção escolhida é tratada separadamente.
+    return out;
+  }
+  const src = eff.source || {};
+  const tgt = eff.target || {};
+  if (src.mode === "CHOSEN") out.push(src);
+  if (["CHOSEN", "CHOSEN_EACH", "CHOSEN_ADJACENT_DIRECTION"].includes(tgt.mode)) out.push(tgt);
+  for (const sub of (eff.effects || [])) collectChosenTargetDescsForEffect(sub, out);
+  for (const sub of (eff.additional_effects || [])) collectChosenTargetDescsForEffect(sub, out);
+  return out;
+}
+
+function collectChosenTargetDescsForPlay(card, opts = {}) {
+  const out = [];
+  for (const eff of effectsForPlayMode(card, opts)) {
+    collectChosenTargetDescsForEffect(eff, out);
+  }
+  return out;
+}
+
+function effectNeedsAdjacentDirection(eff) {
+  if (!eff) return false;
+  if ((eff.target || {}).mode === "CHOSEN_ADJACENT_DIRECTION") return true;
+  if (eff.action === "CHOOSE_ONE") {
+    return (eff.choices || []).some(effectNeedsAdjacentDirection);
+  }
+  for (const sub of (eff.effects || [])) {
+    if (effectNeedsAdjacentDirection(sub)) return true;
+  }
+  for (const sub of (eff.additional_effects || [])) {
+    if (effectNeedsAdjacentDirection(sub)) return true;
+  }
+  return false;
+}
+
+function effectsForPlayMode(card, opts = {}) {
+  const effects = card.effects || [];
+  if (opts.empowered) {
+    const empoweredEffects = effects.filter(e =>
+      e.trigger === "ON_PLAY_EMPOWERED" || e.trigger === "ON_EMPOWER"
+    );
+    if (empoweredEffects.length) return empoweredEffects;
+  }
+  const result = effects.filter(e => e.trigger === "ON_PLAY");
+  const comboActive = (state.you?.cards_played_this_turn || 0) > 0;
+  if (comboActive) {
+    result.push(...effects.filter(e => e.trigger === "ON_COMBO"));
+  }
+  return result;
+}
+
+function playHandCardWithMode(handCard, card, opts = {}) {
+  const effects = effectsForPlayMode(card, opts);
+  const chosenEffect = effects.find(effectNeedsChosenTargetForPlay);
+  if (chosenEffect) {
+    const targetDescs = collectChosenTargetDescsForPlay(card, opts);
+    targetingMode = {
+      hand_id: handCard.instance_id,
+      card,
+      empowered: !!opts.empowered,
+      requiresDirection: effects.some(effectNeedsAdjacentDirection),
+      targetDescs,
+      targets: [],
+    };
+    const first = targetDescs[0] || {};
+    const hint = first.valid && first.valid.includes("FRIENDLY_MINION")
+      ? "Escolha um lacaio aliado"
+      : first.valid && first.valid.includes("ENEMY_MINION")
+        ? "Escolha um lacaio inimigo"
+        : "Escolha um alvo";
+    toast(`${hint} (ESC para cancelar)`);
+    render();
+    return;
+  }
+  send("play_card", { hand_id: handCard.instance_id, empowered: !!opts.empowered });
+}
+
+function showEmpowerModal(handCard, card) {
+  clearPendingChoiceOverlay();
+  const overlay = document.createElement("div");
+  overlay.className = "choose-one-overlay pending-choice-overlay";
+
+  const title = document.createElement("h2");
+  title.textContent = "Fortalecer carta?";
+  overlay.appendChild(title);
+
+  const msg = document.createElement("div");
+  msg.className = "muted";
+  msg.textContent = "Escolha se esta carta será jogada no modo normal ou fortalecido.";
+  overlay.appendChild(msg);
+
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.justifyContent = "center";
+
+  const normal = document.createElement("button");
+  normal.className = "btn";
+  normal.textContent = "Normal";
+  normal.onclick = () => {
+    clearPendingChoiceOverlay();
+    playHandCardWithMode(handCard, card, { empowered: false });
+  };
+  row.appendChild(normal);
+
+  const empowered = document.createElement("button");
+  empowered.className = "btn primary";
+  empowered.textContent = "Fortalecer";
+  empowered.onclick = () => {
+    clearPendingChoiceOverlay();
+    playHandCardWithMode(handCard, card, { empowered: true });
+  };
+  row.appendChild(empowered);
+
+  overlay.appendChild(row);
+  document.getElementById("overlay-root").appendChild(overlay);
+}
+
+
+function onHandCardClick(handCard, card) {
+  if (state.current_player !== myPid) { toast("Não é seu turno"); return; }
+  const cost = handCard.effective_cost ?? handCard.cost_override ?? card.cost ?? 0;
+  if (state.you.mana < cost) { toast("Mana insuficiente"); return; }
+  if (card.type === "MINION" && state.you.board.length >= 7) { toast("Campo cheio"); return; }
+
+  // === CHOOSE_ONE ===
+  // Detecta se a carta tem ação CHOOSE_ONE no ON_PLAY. Se sim, abre modal
+  // para o jogador escolher uma das opções, depois prossegue com a jogada
+  // (com alvo, se necessário).
+  const chooseEffect = (card.effects || []).find(e =>
+    e.trigger === "ON_PLAY" && e.action === "CHOOSE_ONE"
+  );
+  if (chooseEffect && (chooseEffect.choices || []).length > 1) {
+    showChooseOneModal(handCard, card, chooseEffect);
+    return;
+  }
+
+  const hasEmpower = (card.tags || []).includes("EMPOWER")
+    && (card.effects || []).some(e => e.trigger === "ON_PLAY_EMPOWERED" || e.trigger === "ON_EMPOWER");
+  if (hasEmpower) {
+    showEmpowerModal(handCard, card);
+    return;
+  }
+
+  playHandCardWithMode(handCard, card, { empowered: false });
+}
+
+
+// ====== Escolhas pendentes vindas do servidor ======
+function clearPendingChoiceOverlay() {
+  document.querySelectorAll(".pending-choice-overlay").forEach(el => el.remove());
+}
+
+function renderPendingChoiceOverlay() {
+  clearPendingChoiceOverlay();
+  const choice = state?.pending_choice;
+  if (!choice) return;
+
+  const overlay = document.createElement("div");
+  overlay.className = "choose-one-overlay pending-choice-overlay";
+
+  const title = document.createElement("h2");
+  title.textContent = choice.waiting ? "Aguardando escolha" : "Escolha necessária";
+  overlay.appendChild(title);
+
+  if (choice.waiting) {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "O oponente está resolvendo um efeito.";
+    overlay.appendChild(msg);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "reorder_top_cards") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Reorganize as cartas reveladas do topo do seu deck.";
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    const cards = choice.cards || [];
+    cards.forEach(cid => {
+      const card = allCards[cid];
+      if (!card) return;
+      const el = renderCard(card, card.cost ?? 0);
+      el.style.pointerEvents = "none";
+      cardsBox.appendChild(el);
+    });
+    overlay.appendChild(cardsBox);
+
+    const btnBox = document.createElement("div");
+    btnBox.className = "row";
+    btnBox.style.justifyContent = "center";
+
+    const sendOrder = (order) => {
+      send("choice_response", { choice_id: choice.choice_id, response: { order } });
+      clearPendingChoiceOverlay();
+    };
+
+    const keep = document.createElement("button");
+    keep.className = "btn";
+    keep.textContent = "Manter ordem";
+    keep.onclick = () => sendOrder(cards.map((_, i) => i));
+    btnBox.appendChild(keep);
+
+    const cheap = document.createElement("button");
+    cheap.className = "btn primary";
+    cheap.textContent = "Custo crescente";
+    cheap.onclick = () => {
+      const order = cards.map((cid, i) => ({ cid, i, cost: (allCards[cid] || {}).cost ?? 99 }))
+        .sort((a, b) => a.cost - b.cost || a.i - b.i)
+        .map(x => x.i);
+      sendOrder(order);
+    };
+    btnBox.appendChild(cheap);
+
+    const expensive = document.createElement("button");
+    expensive.className = "btn";
+    expensive.textContent = "Custo decrescente";
+    expensive.onclick = () => {
+      const order = cards.map((cid, i) => ({ cid, i, cost: (allCards[cid] || {}).cost ?? -1 }))
+        .sort((a, b) => b.cost - a.cost || a.i - b.i)
+        .map(x => x.i);
+      sendOrder(order);
+    };
+    btnBox.appendChild(expensive);
+
+    overlay.appendChild(btnBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "swap_revealed_top_cards") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "As cartas do topo dos dois decks foram reveladas. Você pode trocá-las.";
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    [choice.my_top, choice.opponent_top].forEach((cid, idx) => {
+      const col = document.createElement("div");
+      col.style.textAlign = "center";
+      const lbl = document.createElement("div");
+      lbl.className = "muted";
+      lbl.textContent = idx === 0 ? "Seu topo" : "Topo inimigo";
+      col.appendChild(lbl);
+      const card = allCards[cid];
+      if (card) {
+        const el = renderCard(card, card.cost ?? 0);
+        el.style.pointerEvents = "none";
+        col.appendChild(el);
+      }
+      cardsBox.appendChild(col);
+    });
+    overlay.appendChild(cardsBox);
+
+    const btnBox = document.createElement("div");
+    btnBox.className = "row";
+    btnBox.style.justifyContent = "center";
+
+    const keep = document.createElement("button");
+    keep.className = "btn";
+    keep.textContent = "Manter";
+    keep.onclick = () => {
+      send("choice_response", { choice_id: choice.choice_id, response: { swap: false } });
+      clearPendingChoiceOverlay();
+    };
+    btnBox.appendChild(keep);
+
+    const swap = document.createElement("button");
+    swap.className = "btn primary";
+    swap.textContent = "Trocar";
+    swap.onclick = () => {
+      send("choice_response", { choice_id: choice.choice_id, response: { swap: true } });
+      clearPendingChoiceOverlay();
+    };
+    btnBox.appendChild(swap);
+
+    overlay.appendChild(btnBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "discard_hand_card") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha qual carta descartar.";
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.cards || []).forEach(ch => {
+      const card = allCards[ch.card_id];
+      if (!card) return;
+      const el = renderCard(card, card.cost ?? 0);
+      el.title = "Descartar " + (card.name || ch.card_id);
+      el.onclick = () => {
+        send("choice_response", {
+          choice_id: choice.choice_id,
+          response: { card_id: ch.instance_id }
+        });
+        clearPendingChoiceOverlay();
+      };
+      cardsBox.appendChild(el);
+    });
+    overlay.appendChild(cardsBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "choose_draw_discard") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha uma carta para comprar. As outras serão descartadas.";
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.cards || []).forEach((cid, idx) => {
+      const card = allCards[cid];
+      if (!card) return;
+      const col = document.createElement("div");
+      col.style.textAlign = "center";
+      const el = renderCard(card, card.cost ?? 0);
+      el.onclick = () => {
+        send("choice_response", {
+          choice_id: choice.choice_id,
+          response: { index: idx }
+        });
+        clearPendingChoiceOverlay();
+      };
+      col.appendChild(el);
+      const btn = document.createElement("button");
+      btn.className = "btn small";
+      btn.textContent = "Comprar esta";
+      btn.onclick = el.onclick;
+      col.appendChild(btn);
+      cardsBox.appendChild(col);
+    });
+    overlay.appendChild(cardsBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "reveal_card_from_hand" || choice.kind === "move_hand_card_to_opponent_deck_top") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = choice.kind === "reveal_card_from_hand"
+      ? "Escolha uma carta da sua mão para revelar e modificar."
+      : "Escolha uma carta da sua mão para colocar no topo do deck do oponente.";
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.cards || []).forEach(ch => {
+      const card = allCards[ch.card_id];
+      if (!card) return;
+      const el = renderCard(card, card.cost ?? 0);
+      el.onclick = () => {
+        send("choice_response", {
+          choice_id: choice.choice_id,
+          response: { card_id: ch.instance_id }
+        });
+        clearPendingChoiceOverlay();
+      };
+      cardsBox.appendChild(el);
+    });
+    overlay.appendChild(cardsBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+
+  if (choice.kind === "resurrect_from_graveyard") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha um dos lacaios aliados recentes para ressuscitar.";
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.options || []).forEach(opt => {
+      const card = allCards[opt.card_id];
+      if (!card) return;
+      const col = document.createElement("div");
+      col.style.textAlign = "center";
+      const el = renderCard(card, card.cost ?? 0);
+      el.onclick = () => {
+        send("choice_response", {
+          choice_id: choice.choice_id,
+          response: { graveyard_index: opt.graveyard_index }
+        });
+        clearPendingChoiceOverlay();
+      };
+      col.appendChild(el);
+      const btn = document.createElement("button");
+      btn.className = "btn small";
+      btn.textContent = "Ressuscitar";
+      btn.onclick = el.onclick;
+      col.appendChild(btn);
+      cardsBox.appendChild(col);
+    });
+    overlay.appendChild(cardsBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+
+  if (choice.kind === "discard_up_to_cards") {
+    const amount = choice.amount || 1;
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = `Escolha até ${amount} carta(s) para descartar. Você recrutará a mesma quantidade de lacaios.`;
+    overlay.appendChild(msg);
+
+    const selected = new Set();
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.cards || []).forEach(ch => {
+      const card = allCards[ch.card_id];
+      if (!card) return;
+      const el = renderCard(card, card.cost ?? 0);
+      el.onclick = () => {
+        if (selected.has(ch.instance_id)) {
+          selected.delete(ch.instance_id);
+          el.classList.remove("selected");
+        } else {
+          if (selected.size >= amount) return;
+          selected.add(ch.instance_id);
+          el.classList.add("selected");
+        }
+      };
+      cardsBox.appendChild(el);
+    });
+    overlay.appendChild(cardsBox);
+
+    const btnBox = document.createElement("div");
+    btnBox.className = "row";
+    btnBox.style.justifyContent = "center";
+
+    const confirm = document.createElement("button");
+    confirm.className = "btn primary";
+    confirm.textContent = "Confirmar descarte";
+    confirm.onclick = () => {
+      send("choice_response", {
+        choice_id: choice.choice_id,
+        response: { card_ids: Array.from(selected) }
+      });
+      clearPendingChoiceOverlay();
+    };
+    btnBox.appendChild(confirm);
+
+    const none = document.createElement("button");
+    none.className = "btn";
+    none.textContent = "Não descartar";
+    none.onclick = () => {
+      send("choice_response", { choice_id: choice.choice_id, response: { card_ids: [] } });
+      clearPendingChoiceOverlay();
+    };
+    btnBox.appendChild(none);
+
+    overlay.appendChild(btnBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "choose_deck_destroy_threshold") {
+    const maxX = choice.max_x ?? 10;
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha X. Lacaios do seu deck com custo X ou menor serão destruídos.";
+    overlay.appendChild(msg);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    row.style.flexWrap = "wrap";
+    for (let i = 0; i <= maxX; i++) {
+      const btn = document.createElement("button");
+      btn.className = i === maxX ? "btn primary" : "btn";
+      btn.textContent = String(i);
+      btn.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { x: i } });
+        clearPendingChoiceOverlay();
+      };
+      row.appendChild(btn);
+    }
+    overlay.appendChild(row);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "spend_extra_mana_buff_self" || choice.kind === "spend_extra_mana_add_copies_to_deck") {
+    const maxX = choice.max_x ?? 0;
+    const isDeckCopies = choice.kind === "spend_extra_mana_add_copies_to_deck";
+
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = isDeckCopies
+      ? "Escolha quanta mana extra gastar. Serão adicionadas 2X cópias ao seu deck."
+      : "Escolha quanta mana extra gastar. O lacaio recebe +X/+X.";
+    overlay.appendChild(msg);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    row.style.flexWrap = "wrap";
+
+    const submit = (x, position = "MIDDLE") => {
+      send("choice_response", {
+        choice_id: choice.choice_id,
+        response: { x, position }
+      });
+      clearPendingChoiceOverlay();
+    };
+
+    for (let i = 0; i <= maxX; i++) {
+      if (!isDeckCopies) {
+        const btn = document.createElement("button");
+        btn.className = i === maxX ? "btn primary" : "btn";
+        btn.textContent = String(i);
+        btn.onclick = () => submit(i);
+        row.appendChild(btn);
+      } else {
+        const group = document.createElement("div");
+        group.style.display = "flex";
+        group.style.gap = "0.25rem";
+        group.style.margin = "0.2rem";
+        group.style.alignItems = "center";
+        const label = document.createElement("span");
+        label.className = "muted";
+        label.textContent = `${i} mana:`;
+        group.appendChild(label);
+        ["TOP", "MIDDLE", "BOTTOM"].forEach(pos => {
+          const b = document.createElement("button");
+          b.className = i === maxX ? "btn small primary" : "btn small";
+          b.textContent = pos === "TOP" ? "Topo" : pos === "BOTTOM" ? "Fundo" : "Meio";
+          b.onclick = () => submit(i, pos);
+          group.appendChild(b);
+        });
+        row.appendChild(group);
+      }
+    }
+
+    overlay.appendChild(row);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+
+  if (choice.kind === "choose_n_keywords") {
+    const choose = choice.choose || 1;
+    const selected = new Set();
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = `Escolha exatamente ${choose} palavra(s)-chave.`;
+    overlay.appendChild(msg);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    row.style.flexWrap = "wrap";
+
+    (choice.choices || []).forEach(tag => {
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = tag;
+      btn.onclick = () => {
+        if (selected.has(tag)) {
+          selected.delete(tag);
+          btn.classList.remove("primary");
+        } else {
+          if (selected.size >= choose) return;
+          selected.add(tag);
+          btn.classList.add("primary");
+        }
+      };
+      row.appendChild(btn);
+    });
+    overlay.appendChild(row);
+
+    const confirm = document.createElement("button");
+    confirm.className = "btn primary";
+    confirm.textContent = "Confirmar";
+    confirm.onclick = () => {
+      if (selected.size !== choose) return;
+      send("choice_response", {
+        choice_id: choice.choice_id,
+        response: { selected_keywords: Array.from(selected) }
+      });
+      clearPendingChoiceOverlay();
+    };
+    overlay.appendChild(confirm);
+
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "choose_x_damage_self_player_summon") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = `Escolha quantas vezes sofrer ${choice.amount || 0} de dano para invocar Troncos.`;
+    overlay.appendChild(msg);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    (choice.choices || []).forEach(x => {
+      const btn = document.createElement("button");
+      btn.className = "btn primary";
+      btn.textContent = `${x} vez(es)`;
+      btn.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { x } });
+        clearPendingChoiceOverlay();
+      };
+      row.appendChild(btn);
+    });
+    overlay.appendChild(row);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "redistribute_self_stats") {
+    const total = choice.total || 0;
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = `Redistribua ${total} pontos entre ataque e vida.`;
+    overlay.appendChild(msg);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    row.style.flexWrap = "wrap";
+    for (let atk = 0; atk <= total; atk++) {
+      const hp = total - atk;
+      if (hp <= 0) continue;
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = `${atk}/${hp}`;
+      btn.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { attack: atk } });
+        clearPendingChoiceOverlay();
+      };
+      row.appendChild(btn);
+    }
+    overlay.appendChild(row);
+
+    if (choice.optional) {
+      const skip = document.createElement("button");
+      skip.className = "btn primary";
+      skip.textContent = "Manter como está";
+      skip.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { skip: true } });
+        clearPendingChoiceOverlay();
+      };
+      overlay.appendChild(skip);
+    }
+
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "move_hand_cards_to_deck_and_heal") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha cartas da sua mão para colocar no deck. Você cura vida por carta escolhida.";
+    overlay.appendChild(msg);
+
+    const selected = new Set();
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.cards || []).forEach(ch => {
+      const card = allCards[ch.card_id];
+      if (!card) return;
+      const el = renderCard(card, card.cost ?? 0);
+      el.onclick = () => {
+        if (selected.has(ch.instance_id)) {
+          selected.delete(ch.instance_id);
+          el.classList.remove("selected");
+        } else {
+          selected.add(ch.instance_id);
+          el.classList.add("selected");
+        }
+      };
+      cardsBox.appendChild(el);
+    });
+    overlay.appendChild(cardsBox);
+
+    const btnBox = document.createElement("div");
+    btnBox.className = "row";
+    btnBox.style.justifyContent = "center";
+
+    const submit = (position) => {
+      send("choice_response", {
+        choice_id: choice.choice_id,
+        response: { card_ids: Array.from(selected), position }
+      });
+      clearPendingChoiceOverlay();
+    };
+
+    const top = document.createElement("button");
+    top.className = "btn primary";
+    top.textContent = "Colocar no topo";
+    top.onclick = () => submit("TOP");
+    btnBox.appendChild(top);
+
+    const middle = document.createElement("button");
+    middle.className = "btn";
+    middle.textContent = "Colocar no meio";
+    middle.onclick = () => submit("MIDDLE");
+    btnBox.appendChild(middle);
+
+    const bottom = document.createElement("button");
+    bottom.className = "btn";
+    bottom.textContent = "Colocar no fundo";
+    bottom.onclick = () => submit("BOTTOM");
+    btnBox.appendChild(bottom);
+
+    overlay.appendChild(btnBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  const fallback = document.createElement("div");
+  fallback.className = "muted";
+  fallback.textContent = `Escolha não suportada no cliente: ${choice.kind}`;
+  overlay.appendChild(fallback);
+  document.getElementById("overlay-root").appendChild(overlay);
+}
+
+// Modal interativa para CHOOSE_ONE: 2-N opções, jogador clica uma, mandamos
+// `chose_index` no play_card. Se a opção escolhida pede alvo, entra em modo
+// de targeting depois.
+function showChooseOneModal(handCard, card, chooseEffect) {
+  const overlay = document.createElement("div");
+  overlay.className = "choose-one-overlay";
+
+  const title = document.createElement("h2");
+  title.textContent = "Escolha uma opção";
+  overlay.appendChild(title);
+
+  const subtitle = document.createElement("div");
+  subtitle.className = "subtitle";
+  subtitle.textContent = card.name;
+  overlay.appendChild(subtitle);
+
+  const optsBox = document.createElement("div");
+  optsBox.className = "choose-options";
+
+  (chooseEffect.choices || []).forEach((choice, idx) => {
+    const btn = document.createElement("button");
+    const numLabel = document.createElement("div");
+    numLabel.className = "opt-num";
+    numLabel.textContent = (idx === 0 ? "Opção 1" : (idx === 1 ? "Opção 2" : `Opção ${idx + 1}`));
+    btn.appendChild(numLabel);
+
+    const txt = document.createElement("div");
+    txt.className = "opt-text";
+    txt.textContent = describeChoice(choice);
+    btn.appendChild(txt);
+
+    btn.onclick = () => {
+      overlay.remove();
+      // Após escolha: se essa opção exige alvo, entra em targeting; senão joga direto.
+      const targetDescs = collectChosenTargetDescsForEffect(choice, []);
+      if (targetDescs.length > 0 && hasValidChosenTarget(targetDescs[0])) {
+        targetingMode = {
+          hand_id: handCard.instance_id,
+          card,
+          chose_index: idx,
+          targetDescs,
+          targets: [],
+        };
+        toast("Escolha um alvo (ESC para cancelar)");
+        render();
+      } else {
+        send("play_card", { hand_id: handCard.instance_id, chose_index: idx });
+      }
+    };
+    optsBox.appendChild(btn);
+  });
+  overlay.appendChild(optsBox);
+
+  // Botão de cancelar
+  const cancel = document.createElement("button");
+  cancel.className = "btn small";
+  cancel.style.marginTop = "0.6rem";
+  cancel.textContent = "Cancelar";
+  cancel.onclick = () => overlay.remove();
+  overlay.appendChild(cancel);
+
+  document.getElementById("overlay-root").appendChild(overlay);
+}
+
+// Tenta gerar um texto humano descrevendo cada choice
+function describeChoice(choice) {
+  const action = choice.action;
+  const amount = choice.amount;
+  const tgt = choice.target || {};
+  const targetText = (() => {
+    if (tgt.mode === "ENEMY_MINIONS") return "todos os lacaios inimigos";
+    if (tgt.mode === "ALL_ENEMY_MINIONS") return "todos os lacaios inimigos";
+    if (tgt.mode === "ALL_FRIENDLY_MINIONS") return "todos os lacaios aliados";
+    if (tgt.mode === "ALL_MINIONS") return "todos os lacaios";
+    if (tgt.mode === "CHOSEN") return "um alvo escolhido";
+    if (tgt.mode === "ENEMY_HERO") return "o herói inimigo";
+    if (tgt.mode === "FRIENDLY_HERO") return "seu herói";
+    return "";
+  })();
+
+  if (action === "DAMAGE") {
+    return `Cause ${amount ?? 1} de dano${targetText ? " a " + targetText : ""}`;
+  }
+  if (action === "HEAL") {
+    return `Cure ${amount ?? 1}${targetText ? " em " + targetText : ""}`;
+  }
+  if (action === "BUFF_STATS") {
+    if (typeof amount === "object") {
+      return `Conceda +${amount.attack ?? 0}/+${amount.health ?? 0}${targetText ? " a " + targetText : ""}`;
+    }
+    return `Conceda +${amount}/+${amount}${targetText ? " a " + targetText : ""}`;
+  }
+  if (action === "BUFF_ATTACK") {
+    return `+${amount} de ataque${targetText ? " em " + targetText : ""}`;
+  }
+  if (action === "BUFF_HEALTH") {
+    return `+${amount} de vida${targetText ? " em " + targetText : ""}`;
+  }
+  if (action === "SET_ATTACK") {
+    return `Defina o ataque para ${amount}${targetText ? " em " + targetText : ""}`;
+  }
+  if (action === "FREEZE") {
+    return `Congele${targetText ? " " + targetText : ""}`;
+  }
+  if (action === "DESTROY") {
+    return `Destrua${targetText ? " " + targetText : ""}`;
+  }
+  if (action === "DRAW_CARD") {
+    return `Compre ${amount ?? 1} carta${(amount ?? 1) > 1 ? "s" : ""}`;
+  }
+  // fallback genérico
+  return action.replace(/_/g, " ").toLowerCase();
+}
+
+// Replica leve da lógica do backend pra o cliente decidir se pede alvo.
+// Mantém o jogo fluido — sem isso, qualquer carta com 'CHOSEN' pediria alvo
+// mesmo quando ele não existe.
+function hasValidChosenTarget(targetDesc) {
+  const valid = targetDesc.valid || [];
+  const me = state.you;
+  const opp = state.opponent;
+  let candidates = [];
+  for (const v of valid) {
+    if (v === "FRIENDLY_MINION") candidates.push(...me.board);
+    else if (v === "ENEMY_MINION") candidates.push(...opp.board);
+    else if (v === "ANY_MINION") candidates.push(...me.board, ...opp.board);
+    else if (v === "FRIENDLY_HERO") candidates.push("me");
+    else if (v === "ENEMY_HERO") candidates.push("opp");
+    else if (v === "ANY_HERO") candidates.push("me", "opp");
+    else if (v === "OTHER_FRIENDLY_MINION") candidates.push(...me.board);
+  }
+  // filtra stealth/immune
+  candidates = candidates.filter(c => {
+    if (typeof c === "string") return true;
+    if (c.owner !== myPid && (c.keywords || []).includes("STEALTH")) return false;
+    if (c.immune) return false;
+    return true;
+  });
+  if (!valid.length) return true;
+  return candidates.length > 0;
+}
+
+function onMyMinionClick(m) {
+  if (targetingMode || abilityMode) {
+    onTargetClick(m.instance_id);
+    return;
+  }
+  if (state.current_player !== myPid) return;
+  if (!m.can_attack) {
+    if (m.summoning_sick && !m.tags.includes("CHARGE") && !m.tags.includes("RUSH")) {
+      toast("Lacaio com sono de invocação");
+    } else if (m.frozen) {
+      toast("Lacaio congelado");
+    } else if (m.attacks_this_turn > 0) {
+      toast("Já atacou este turno");
+    }
+    return;
+  }
+  attackingMode = { attacker_id: m.instance_id };
+  toast("Selecione um alvo para atacar");
+  render();
+}
+
+
+function showAdjacentDirectionModal(payload) {
+  clearPendingChoiceOverlay();
+
+  const overlay = document.createElement("div");
+  overlay.className = "choose-one-overlay pending-choice-overlay";
+
+  const title = document.createElement("h2");
+  title.textContent = "Escolha o lado";
+  overlay.appendChild(title);
+
+  const msg = document.createElement("div");
+  msg.className = "muted";
+  msg.textContent = "O dano excedente continuará para o lado escolhido.";
+  overlay.appendChild(msg);
+
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.justifyContent = "center";
+
+  const left = document.createElement("button");
+  left.className = "btn";
+  left.textContent = "Esquerda";
+  left.onclick = () => {
+    payload.direction = "LEFT";
+    send("play_card", payload);
+    clearPendingChoiceOverlay();
+  };
+  row.appendChild(left);
+
+  const right = document.createElement("button");
+  right.className = "btn primary";
+  right.textContent = "Direita";
+  right.onclick = () => {
+    payload.direction = "RIGHT";
+    send("play_card", payload);
+    clearPendingChoiceOverlay();
+  };
+  row.appendChild(right);
+
+  overlay.appendChild(row);
+  document.getElementById("overlay-root").appendChild(overlay);
+}
+
+
+function onTargetClick(targetId) {
+  if (targetingMode) {
+    targetingMode.targets = targetingMode.targets || [];
+    targetingMode.targets.push(targetId);
+
+    const needed = (targetingMode.targetDescs || []).length || 1;
+    if (targetingMode.targets.length < needed) {
+      const next = (targetingMode.targetDescs || [])[targetingMode.targets.length] || {};
+      const hint = next.valid && next.valid.includes("FRIENDLY_MINION")
+        ? "Escolha um lacaio aliado"
+        : next.valid && next.valid.includes("ENEMY_MINION")
+          ? "Escolha um lacaio inimigo"
+          : "Escolha o próximo alvo";
+      toast(`${hint} (${targetingMode.targets.length + 1}/${needed})`);
+      return;
+    }
+
+    const payload = {
+      hand_id: targetingMode.hand_id,
+      target: targetingMode.targets[0],
+      targets: targetingMode.targets,
+    };
+    if (typeof targetingMode.chose_index === "number") {
+      payload.chose_index = targetingMode.chose_index;
+    }
+    if (targetingMode.empowered) {
+      payload.empowered = true;
+    }
+    if (targetingMode.requiresDirection) {
+      targetingMode = null;
+      showAdjacentDirectionModal(payload);
+      return;
+    }
+    send("play_card", payload);
+    targetingMode = null;
+    return;
+  }
+  if (abilityMode) {
+    send("activate_ability", {
+      minion_id: abilityMode.minion_id,
+      ability_index: abilityMode.ability_index || 0,
+      target: targetId,
+      targets: [targetId],
+    });
+    abilityMode = null;
+    return;
+  }
+  if (attackingMode) {
+    send("attack", { attacker_id: attackingMode.attacker_id, target_id: targetId });
+    attackingMode = null;
+    return;
+  }
+}
+
+function cancelModes() {
+  targetingMode = null;
+  attackingMode = null;
+  abilityMode = null;
+  removeAimLine();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    cancelModes();
+    render();
+  }
+});
+
+// =========== Aim line (seta de mira) ===========
+let aimLineEl = null;
+function removeAimLine() {
+  if (aimLineEl) { aimLineEl.remove(); aimLineEl = null; }
+}
+document.addEventListener("mousemove", (e) => {
+  mousePos = { x: e.clientX, y: e.clientY };
+  if (!attackingMode && !targetingMode && !abilityMode) { removeAimLine(); return; }
+  drawAimLine();
+});
+function drawAimLine() {
+  let originEl = null;
+  if (attackingMode) {
+    originEl = document.querySelector(`.minion[data-minion-id='${attackingMode.attacker_id}']`);
+  } else if (abilityMode) {
+    originEl = document.querySelector(`.minion[data-minion-id='${abilityMode.minion_id}']`);
+  } else if (targetingMode) {
+    // origem: hero do jogador (centro da tela, parte de baixo)
+    originEl = document.querySelector(`.hero[data-hero-owner='${myPid}'] .portrait-wrap`);
+  }
+  if (!originEl) { removeAimLine(); return; }
+  const r = originEl.getBoundingClientRect();
+  const x0 = r.left + r.width / 2;
+  const y0 = r.top + r.height / 2;
+  const dx = mousePos.x - x0;
+  const dy = mousePos.y - y0;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+  if (!aimLineEl) {
+    aimLineEl = document.createElement("div");
+    aimLineEl.className = "aim-line";
+    document.body.appendChild(aimLineEl);
+  }
+  aimLineEl.style.left = x0 + "px";
+  aimLineEl.style.top = (y0 - 2) + "px";
+  aimLineEl.style.width = len + "px";
+  aimLineEl.style.transform = `rotate(${ang}deg)`;
+}
+
+// ============ ANIMAÇÕES baseadas no delta de estado ============
+function animateFromDelta(oldS, newS) {
+  // Indexa minions por instance_id pra comparar HP/atk
+  const oldByid = {};
+  const newByid = {};
+  for (const p of [oldS.you, oldS.opponent]) {
+    for (const m of p.board) oldByid[m.instance_id] = m;
+  }
+  for (const p of [newS.you, newS.opponent]) {
+    for (const m of p.board) newByid[m.instance_id] = m;
+  }
+
+  // Eventos novos (do log)
+  const oldLogLen = (oldS.log || []).length;
+  const newLogLen = (newS.log || []).length;
+  const newEvents = (newS.log || []).slice(oldLogLen);
+
+  // Para cada lacaio que sumiu (morreu), animar dying ANTES da rerenderização
+  const deadIds = Object.keys(oldByid).filter(id => !newByid[id]);
+  for (const id of deadIds) {
+    const el = document.querySelector(`.minion[data-minion-id='${id}']`);
+    if (el) {
+      el.classList.add("dying");
+      // detacha do fluxo pra render() não removê-lo na hora
+      const clone = el.cloneNode(true);
+      clone.style.position = "fixed";
+      const r = el.getBoundingClientRect();
+      clone.style.left = r.left + "px";
+      clone.style.top = r.top + "px";
+      clone.style.zIndex = 30;
+      document.getElementById("fx-layer").appendChild(clone);
+      clone.classList.add("dying");
+      setTimeout(() => clone.remove(), 600);
+    }
+  }
+
+  // Mudanças de HP / divine shield em lacaios que continuam
+  for (const id in newByid) {
+    const o = oldByid[id]; const n = newByid[id];
+    if (!o) continue;
+    if (n.health < o.health) {
+      const dmg = o.health - n.health;
+      queueShake(`.minion[data-minion-id='${id}']`, "dmg", dmg);
+    } else if (n.health > o.health) {
+      const heal = n.health - o.health;
+      queueShake(`.minion[data-minion-id='${id}']`, "heal", heal);
+    }
+    if (o.divine_shield && !n.divine_shield) {
+      queueShake(`.minion[data-minion-id='${id}']`, "shield", "✦");
+    }
+  }
+
+  // Mudança de HP em heróis
+  if (newS.you.hero_health < oldS.you.hero_health) {
+    queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "dmg",
+               oldS.you.hero_health - newS.you.hero_health);
+  } else if (newS.you.hero_health > oldS.you.hero_health) {
+    queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "heal",
+               newS.you.hero_health - oldS.you.hero_health);
+  }
+  if (newS.opponent.hero_health < oldS.opponent.hero_health) {
+    queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "dmg",
+               oldS.opponent.hero_health - newS.opponent.hero_health);
+  } else if (newS.opponent.hero_health > oldS.opponent.hero_health) {
+    queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "heal",
+               newS.opponent.hero_health - oldS.opponent.hero_health);
+  }
+
+  // Eventos do log: ataques, summons, draws (de qualquer jogador) e cartas
+  // jogadas pelo oponente.
+  for (const ev of newEvents) {
+    if (ev.type === "attack") {
+      animateAttack(ev.attacker, ev.target);
+    }
+    if (ev.type === "summon") {
+      const newMinionId = ev.minion?.instance_id;
+      if (newMinionId) {
+        setTimeout(() => {
+          const el = document.querySelector(`.minion[data-minion-id='${newMinionId}']`);
+          if (el) {
+            el.classList.add("entering");
+            setTimeout(() => el.classList.remove("entering"), 500);
+          }
+        }, 30);
+      }
+    }
+    // === Compra de carta (qualquer jogador) ===
+    if (ev.type === "draw" || ev.type === "draw_minion" ||
+        ev.type === "draw_spell" || ev.type === "steal_card") {
+      // Identifica o jogador que comprou
+      const player = ev.player ?? ev.to;
+      // Para uma compra normal, ev.instance_id é o id da carta nova
+      const inst = ev.instance_id;
+      // Se SOU eu que comprei, preciso descobrir o card_id pra mostrar a
+      // imagem da carta. Se foi o oponente, mostro só o card-back voando.
+      let cardIdRevealed = null;
+      if (player === myPid && inst) {
+        // newS.you.hand já tem a carta nova (último item ou pelo instance_id)
+        const handCard = (newS.you.hand || []).find(c => c.instance_id === inst);
+        if (handCard) cardIdRevealed = handCard.card_id;
+      }
+      scheduleDrawAnimation(player, cardIdRevealed);
+    }
+    // === Anúncio de carta jogada pelo oponente ===
+    if (ev.type === "play_card" && ev.player !== myPid) {
+      enqueueOpponentPlay(ev);
+    }
+  }
+}
+
+// =================== ANIMAÇÃO DE COMPRA ===================
+// Para cada draw: cartinha sai do deck-pile do dono e voa até a mão dele.
+// - Se a carta é minha e eu sei o card_id, mostro a imagem da carta
+//   (ou fallback textual)
+// - Se é do oponente, mostro só o card-back (ele esconde o conteúdo)
+let drawAnimsScheduled = 0;
+function scheduleDrawAnimation(playerId, cardIdRevealed) {
+  const delay = drawAnimsScheduled * 140;
+  drawAnimsScheduled++;
+  setTimeout(() => {
+    flyDrawCard(playerId, cardIdRevealed);
+    drawAnimsScheduled = Math.max(0, drawAnimsScheduled - 1);
+  }, delay);
+}
+
+function flyDrawCard(playerId, cardIdRevealed) {
+  // Origem: deck-pile do jogador (sidebar direito)
+  const pileEl = document.querySelector(`.deck-pile[data-pile-owner='${playerId}']`);
+  // Destino: a mão do dono. Pra MIM é a hand-row real; pra ele é a fileira de
+  // backs no topo.
+  let handEl;
+  if (playerId === myPid) {
+    handEl = document.querySelector(".zone-my-hand");
+  } else {
+    handEl = document.querySelector(".zone-opp-hand");
+  }
+  if (!pileEl || !handEl) return;
+
+  const pr = pileEl.getBoundingClientRect();
+  const hr = handEl.getBoundingClientRect();
+
+  const startX = pr.left + pr.width / 2;
+  const startY = pr.top + pr.height / 2;
+  const endX = hr.left + hr.width * 0.6;
+  const endY = hr.top + hr.height / 2;
+
+  const fly = document.createElement("div");
+  fly.className = "draw-fly start";
+
+  // Conteúdo: imagem real da carta (se conhecida) ou card-back
+  const isFaceDown = (playerId !== myPid) || !cardIdRevealed;
+  if (isFaceDown) {
+    fly.classList.add("face-down");
+  } else {
+    const card = allCards[cardIdRevealed] || {};
+    const hasImg = !!cardImages[cardIdRevealed];
+    if (hasImg) {
+      fly.classList.add("face-up", "with-image");
+      fly.style.backgroundImage = `url('${cardImages[cardIdRevealed]}')`;
+    } else {
+      fly.classList.add("face-up");
+      fly.innerHTML = `
+        <div class="fly-cost">${card.cost ?? 0}</div>
+        <div class="fly-name">${escapeHtml(card.name || "?")}</div>
+        ${card.type === "MINION"
+          ? `<div class="fly-stats"><span>${card.attack ?? 0}</span><span>${card.health ?? 0}</span></div>`
+          : ""}
+      `;
+    }
+  }
+
+  fly.style.left = startX + "px";
+  fly.style.top = startY + "px";
+  document.body.appendChild(fly);
+
+  // Próximo frame: começa a voar pra mão
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      fly.classList.remove("start");
+      fly.classList.add("flying");
+      fly.style.left = endX + "px";
+      fly.style.top = endY + "px";
+    });
+  });
+  // Ao chegar: dissolve
+  setTimeout(() => {
+    fly.classList.remove("flying");
+    fly.classList.add("land");
+  }, 600);
+  setTimeout(() => fly.remove(), 1100);
+}
+
+// =================== ANUNCIADOR DE CARTA JOGADA ===================
+// Fila simples: cada carta jogada pelo oponente aparece por 1s. Se vier várias
+// em sequência, vão aparecendo uma por vez.
+const opponentPlayQueue = [];
+let opponentPlayShowing = false;
+
+function enqueueOpponentPlay(ev) {
+  opponentPlayQueue.push(ev);
+  if (!opponentPlayShowing) processOpponentPlayQueue();
+}
+
+function processOpponentPlayQueue() {
+  if (opponentPlayQueue.length === 0) {
+    opponentPlayShowing = false;
+    return;
+  }
+  opponentPlayShowing = true;
+  const ev = opponentPlayQueue.shift();
+  showOpponentPlayCard(ev);
+  // próxima entra logo após 1s (igual ao tempo da animação CSS)
+  setTimeout(() => processOpponentPlayQueue(), 1000);
+}
+
+function showOpponentPlayCard(ev) {
+  const cardId = ev.card_id;
+  const cardName = ev.card_name || "Carta";
+  const card = allCards[cardId] || {};
+  console.log("[anim] anúncio de carta jogada pelo oponente:", cardId, cardName);
+
+  const wrap = document.createElement("div");
+  wrap.className = "opp-play-announce";
+
+  const inner = document.createElement("div");
+  inner.className = "card-anim";
+
+  const hasImg = !!cardImages[cardId];
+  if (hasImg) {
+    inner.style.backgroundImage = `url('${cardImages[cardId]}')`;
+  } else {
+    inner.classList.add("fallback");
+    inner.innerHTML = `
+      <div class="name-fallback">${cardName}</div>
+      ${card.text ? `<div class="text-fallback">${card.text}</div>` : ""}
+    `;
+  }
+  const label = document.createElement("div");
+  label.className = "label";
+  label.textContent = "Oponente jogou";
+  inner.appendChild(label);
+
+  wrap.appendChild(inner);
+  document.body.appendChild(wrap);
+
+  setTimeout(() => wrap.remove(), 1100);
+}
+
+// Adia animações até logo após o re-render (que apaga e recria os DOM nodes)
+let pendingAnims = [];
+function queueShake(selector, kind, value) {
+  pendingAnims.push({ selector, kind, value });
+}
+function flushPendingAnims() {
+  for (const a of pendingAnims) {
+    const el = document.querySelector(a.selector);
+    if (!el) continue;
+    if (a.kind === "dmg") {
+      el.classList.add("taking-damage");
+      setTimeout(() => el.classList.remove("taking-damage"), 550);
+      spawnFloatNum(el, "-" + a.value, "damage");
+      spawnSpark(el);
+    } else if (a.kind === "heal") {
+      spawnFloatNum(el, "+" + a.value, "heal");
+    } else if (a.kind === "shield") {
+      spawnFloatNum(el, a.value, "shield");
+    }
+  }
+  pendingAnims = [];
+}
+
+function spawnFloatNum(el, txt, kind) {
+  const r = el.getBoundingClientRect();
+  const fx = document.getElementById("fx-layer");
+  const f = document.createElement("div");
+  f.className = "float-num " + kind;
+  f.textContent = txt;
+  f.style.left = (r.left + r.width / 2 - 10) + "px";
+  f.style.top = (r.top + r.height / 2 - 14) + "px";
+  fx.appendChild(f);
+  setTimeout(() => f.remove(), 1100);
+}
+
+function spawnSpark(el) {
+  const r = el.getBoundingClientRect();
+  const fx = document.getElementById("fx-layer");
+  const s = document.createElement("div");
+  s.className = "spark-burst";
+  s.style.left = (r.left + r.width / 2 - 35) + "px";
+  s.style.top  = (r.top  + r.height / 2 - 35) + "px";
+  fx.appendChild(s);
+  setTimeout(() => s.remove(), 460);
+}
+
+// Anima o ATAQUE: o atacante "salta" em direção ao alvo e volta
+function animateAttack(attackerId, targetId) {
+  // Espera o re-render colocar o atacante no DOM novamente
+  setTimeout(() => {
+    const atkEl = document.querySelector(`.minion[data-minion-id='${attackerId}']`);
+    if (!atkEl) return;
+    let tgtEl;
+    if (typeof targetId === "string" && targetId.startsWith("hero:")) {
+      const pid = targetId.split(":")[1];
+      tgtEl = document.querySelector(`.hero[data-hero-owner='${pid}']`);
+    } else {
+      tgtEl = document.querySelector(`.minion[data-minion-id='${targetId}']`);
+    }
+    if (!tgtEl) return;
+
+    const ar = atkEl.getBoundingClientRect();
+    const tr = tgtEl.getBoundingClientRect();
+    const dy = (tr.top + tr.height/2) - (ar.top + ar.height/2);
+    const dx = (tr.left + tr.width/2) - (ar.left + ar.width/2);
+
+    if (Math.abs(dy) > Math.abs(dx)) {
+      atkEl.classList.add(dy < 0 ? "attacking-up" : "attacking-down");
+    } else {
+      atkEl.classList.add(dx < 0 ? "attacking-left" : "attacking-right");
+    }
+    setTimeout(() => {
+      atkEl.classList.remove("attacking-up", "attacking-down", "attacking-left", "attacking-right");
+    }, 470);
+  }, 30);
+}
+
+// Após cada render, dispara animações pendentes
+const originalRender = render;
+render = function() {
+  originalRender();
+  // RAF garante que o DOM já foi pintado
+  requestAnimationFrame(() => flushPendingAnims());
+};
+
+// ============ Log ============
+function renderLog() {
+  const box = document.getElementById("log-overlay");
+  box.innerHTML = `<div class="log-title">
+    <span>HISTÓRICO</span>
+    <span class="hint">passe o mouse</span>
+  </div>`;
+  const events = state.log || [];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i];
+    const div = document.createElement("div");
+    div.className = "log-entry";
+    div.textContent = formatEvent(ev);
+    box.appendChild(div);
+  }
+}
+
+function formatEvent(ev) {
+  switch (ev.type) {
+    case "game_start": return `Início. Joga primeiro: P${ev.first_player}`;
+    case "turn_start": return `--- Turno ${ev.turn} (P${ev.player}) ---`;
+    case "play_card": return `P${ev.player} jogou ${ev.card_name} (${ev.cost})`;
+    case "summon": return `→ Surgiu ${ev.minion?.name || "?"}`;
+    case "attack": return `Ataque ${ev.attacker} → ${ev.target}`;
+    case "damage": return `${ev.amount} de dano em ${ev.target_kind}`;
+    case "heal": return `+${ev.amount} de cura`;
+    case "death": return `☠ Lacaio morreu`;
+    case "draw": return `P${ev.player} comprou`;
+    case "fatigue": return `P${ev.player} fadiga: ${ev.amount}`;
+    case "discard": return `P${ev.player} descartou`;
+    case "burn": return `P${ev.player} queimou (mão cheia)`;
+    case "divine_shield_break": return `Escudo Divino quebrado`;
+    case "silence": return `Silenciado`;
+    case "concede": return `P${ev.player} se rendeu`;
+    case "no_targets_available": return `${escapeHtml(ev.card_name)}: sem alvos válidos`;
+    case "game_end": return `=== Fim de jogo. Vencedor: P${ev.winner} ===`;
+    case "unimplemented_action": return `[!] efeito não implementado: ${ev.action}`;
+    default: return JSON.stringify(ev);
+  }
+}
+
+// ============ End overlay ============
+function renderEndOverlay() {
+  const root = document.getElementById("overlay-root");
+  root.innerHTML = "";
+  const win = state.winner;
+  let msg = "Empate";
+  if (win === myPid) msg = "Vitória";
+  else if (win === 1 - myPid) msg = "Derrota";
+  const ov = document.createElement("div");
+  ov.className = "modal-bg";
+  ov.innerHTML = `
+    <div class="modal" style="text-align: center;">
+      <h1 style="font-size: 3rem;">${msg}</h1>
+      <div class="muted">Partida encerrada.</div>
+      <div class="sep"></div>
+      <button class="btn primary" onclick="window.location.href='/lobby'">Voltar ao Saguão</button>
+    </div>
+  `;
+  root.appendChild(ov);
+}
+
+// ============ Init ============
+Promise.all([loadCards(), loadCardImages()]).then(connect);
+</script>
+</body>
+</html>

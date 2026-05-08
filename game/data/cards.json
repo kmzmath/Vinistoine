@@ -1,0 +1,6801 @@
+[
+  {
+    "id": "vini_zumbi",
+    "name": "Vini Zumbi",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Último Suspiro: Restaure 5 de vida do oponente.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "HEAL",
+        "amount": 5,
+        "target": {
+          "mode": "OPPONENT_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "troca_justa",
+    "name": "Troca Justa",
+    "type": "SPELL",
+    "cost": 0,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Descarte uma carta, compre uma carta.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DISCARD_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "sas",
+    "name": "SAS",
+    "type": "SPELL",
+    "cost": 1,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Olhe as primeiras duas cartas do seu deck, compre uma e descarte a outra.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "LOOK_TOP_CARDS",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "CHOOSE_ONE_DRAW_ONE_DISCARD_OTHER",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK_TOP",
+          "count": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "camarao",
+    "name": "Camarão",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, recebe +1 de ataque e Rapidez, caso haja outra comida aliada em campo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CONDITIONAL_EFFECTS",
+        "condition": {
+          "type": "FRIENDLY_MINION_TRIBE_EXISTS",
+          "tribe": "COMIDA",
+          "exclude_self": true
+        },
+        "effects": [
+          {
+            "action": "BUFF_ATTACK",
+            "amount": 1,
+            "target": {
+              "mode": "SELF"
+            }
+          },
+          {
+            "action": "ADD_TAG",
+            "tag": "RUSH",
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "fallen_duoluo",
+    "name": "Fallen 墮落",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 3,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, cause 1 de dano a um lacaio aliado.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "CHINA",
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 1,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fusca_de_brinquedo",
+    "name": "Fusca de Brinquedo",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, coloque uma moeda na mão do oponente.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_CARD_TO_HAND",
+        "amount": 1,
+        "card": {
+          "id": "coin",
+          "name": "Moeda"
+        },
+        "target": {
+          "mode": "OPPONENT_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "josney_tequila",
+    "name": "Josney Tequila",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 1,
+    "health": 3,
+    "durability": null,
+    "text": "Depois que você jogar um lacaio, cause 1 de dano a todos os lacaios.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "AFTER_YOU_PLAY_MINION",
+        "action": "DAMAGE",
+        "amount": 1,
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lamboia_3_anos",
+    "name": "Lamboia 3 Anos",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, revele a carta do topo de ambos os decks, você pode trocá-las se quiser.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REVEAL_TOP_CARD",
+        "target": {
+          "mode": "BOTH_DECKS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "OPTIONAL_SWAP_REVEALED_TOP_CARDS",
+        "target": {
+          "mode": "BOTH_DECKS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mamma_mia",
+    "name": "Mamma Mia",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, conceda Rapidez a um lacaio aliado, caso Italiano, ele recebe +2 de ataque.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "RUSH",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "CONDITIONAL_EFFECTS",
+        "condition": {
+          "type": "TARGET_HAS_TRIBE",
+          "tribe": "ITALIA"
+        },
+        "effects": [
+          {
+            "action": "BUFF_ATTACK",
+            "amount": 2,
+            "target": {
+              "mode": "SAME_AS_PREVIOUS_TARGET"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mundo_dos_negocios",
+    "name": "Mundo dos negócios",
+    "type": "SPELL",
+    "cost": 1,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Eco. Descarte uma carta, compre uma carta.",
+    "tags": [
+      "ECHO"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DISCARD_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "nando_3_anos",
+    "name": "Nando 3 Anos",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 3,
+    "health": 0,
+    "durability": null,
+    "text": "Furtividade. Esse lacaio é Imune enquanto estiver furtivo.",
+    "tags": [
+      "STEALTH"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "WHILE_STEALTHED",
+        "action": "SET_IMMUNE",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "niurau_irritado",
+    "name": "Niurau Irritado",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, lhe causa 3 de dano.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 3,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "peixe",
+    "name": "Peixe",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 1,
+    "health": 3,
+    "durability": null,
+    "text": "",
+    "tags": [],
+    "tribes": [
+      "COMIDA",
+      "FERA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "pequeno_gusnabo",
+    "name": "Pequeno Gusnabo",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, cure um aliado em 3 de vida.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL",
+        "amount": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_HERO",
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "ramoni_3_anos",
+    "name": "Ramoni 3 anos",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, silencie um lacaio.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SILENCE",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION",
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "soldado_romano",
+    "name": "Soldado Romano",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Provocar. Escudo Divino.",
+    "tags": [
+      "TAUNT",
+      "DIVINE_SHIELD"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "spiid_3_anos",
+    "name": "Spiid 3 Anos",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, sua próxima comida nesse turno custa 1 a menos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REDUCE_COST",
+        "amount": 1,
+        "target": {
+          "mode": "NEXT_CARD_PLAYED_THIS_TURN",
+          "valid": [
+            "CARD_WITH_TRIBE_COMIDA"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "stonks",
+    "name": "Stonks",
+    "type": "SPELL",
+    "cost": 1,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Eco. Revele a carta do topo de cada deck, a de quem custar mais compra-a.",
+    "tags": [
+      "ECHO"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REVEAL_TOP_CARD",
+        "target": {
+          "mode": "BOTH_DECKS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_HIGHEST_COST_REVEALED_CARD",
+        "target": {
+          "mode": "OWNER_OF_HIGHEST_COST_REVEALED_CARD"
+        },
+        "tie_behavior": "NO_EFFECT"
+      }
+    ]
+  },
+  {
+    "id": "vini_3_anos",
+    "name": "Vini 3 Anos",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 0,
+    "health": 4,
+    "durability": null,
+    "text": "Provocar.",
+    "tags": [
+      "TAUNT"
+    ],
+    "tribes": [],
+    "effects": []
+  },
+  {
+    "id": "vini_troll_do_gelo",
+    "name": "Vini Troll do Gelo",
+    "type": "MINION",
+    "cost": 1,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, congele um lacaio inimigo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "FREEZE",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "nandinho",
+    "name": "Nandinho",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Furtividade. Ao ser jogado, conceda Furtividade por 1 turno a um lacaio aliado.",
+    "tags": [
+      "STEALTH",
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "STEALTH",
+        "duration": "UNTIL_END_OF_TURN",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "furia_primata",
+    "name": "Fúria Primata",
+    "type": "SPELL",
+    "cost": 2,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Conceda +2 de ataque aos seus lacaios, Feras recebem Rapidez.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_ATTACK",
+        "amount": 2,
+        "target": {
+          "mode": "FRIENDLY_MINIONS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "RUSH",
+        "target": {
+          "mode": "FRIENDLY_MINIONS",
+          "required_tribe": "FERA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusnabo_3_anos_estiloso",
+    "name": "Gusnabo 3 Anos Estiloso",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Último Suspiro: Conceda +1 de ataque aos seus lacaios.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "BUFF_ATTACK",
+        "amount": 1,
+        "target": {
+          "mode": "FRIENDLY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ataque_de_niurau",
+    "name": "Ataque de Niurau",
+    "type": "SPELL",
+    "cost": 2,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Eco. Cause 1 de dano a todos os lacaios.",
+    "tags": [
+      "ECHO"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 1,
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "banana",
+    "name": "Banana",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, sua próxima Fruta nesse turno tem +1 de vida.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_NEXT_PLAYED_TRIBE_HEALTH",
+        "amount": 1,
+        "duration": "THIS_TURN",
+        "target": {
+          "mode": "NEXT_CARD_PLAYED_THIS_TURN",
+          "valid": [
+            "CARD_WITH_TRIBE_FRUTA"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "bencao_do_vini_da_luz",
+    "name": "Benção do Viní da Luz",
+    "type": "SPELL",
+    "cost": 2,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Cure-se em 3. Compre uma carta.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL",
+        "amount": 3,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "capataz",
+    "name": "Capataz",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, escolha um lacaio aliado, adicione uma cópia 1/1 dele que custa 1 na sua mão.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_MODIFIED_COPY_TO_HAND",
+        "copy_modifiers": {
+          "cost": 1,
+          "attack": 1,
+          "health": 1
+        },
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "donut",
+    "name": "Donut",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Último Suspiro: Cause 2 de dano ao adversário.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DAMAGE",
+        "amount": 2,
+        "target": {
+          "mode": "OPPONENT_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "edu_putasso",
+    "name": "Edu Putasso",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Tem +3 de ataque enquanto ferido.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "WHILE_DAMAGED",
+        "action": "BUFF_ATTACK",
+        "amount": 3,
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "fome",
+    "name": "Fome",
+    "type": "SPELL",
+    "cost": 2,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Jogue a primeira comida do seu deck que custe 3 ou menos.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "PLAY_FROM_DECK",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK",
+          "filter": {
+            "type": "MINION",
+            "tribe": "COMIDA",
+            "max_cost": 3
+          },
+          "selection": "FIRST_MATCH"
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusnabinho_mestre_do_combo",
+    "name": "Gusnabinho Mestre do Combo",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Sempre que você jogar uma carta esse lacaio recebe +1/+1.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "AFTER_YOU_PLAY_CARD",
+        "action": "BUFF_STATS",
+        "amount": {
+          "attack": 1,
+          "health": 1
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusnabo_de_negocios",
+    "name": "Gusnabo de Negócios",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, troque sua mão por uma nova aleatória do seu deck, embaralhe seu deck.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REPLACE_HAND_WITH_RANDOM_CARDS_FROM_DECK",
+        "target": {
+          "mode": "SELF_HAND"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "SHUFFLE_DECK",
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "investidor",
+    "name": "Investidor",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Último Suspiro: Compre três cartas, seu oponente rouba uma delas.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DRAW_CARD",
+        "amount": 3,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      },
+      {
+        "trigger": "ON_DEATH",
+        "action": "OPPONENT_STEALS_RANDOM_DRAWN_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "CARDS_DRAWN_BY_PREVIOUS_EFFECT"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ladrao",
+    "name": "Ladrão",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, compre uma carta do deck do oponente.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_FROM_OPPONENT_DECK",
+        "amount": 1,
+        "target": {
+          "mode": "OPPONENT_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lamboinha_ma_cozinheiro",
+    "name": "Lamboinha Má Cozinheiro",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, você pode destruir uma comida aliada para receber seus atributos e Rapidez.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "OPTIONAL_DESTROY_AND_GAIN_ATTRIBUTES",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ],
+          "required_tribe": "COMIDA"
+        },
+        "gain": [
+          "ATTACK",
+          "HEALTH",
+          "TAGS"
+        ],
+        "additional_effects": [
+          {
+            "action": "ADD_TAG",
+            "tag": "RUSH",
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "laranja",
+    "name": "Laranja",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Último Suspiro: Compre um lacaio. Uma fruta se possível.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DRAW_MINION",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK",
+          "preferred_tribe": "FRUTA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lasanha",
+    "name": "Lasanha",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, receba +1 de ataque e Provocar caso haja outra comida aliada em campo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CONDITIONAL_EFFECTS",
+        "condition": {
+          "type": "FRIENDLY_MINION_TRIBE_EXISTS",
+          "tribe": "COMIDA",
+          "exclude_self": true
+        },
+        "effects": [
+          {
+            "action": "BUFF_ATTACK",
+            "amount": 1,
+            "target": {
+              "mode": "SELF"
+            }
+          },
+          {
+            "action": "ADD_TAG",
+            "tag": "TAUNT",
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mamaquinho",
+    "name": "Mamaquinho",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, Escolha: Cause 2 de dano; Conceda +1/+1 a um lacaio.",
+    "tags": [
+      "BATTLECRY",
+      "CHOOSE_ONE"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CHOOSE_ONE",
+        "choices": [
+          {
+            "action": "DAMAGE",
+            "amount": 2,
+            "target": {
+              "mode": "CHOSEN",
+              "valid": [
+                "FRIENDLY_MINION",
+                "ENEMY_MINION"
+              ]
+            }
+          },
+          {
+            "action": "BUFF_STATS",
+            "amount": {
+              "attack": 1,
+              "health": 1
+            },
+            "target": {
+              "mode": "CHOSEN",
+              "valid": [
+                "FRIENDLY_MINION",
+                "ENEMY_MINION"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "memes",
+    "name": "Memes",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Lacaios adjacentes possuem +1 de ataque.",
+    "tags": [],
+    "tribes": [
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "BUFF_ATTACK",
+        "amount": 1,
+        "target": {
+          "mode": "ADJACENT_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "moeda_perdida",
+    "name": "Moeda Perdida",
+    "type": "SPELL",
+    "cost": 2,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Coloque essa carta no meio do seu deck, quando comprá-la: Ela vira uma moeda e você compra duas cartas.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SHUFFLE_THIS_INTO_DECK",
+        "position": "MIDDLE",
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      },
+      {
+        "trigger": "ON_DRAW",
+        "action": "TRANSFORM_THIS_CARD",
+        "card": {
+          "id": "coin",
+          "name": "Moeda"
+        },
+        "target": {
+          "mode": "SELF_HAND"
+        }
+      },
+      {
+        "trigger": "ON_DRAW",
+        "action": "DRAW_CARD",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ninjagui_3_anos",
+    "name": "NinjaGui 3 Anos",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, cause 1 de dano a um lacaio aliado para causar 3 de dano a um lacaio inimigo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SEQUENCE",
+        "effects": [
+          {
+            "action": "DAMAGE",
+            "amount": 1,
+            "target": {
+              "mode": "CHOSEN",
+              "valid": [
+                "FRIENDLY_MINION"
+              ]
+            }
+          },
+          {
+            "action": "DAMAGE",
+            "amount": 3,
+            "target": {
+              "mode": "CHOSEN",
+              "valid": [
+                "ENEMY_MINION"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pastel",
+    "name": "Pastel",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Possui +1 de ataque para cada lacaio Brasileiro ou Chinês em campo.",
+    "tags": [],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "BUFF_ATTACK_PER_MINION_TRIBE",
+        "amount": 1,
+        "target": {
+          "mode": "SELF"
+        },
+        "count": {
+          "mode": "ALL_MINIONS",
+          "tribes": [
+            "BRASIL",
+            "CHINA"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "pera",
+    "name": "Pera",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Sempre que você evocar uma fruta, esse lacaio recebe +1 de vida.",
+    "tags": [],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_FRIENDLY_SUMMON",
+        "action": "BUFF_HEALTH",
+        "amount": 1,
+        "condition": {
+          "type": "SUMMONED_MINION_TRIBE",
+          "tribe": "FRUTA"
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "pera_sagrada",
+    "name": "Pera Sagrada",
+    "type": "SPELL",
+    "cost": 2,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Conceda +3 de vida e Escudo Divino a um lacaio.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_HEALTH",
+        "amount": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION",
+            "ENEMY_MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "DIVINE_SHIELD",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION",
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "pizza",
+    "name": "Pizza",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Custa 1 a menos enquanto você tem uma comida aliada em campo.",
+    "tags": [],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "IN_HAND",
+        "action": "REDUCE_COST",
+        "amount": 1,
+        "condition": {
+          "type": "FRIENDLY_MINION_TRIBE_EXISTS",
+          "tribe": "COMIDA"
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "popo",
+    "name": "Popó",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, conceda Provocar a um lacaio aliado.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "TAUNT",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "soldado_italiano",
+    "name": "Soldado Italiano",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 1,
+    "health": 5,
+    "durability": null,
+    "text": "Provocar.",
+    "tags": [
+      "TAUNT"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "tata",
+    "name": "Tatá",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Provocar. Resistente. Escudo Divino.",
+    "tags": [
+      "TAUNT",
+      "RESISTANT",
+      "DIVINE_SHIELD"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "tia_da_cantina",
+    "name": "Tia da Cantina",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, compre um lacaio do seu deck. Uma comida se possível.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_MINION",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK",
+          "preferred_tribe": "COMIDA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "traficante",
+    "name": "Traficante",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Último Suspiro: Compre um feitiço do seu deck. Substâncias ilícitas se possível.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DRAW_SPELL",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK",
+          "preferred_tag": "SUBSTANCIAS_ILICITAS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_3_anos_abridor_de_caixa",
+    "name": "Viní 3 Anos Abridor de Caixa",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, revele uma carta de cada deck, descarte qual custar menos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REVEAL_TOP_CARD_EACH_DECK",
+        "amount": 1,
+        "target": {
+          "mode": "BOTH_DECKS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DISCARD_LOWEST_COST_REVEALED_CARD",
+        "target": {
+          "mode": "REVEALED_CARDS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_3_anos_cansado",
+    "name": "Viní 3 Anos Cansado",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 3,
+    "health": 6,
+    "durability": null,
+    "text": "Provocar. Dormente por 2 turnos.",
+    "tags": [
+      "TAUNT",
+      "DORMANT"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BECOME_DORMANT",
+        "amount": 2,
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_egoista",
+    "name": "Viní Egoísta",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Seus lacaios custam 1 a mais. Sempre que você joga um lacaio, Viní Egoísta ganha +1/+2.",
+    "tags": [],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "INCREASE_COST",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_HAND",
+          "valid": [
+            "MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_FRIENDLY_MINION_PLAYED",
+        "action": "BUFF_STATS",
+        "amount": {
+          "attack": 1,
+          "health": 2
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_estudioso",
+    "name": "Viní Estudioso",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, revele um feitiço da sua mão, ele custa 1 a menos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REVEAL_CARD_FROM_HAND",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_HAND",
+          "valid": [
+            "SPELL"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "REDUCE_COST",
+        "amount": 1,
+        "target": {
+          "mode": "REVEALED_CARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_ward",
+    "name": "Viní Ward",
+    "type": "MINION",
+    "cost": 2,
+    "attack": 0,
+    "health": 7,
+    "durability": null,
+    "text": "Provocar. Não pode atacar. Lacaios inimigos perdem Furtividade.",
+    "tags": [
+      "TAUNT",
+      "CANT_ATTACK"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "REMOVE_TAG",
+        "tag": "STEALTH",
+        "target": {
+          "mode": "ENEMY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "aliexpress",
+    "name": "AliExpress",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Compre uma carta, ela custa 2 a menos, mas só chega na sua mão no seu próximo turno.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD_DELAYED",
+        "amount": 1,
+        "delay_turns": 1,
+        "cost_modifier": -2,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "furia_do_vini_geladinho",
+    "name": "Fúria do Viní Geladinho",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Eco. Congele todos os lacaios. Cause 2 de dano em todos os lacaios congelados.",
+    "tags": [
+      "ECHO",
+      "FREEZE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "FREEZE",
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 2,
+        "condition": {
+          "type": "TARGET_IS_FROZEN"
+        },
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "romaozinho",
+    "name": "Romãozinho",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 2,
+    "durability": null,
+    "text": "Último Suspiro: Se for morto no turno do seu oponente, Romãozinho volta para sua mão.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "RETURN_TO_HAND",
+        "condition": {
+          "type": "DIED_DURING_OPPONENT_TURN"
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "absorver",
+    "name": "Absorver",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Destrua um lacaio inimigo, receba sua vida como dano. Fortalecer: Destrua um lacaio inimigo.",
+    "tags": [
+      "EMPOWER"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_EQUAL_TO_TARGET_HEALTH",
+        "target": {
+          "mode": "SELF_HERO"
+        },
+        "source": {
+          "mode": "DESTROYED_MINION"
+        }
+      },
+      {
+        "trigger": "ON_PLAY_EMPOWERED",
+        "action": "DESTROY",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "acai",
+    "name": "Açaí",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, lhe causa 3 de dano.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 3,
+        "target": {
+          "mode": "SELF_HERO"
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais_da_bota",
+    "name": "País da Bota",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 4,
+    "durability": null,
+    "text": "Provocar.",
+    "tags": [
+      "TAUNT"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "aleixinho_da_mamae",
+    "name": "Aleixinho da Mamãe",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, recebe +1/+1 caso tenha outro lacaio aliado em campo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CONDITIONAL_EFFECTS",
+        "condition": {
+          "type": "FRIENDLY_MINION_EXISTS",
+          "exclude_self": true,
+          "amount": 1
+        },
+        "effects": [
+          {
+            "action": "BUFF_ATTACK",
+            "amount": 1,
+            "target": {
+              "mode": "SELF"
+            }
+          },
+          {
+            "action": "BUFF_HEALTH",
+            "amount": 1,
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "ataque_do_vini_mago",
+    "name": "Ataque do Viní Mago",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Cause 3 de dano. Compre uma carta.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ANY_CHARACTER"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "bloquear",
+    "name": "Bloquear",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Reduza um lacaio a 0/1, conceda-o Provocar.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SET_STATS",
+        "attack": 0,
+        "health": 1,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "TAUNT",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "burgues",
+    "name": "Burguês",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, adicione uma Moeda a sua mão.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_CARD_TO_HAND",
+        "card_id": "moeda",
+        "card_name": "Moeda",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cabecada_do_vini",
+    "name": "Cabeçada do Viní",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Cause 6 de dano a um lacaio, o excesso é causado a você.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_WITH_EXCESS_TO_SELF",
+        "amount": 6,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        },
+        "excess_target": {
+          "mode": "SELF_HERO"
+        }
+      }
+    ]
+  },
+  {
+    "id": "curitiba",
+    "name": "Curitiba",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Congele todos os lacaios inimigos.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "FREEZE",
+        "target": {
+          "mode": "ALL_ENEMY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "dani_perereca",
+    "name": "Dani Perereca",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, gaste X de mana a mais, esse lacaio recebe +X/X.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SPEND_EXTRA_MANA_BUFF_SELF",
+        "amount": "X",
+        "target": {
+          "mode": "SELF"
+        },
+        "buff": {
+          "attack": "X",
+          "health": "X"
+        }
+      }
+    ]
+  },
+  {
+    "id": "edu_cachorrao",
+    "name": "Edu Cachorrão",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 1,
+    "durability": null,
+    "text": "Sempre que esse lacaio recebe dano, ele perde ataque ao invés de vida (morre quando 0).",
+    "tags": [],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_SELF_TAKE_DAMAGE",
+        "action": "REDUCE_ATTACK_INSTEAD_OF_HEALTH",
+        "amount": "DAMAGE_AMOUNT",
+        "target": {
+          "mode": "SELF"
+        },
+        "death_condition": {
+          "type": "ATTACK_LESS_OR_EQUAL",
+          "value": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "estrategista",
+    "name": "Estrategista",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, volte um lacaio aliado para sua mão, ele custa 1 nesse turno.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RETURN_TO_HAND",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "SET_COST",
+        "amount": 1,
+        "duration": "THIS_TURN",
+        "target": {
+          "mode": "RETURNED_CARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "foco",
+    "name": "Foco",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Compre o lacaio mais barato do seu deck, ele tem +2/+2.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_LOWEST_COST_MINION",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_DRAWN_CARD",
+        "attack": 2,
+        "health": 2,
+        "target": {
+          "mode": "DRAWN_CARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "funkeiro",
+    "name": "Funkeiro",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, você tem 1 de mana a menos no próximo turno.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REDUCE_MANA_NEXT_TURN",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "guilaozinho",
+    "name": "Guilãozinho",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, compre e revele uma carta, ela custa 1 a menos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        },
+        "reveal": true
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "REDUCE_COST",
+        "amount": 1,
+        "target": {
+          "mode": "DRAWN_CARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "igor_cachorrao",
+    "name": "Igor Cachorrão",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Rapidez. Ao ser jogado, evoque outro Igor Cachorrão.",
+    "tags": [
+      "RUSH",
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_COPY",
+        "amount": 1,
+        "target": {
+          "mode": "SELF"
+        },
+        "copy_name": "Igor Cachorrão"
+      }
+    ]
+  },
+  {
+    "id": "kiwi",
+    "name": "Kiwi",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Último Suspiro: Evoque esse lacaio, ele perde o Último Suspiro.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "SUMMON_COPY",
+        "amount": 1,
+        "target": {
+          "mode": "SELF"
+        },
+        "modifications": [
+          {
+            "action": "REMOVE_TAG",
+            "tag": "DEATHRATTLE"
+          },
+          {
+            "action": "REMOVE_TRIGGER",
+            "trigger": "ON_DEATH"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "maca",
+    "name": "Maçã",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, conceda +2 de ataque a um lacaio aliado.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_ATTACK",
+        "amount": 2,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "morango",
+    "name": "Morango",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Último Suspiro: Compre uma Fruta do seu deck, se não comprar, ressuscite esse lacaio com 1 de vida.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DRAW_TRIBE_FROM_DECK_OR_RESURRECT_SELF",
+        "tribe": "FRUTA",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        },
+        "fallback": {
+          "action": "RESURRECT",
+          "target": {
+            "mode": "SELF"
+          },
+          "health": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "ninjagui_3_anos_cozinheiro",
+    "name": "NinjaGui 3 Anos Cozinheiro",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, cure totalmente um lacaio aliado, conceda-o Provocar.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL_FULL",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "TAUNT",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "ninjagui_domador_de_feras",
+    "name": "NinjaGui Domador de Feras",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 5,
+    "durability": null,
+    "text": "Suas feras possuem +1 de vida.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "BUFF_HEALTH",
+        "amount": 1,
+        "target": {
+          "mode": "FRIENDLY_MINIONS",
+          "tribe": "FERA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "niurau",
+    "name": "Niurau",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, receba Rapidez caso você tenha pelo menos outros 2 lacaios em campo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CONDITIONAL_EFFECTS",
+        "condition": {
+          "type": "FRIENDLY_MINION_COUNT_AT_LEAST",
+          "amount": 2,
+          "exclude_self": true
+        },
+        "effects": [
+          {
+            "action": "ADD_TAG",
+            "tag": "RUSH",
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "grama",
+    "name": "Grama",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 2,
+    "health": 6,
+    "durability": null,
+    "text": "Venenosa contra Vinís.",
+    "tags": [
+      "POISONOUS_AGAINST_VINI"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "PASSIVE",
+        "action": "POISONOUS_AGAINST_TRIBE",
+        "tribe": "VINI",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "perereca_formoso",
+    "name": "Perereca Formoso",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, gaste X de mana a mais, adicione 2X cópias desse lacaio onde quiser no seu deck.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SPEND_EXTRA_MANA_ADD_COPIES_TO_DECK",
+        "variable": "X",
+        "copy_multiplier": 2,
+        "target": {
+          "mode": "SELF_DECK",
+          "position": "CHOSEN"
+        }
+      }
+    ]
+  },
+  {
+    "id": "pizzaiolo",
+    "name": "Pizzaiolo",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Último Suspiro: Evoque uma Pizza.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "SUMMON",
+        "card_id": "pizza",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ramonito",
+    "name": "Ramonito",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, silencie todos os lacaios inimigos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SILENCE",
+        "target": {
+          "mode": "ENEMY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rica_3_anos",
+    "name": "Rica 3 Anos",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, receba +1/1 para cada outro lacaio aliado.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_SELF_PER_FRIENDLY_MINION",
+        "attack_amount": 1,
+        "health_amount": 1,
+        "exclude_self": true,
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "roubo_de_estojo",
+    "name": "Roubo de Estojo",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Compre duas cartas do deck do oponente.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_FROM_OPPONENT_DECK",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "spaghetti",
+    "name": "Spaghetti",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Depois de atacar o inimigo escolha um molho: [Tomate] +1/1 [Branco] Escudo Divino [Doce] Provocar.",
+    "tags": [],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "AFTER_ATTACK",
+        "action": "CHOOSE_ONE",
+        "condition": {
+          "type": "ATTACKED_ENEMY"
+        },
+        "choices": [
+          {
+            "option": "TOMATE",
+            "action": "BUFF_STATS",
+            "attack_amount": 1,
+            "health_amount": 1,
+            "target": {
+              "mode": "SELF"
+            }
+          },
+          {
+            "option": "BRANCO",
+            "action": "ADD_TAG",
+            "tag": "DIVINE_SHIELD",
+            "target": {
+              "mode": "SELF"
+            }
+          },
+          {
+            "option": "DOCE",
+            "action": "ADD_TAG",
+            "tag": "TAUNT",
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "spiidinho_presenteador",
+    "name": "Spiidinho Presenteador",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, coloque uma carta da sua mão no topo do deck do oponente, ela custa 5 a mais, mas não mais do que 10.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "MOVE_HAND_CARD_TO_OPPONENT_DECK_TOP",
+        "amount": 1,
+        "cost_modifier": 5,
+        "max_cost": 10,
+        "target": {
+          "mode": "CHOSEN_FRIENDLY_HAND_CARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "spray_do_vini",
+    "name": "Spray do Viní",
+    "type": "SPELL",
+    "cost": 3,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Mire em um lacaio inimigo, cause a vida dele como dano aos lacaios adjacentes.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_ADJACENT_EQUAL_TO_TARGET_HEALTH",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        },
+        "secondary_target": {
+          "mode": "ADJACENT_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "touro_mafioso",
+    "name": "Touro Mafioso",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Também é da Itália.",
+    "tags": [],
+    "tribes": [
+      "FERA",
+      "ITALIA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "tronco",
+    "name": "Tronco",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 0,
+    "health": 4,
+    "durability": null,
+    "text": "Provocar. Reflete o dano recebido.",
+    "tags": [
+      "TAUNT"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DAMAGE_TAKEN",
+        "action": "REFLECT_DAMAGE",
+        "amount": "DAMAGE_TAKEN",
+        "target": {
+          "mode": "DAMAGE_SOURCE"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vinassito",
+    "name": "Vinassito",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, compre um lacaio do seu deck (Vic/Outra Fera se possível).",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_MINION_FROM_DECK",
+        "amount": 1,
+        "preferred": [
+          "VIC",
+          "FERA"
+        ],
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_3_anos_matematico",
+    "name": "Viní 3 anos Matemático",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, compre uma carta que você possui mana para jogar.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_PLAYABLE_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_barman",
+    "name": "Viní Barman",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, coloque X cartas da sua mão onde quiser no seu deck, restaure 3X para cada uma.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "MOVE_HAND_CARDS_TO_DECK_AND_HEAL",
+        "variable": "X",
+        "heal_per_card": 3,
+        "target": {
+          "mode": "CHOSEN_FRIENDLY_HAND_CARDS"
+        },
+        "destination": {
+          "mode": "SELF_DECK",
+          "position": "CHOSEN"
+        },
+        "heal_target": {
+          "mode": "SELF_HERO"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_brasileiro",
+    "name": "Viní Brasileiro",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 4,
+    "durability": null,
+    "text": "Seus vinís também são brasileiros.",
+    "tags": [],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "ADD_TRIBE",
+        "tribe": "BRASIL",
+        "target": {
+          "mode": "FRIENDLY_MINIONS",
+          "tribe": "VINI"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_cansado",
+    "name": "Viní Cansado",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "Dormente. Acorda quando seu oponente jogar um feitiço.",
+    "tags": [
+      "DORMANT"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "OPPONENT_SPELL_PLAYED",
+        "action": "AWAKEN",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_dorminhoco",
+    "name": "Viní Dorminhoco",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Dormente. Este lacaio desperta quando você evocar 2 lacaios. Último Suspiro: Durma.",
+    "tags": [
+      "DORMANT",
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "FRIENDLY_MINIONS_SUMMONED",
+        "action": "AWAKEN",
+        "amount": 2,
+        "target": {
+          "mode": "SELF"
+        }
+      },
+      {
+        "trigger": "ON_DEATH",
+        "action": "SLEEP",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_formoso",
+    "name": "Viní Formoso",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, coloque outro Viní Formoso no final seu deck, ele tem +1/1.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_COPY_TO_DECK",
+        "card_id": "vini_formoso",
+        "amount": 1,
+        "attack_bonus": 1,
+        "health_bonus": 1,
+        "target": {
+          "mode": "SELF_DECK",
+          "position": "BOTTOM"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_ilusorio",
+    "name": "Viní Ilusório",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, evoque uma cópia 1/1 de um lacaio.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_COPY_WITH_STATS",
+        "attack": 1,
+        "health": 1,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        },
+        "destination": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ze_droguinha",
+    "name": "Zé Droguinha",
+    "type": "MINION",
+    "cost": 3,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, aliados não podem ser alvejados por feitiços no próximo turno.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "GRANT_TEMPORARY_SPELL_TARGET_IMMUNITY",
+        "duration": "UNTIL_NEXT_TURN_END",
+        "target": {
+          "mode": "FRIENDLY_CHARACTERS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "awp",
+    "name": "Awp",
+    "type": "SPELL",
+    "cost": 4,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Cause 7 de dano a um lacaio. Fortalecer: O dano em excesso continua para o lado que você escolher.",
+    "tags": [
+      "EMPOWER"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 7,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_EMPOWER",
+        "action": "EXCESS_DAMAGE_TO_CHOSEN_SIDE",
+        "source_damage": 7,
+        "target": {
+          "mode": "CHOSEN_ADJACENT_DIRECTION",
+          "valid": [
+            "MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "boludo",
+    "name": "Boludo",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Todos os outros lacaios possuem -1/1. Brasileiros possuem -2/2.",
+    "tags": [
+      "AURA"
+    ],
+    "tribes": [
+      "ARGENTINA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "BUFF_STATS",
+        "attack_bonus": -1,
+        "health_bonus": -1,
+        "target": {
+          "mode": "ALL_OTHER_MINIONS"
+        }
+      },
+      {
+        "trigger": "AURA",
+        "action": "BUFF_STATS",
+        "attack_bonus": -2,
+        "health_bonus": -2,
+        "target": {
+          "mode": "MINIONS_WITH_TRIBE",
+          "tribe": "BRASIL"
+        }
+      }
+    ]
+  },
+  {
+    "id": "caverna",
+    "name": "Caverna",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 0,
+    "health": 9,
+    "durability": null,
+    "text": "Provocar. Seus lacaios possuem Eco.",
+    "tags": [
+      "TAUNT",
+      "AURA"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "ADD_TAG",
+        "tag": "ECHO",
+        "target": {
+          "mode": "FRIENDLY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cereja",
+    "name": "Cereja",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, cause 1 de dano a todos os lacaios que não são comidas.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 1,
+        "target": {
+          "mode": "ALL_MINIONS_EXCEPT_TRIBE",
+          "tribe": "COMIDA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "certamente_nao_e_o_rica",
+    "name": "Certamente não é o Rica",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, recebe +1 de ataque para cada outro lacaio aliado em campo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_ATTACK_PER_FRIENDLY_MINION",
+        "amount_per_minion": 1,
+        "count_filter": {
+          "mode": "FRIENDLY_MINIONS",
+          "exclude_self": true
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "el_luca",
+    "name": "El Luca",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 2,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, seduza um lacaio inimigo, ele não pode atacar El Luca.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "PREVENT_ATTACK_AGAINST_SELF",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        },
+        "restricted_target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "el_vinicho",
+    "name": "El Vinícho",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, cause o ataque de um lacaio como dano a si mesmo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_EQUAL_TO_TARGET_ATTACK",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        },
+        "damage_target": {
+          "mode": "SAME_AS_TARGET"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ferragui",
+    "name": "Ferragui",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Rapidez. Custa 1 a menos para cada lacaio ferido em campo.",
+    "tags": [
+      "RUSH"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "IN_HAND",
+        "action": "COST_REDUCTION_PER_DAMAGED_MINION",
+        "amount_per_minion": 1,
+        "target": {
+          "mode": "SELF"
+        },
+        "count_filter": {
+          "mode": "ALL_DAMAGED_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "frifas",
+    "name": "Frifas",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Último Suspiro: Compre um feitiço do seu deck (Saudades se possível).",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DRAW_CARD_FROM_DECK",
+        "amount": 1,
+        "filter": {
+          "type": "SPELL",
+          "preferred_id": "saudades"
+        },
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusdrip",
+    "name": "Gusdrip",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 5,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, conceda Provocar a todos os seus outros lacaios.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAG",
+        "tag": "TAUNT",
+        "target": {
+          "mode": "FRIENDLY_MINIONS",
+          "exclude_self": true
+        }
+      }
+    ]
+  },
+  {
+    "id": "igao_chave",
+    "name": "Igão Chave",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, roube 1/1 de um lacaio inimigo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "STEAL_STATS",
+        "attack_amount": 1,
+        "health_amount": 1,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        },
+        "destination": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "iglu",
+    "name": "Iglu",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 2,
+    "health": 7,
+    "durability": null,
+    "text": "Todo lacaio que recebe dano deste, é congelado.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DAMAGE_DEALT_BY_SELF",
+        "action": "FREEZE",
+        "target": {
+          "mode": "DAMAGED_MINION"
+        }
+      }
+    ]
+  },
+  {
+    "id": "justica",
+    "name": "Justiça",
+    "type": "SPELL",
+    "cost": 4,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Compre duas cartas. Esse feitiço custa 2 a menos caso seu oponente tenha mais cartas do que você.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "IN_HAND",
+        "action": "COST_REDUCTION",
+        "amount": 2,
+        "condition": {
+          "type": "OPPONENT_HAS_MORE_CARDS_IN_HAND"
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lamboia",
+    "name": "Lamboia",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, veja as primeiras 3 cartas do seu deck, arrume a ordem delas como quiser.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "LOOK_TOP_CARDS",
+        "amount": 3,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "REORDER_TOP_CARDS",
+        "amount": 3,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "limpa_limpa",
+    "name": "Limpa-Limpa",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, cause a quantidade de lacaios inimigos em campo como dano a eles mesmos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_ALL_ENEMY_MINIONS",
+        "amount_source": "ENEMY_MINION_COUNT",
+        "target": {
+          "mode": "ENEMY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lucas_domador_de_feras",
+    "name": "Lucas Domador de Feras",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, Recrute o primeiro lacaio do seu deck que custe 2, se for uma fera, ela ganha Rapidez.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RECRUIT_FIRST_MINION_WITH_COST",
+        "cost": 2,
+        "target": {
+          "mode": "SELF_DECK"
+        },
+        "destination": {
+          "mode": "SELF_BOARD"
+        },
+        "if_recruited_has_tribe": {
+          "tribe": "FERA",
+          "action": "ADD_TAG",
+          "tag": "RUSH"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ramoni_3_anos_domador_de_feras",
+    "name": "Ramoni 3 Anos Domador de Feras",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 2,
+    "health": 1,
+    "durability": null,
+    "text": "Último Suspiro: Evoque um Niurau com Investida.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "SUMMON_CARD",
+        "card_id": "niurau",
+        "amount": 1,
+        "granted_tags": [
+          "CHARGE"
+        ],
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "social_credit",
+    "name": "Social Credit",
+    "type": "SPELL",
+    "cost": 4,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Conceda +1/1 a todos os seus lacaios, lacaios inimigos que não são chineses perdem -1/1.",
+    "tags": [],
+    "tribes": [
+      "CHINA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_STATS",
+        "attack_bonus": 1,
+        "health_bonus": 1,
+        "target": {
+          "mode": "FRIENDLY_MINIONS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_STATS",
+        "attack_bonus": -1,
+        "health_bonus": -1,
+        "target": {
+          "mode": "ENEMY_MINIONS_EXCEPT_TRIBE",
+          "tribe": "CHINA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_flamenguista",
+    "name": "Viní Flamenguista",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, compre um lacaio do seu deck. (La Selecione se possível).",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "BRASIL",
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD_FROM_DECK",
+        "amount": 1,
+        "filter": {
+          "type": "MINION",
+          "preferred_id": "la_selecione"
+        },
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "apimentada",
+    "name": "Apimentada",
+    "type": "SPELL",
+    "cost": 4,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Conceda +4/4 a um lacaio. Se for uma comida, compre uma carta.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_STATS",
+        "attack_bonus": 4,
+        "health_bonus": 4,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 1,
+        "condition": {
+          "type": "TARGET_HAS_TRIBE",
+          "tribe": "COMIDA"
+        },
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vic_assada",
+    "name": "Vic Assada",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 4,
+    "durability": null,
+    "text": "Todas as outras comidas possuem +1/1. Elas parecem bem mais apetitosas do que antes.",
+    "tags": [
+      "AURA"
+    ],
+    "tribes": [
+      "CHINA",
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "BUFF_STATS",
+        "attack_bonus": 1,
+        "health_bonus": 1,
+        "target": {
+          "mode": "ALL_OTHER_MINIONS",
+          "tribe": "COMIDA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mamaco",
+    "name": "Mamaco",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, conceda +1/1 a todos os outros lacaios aliados.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_STATS",
+        "attack_bonus": 1,
+        "health_bonus": 1,
+        "target": {
+          "mode": "OTHER_FRIENDLY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ninjagui_cachorrao",
+    "name": "NinjaGui Cachorrão",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 2,
+    "health": 5,
+    "durability": null,
+    "text": "Rapidez. Depois que esse lacaio atacar, ele recebe +2 de ataque.",
+    "tags": [
+      "RUSH"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "AFTER_ATTACK",
+        "action": "BUFF_ATTACK",
+        "amount": 2,
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "niurau_japones",
+    "name": "Niurau Japonês",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 5,
+    "health": 4,
+    "durability": null,
+    "text": "Suas Feras também são Vinís.",
+    "tags": [
+      "AURA"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "ADD_TRIBE",
+        "tribe": "VINI",
+        "target": {
+          "mode": "FRIENDLY_MINIONS",
+          "tribe": "FERA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "poupanca",
+    "name": "Poupança",
+    "type": "SPELL",
+    "cost": 4,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Coloque 3 moedas na sua mão.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_CARD_TO_HAND",
+        "amount": 3,
+        "card": {
+          "id": "moeda",
+          "name": "Moeda"
+        },
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ravioli",
+    "name": "Ravioli",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Último Suspiro: Cause 1 de dano a todos os inimigos.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DAMAGE",
+        "amount": 1,
+        "target": {
+          "mode": "ALL_ENEMIES",
+          "valid": [
+            "ENEMY_HERO",
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "renascimento",
+    "name": "Renascimento",
+    "type": "SPELL",
+    "cost": 4,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Destrua um lacaio aliado, evoque-o com vida cheia e o dobro de ataque.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY_AND_RESUMMON",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        },
+        "resummon": {
+          "health": "FULL",
+          "attack_multiplier": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "rica",
+    "name": "Rica",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, recebe +1 de vida para cada lacaio aliado.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_HEALTH",
+        "amount_source": "FRIENDLY_MINION_COUNT",
+        "include_self": true,
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "row_row",
+    "name": "Row Row",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Rapidez.",
+    "tags": [
+      "RUSH"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "saber_corrompido",
+    "name": "Saber Corrompido",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Provocar. Ao ser jogado, lhe causa 3 de dano. Último Suspiro: Compre 2 cartas.",
+    "tags": [
+      "TAUNT",
+      "BATTLECRY",
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "CORROMPIDO"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 3,
+        "target": {
+          "mode": "SELF_HERO"
+        }
+      },
+      {
+        "trigger": "ON_DEATH",
+        "action": "DRAW_CARD",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "sagrado_rafa",
+    "name": "Sagrado Rafa",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 0,
+    "health": 8,
+    "durability": null,
+    "text": "Escudo Divino. Sempre que você jogar um lacaio, conceda-o Escudo Divino.",
+    "tags": [
+      "DIVINE_SHIELD"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_FRIENDLY_MINION_PLAYED",
+        "action": "ADD_TAG",
+        "tag": "DIVINE_SHIELD",
+        "target": {
+          "mode": "PLAYED_MINION"
+        }
+      }
+    ]
+  },
+  {
+    "id": "spiideba",
+    "name": "Spiideba",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, evoque outras duas cópias com Provocar, quando uma cópia morre, a original ganha seus atributos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_COPY",
+        "amount": 2,
+        "modifications": {
+          "tags": [
+            "TAUNT"
+          ]
+        },
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      },
+      {
+        "trigger": "ON_SUMMONED_COPY_DEATH",
+        "action": "GAIN_COPY_ATTRIBUTES",
+        "target": {
+          "mode": "ORIGINAL_SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "surdo",
+    "name": "Surdo",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Imune a efeitos \"Ao ser jogado\".",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "PASSIVE",
+        "action": "IMMUNE_TO_TRIGGERED_EFFECTS",
+        "immune_trigger": "ON_PLAY",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tome",
+    "name": "Tomé",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "No final do seu turno, troque uma carta da sua mão por outra aleatória da mão do oponente.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "END_OF_TURN",
+        "action": "SWAP_RANDOM_HAND_CARD_WITH_OPPONENT",
+        "target": {
+          "mode": "BOTH_PLAYERS_HAND"
+        }
+      }
+    ]
+  },
+  {
+    "id": "uva",
+    "name": "Uva",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, cure-se em 6 de vida.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FRUTA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL",
+        "amount": 6,
+        "target": {
+          "mode": "SELF_HERO"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_de_aimbot",
+    "name": "Viní de Aimbot",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "Ao atacar um lacaio, Viní de Aimbot só causa dano aos adjacentes do alvo.",
+    "tags": [],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_ATTACK_MINION",
+        "action": "DAMAGE_ADJACENT_MINIONS_INSTEAD",
+        "amount_source": "SELF_ATTACK",
+        "target": {
+          "mode": "ADJACENT_TO_ATTACK_TARGET"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_em_chamas",
+    "name": "Viní em Chamas",
+    "type": "MINION",
+    "cost": 4,
+    "attack": 3,
+    "health": 6,
+    "durability": null,
+    "text": "Sempre que você jogar um lacaio, este recebe 1 de dano e causa 1 de dano a um lacaio inimigo.",
+    "tags": [],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_FRIENDLY_MINION_PLAYED",
+        "action": "DAMAGE",
+        "amount": 1,
+        "target": {
+          "mode": "PLAYED_MINION"
+        }
+      },
+      {
+        "trigger": "ON_FRIENDLY_MINION_PLAYED",
+        "action": "DAMAGE",
+        "amount": 1,
+        "source": "PLAYED_MINION",
+        "target": {
+          "mode": "RANDOM_ENEMY_MINION"
+        }
+      }
+    ]
+  },
+  {
+    "id": "garcom",
+    "name": "Garçom",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Rapidez. Custa 1 a menos para cada lacaio aliado em campo.",
+    "tags": [
+      "RUSH"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "IN_HAND",
+        "action": "COST_REDUCTION_PER_FRIENDLY_MINION",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_CARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "japones",
+    "name": "Japones",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 6,
+    "durability": null,
+    "text": "Esse lacaio é China.",
+    "tags": [],
+    "tribes": [
+      "CHINA"
+    ],
+    "effects": []
+  },
+  {
+    "id": "nada_aconteceu_em_15_04_89",
+    "name": "Nada aconteceu em 15/04/89",
+    "type": "SPELL",
+    "cost": 5,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Silencie todos os lacaios inimigos, destrua um lacaio inimigo.",
+    "tags": [],
+    "tribes": [
+      "CHINA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SILENCE",
+        "target": {
+          "mode": "ENEMY_MINIONS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "aleixo",
+    "name": "Aleixo",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, escolha dois para receber entre: Rapidez, Escudo Divino, Fúria dos Ventos, Provocar.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CHOOSE_N_KEYWORDS",
+        "choose": 2,
+        "choices": [
+          "RUSH",
+          "DIVINE_SHIELD",
+          "WINDFURY",
+          "TAUNT"
+        ],
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "bigode_italiano",
+    "name": "Bigode Italiano",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 6,
+    "durability": null,
+    "text": "Seus outros lacaios italianos têm +1 de ataque.",
+    "tags": [
+      "AURA"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "BUFF_ATTACK",
+        "amount": 1,
+        "target": {
+          "mode": "OTHER_FRIENDLY_MINIONS",
+          "tribe": "ITALIA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "edu",
+    "name": "Edu",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "No final do seu turno, cause 2 de dano a todos os outros personagens.",
+    "tags": [
+      "END_TURN"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "END_OF_YOUR_TURN",
+        "action": "DAMAGE",
+        "amount": 2,
+        "target": {
+          "mode": "ALL_OTHER_CHARACTERS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "frutas_del_italia",
+    "name": "Frutas Del Itália",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Não pode ser alvejado por feitiços.",
+    "tags": [
+      "SPELL_TARGET_IMMUNITY"
+    ],
+    "tribes": [
+      "COMIDA"
+    ],
+    "effects": [
+      {
+        "trigger": "PASSIVE",
+        "action": "CANNOT_BE_TARGETED_BY_SPELLS",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusnabo",
+    "name": "Gusnabo",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, restaure 3 de vida de um lacaio aliado, a cura em excesso é convertida em vida.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL_WITH_OVERHEAL_TO_HEALTH",
+        "amount": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusneba",
+    "name": "Gusneba",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, evoque uma cópia desse lacaio com Provocar e outra com Venenoso.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_COPY",
+        "amount": 1,
+        "copy_modifications": {
+          "add_tags": [
+            "TAUNT"
+          ]
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_COPY",
+        "amount": 1,
+        "copy_modifications": {
+          "add_tags": [
+            "POISONOUS"
+          ]
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hello_world",
+    "name": "Hello World",
+    "type": "SPELL",
+    "cost": 5,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Compre 2 feitiços. Coloque Hello World no meio do seu deck, custando 1.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_SPELL",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_COPY_TO_DECK",
+        "card_id": "hello_world",
+        "position": "MIDDLE",
+        "cost_override": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "igleba",
+    "name": "Igleba",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Último Suspiro: Evoque 3 Iglebas 1/1, elas possuem Rapidez ao invés de Último Suspiro.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "SUMMON_TOKEN",
+        "amount": 3,
+        "token": {
+          "id": "igleba_token",
+          "name": "Igleba",
+          "attack": 1,
+          "health": 1,
+          "tags": [
+            "RUSH"
+          ],
+          "effects": []
+        },
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "iglu_atleta",
+    "name": "Iglu Atleta",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Sempre que você jogar um lacaio, Iglu Atleta recebe Rapidez e pode atacar novamente.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "AFTER_FRIENDLY_MINION_PLAY",
+        "action": "ADD_TAG",
+        "tag": "RUSH",
+        "target": {
+          "mode": "SELF"
+        }
+      },
+      {
+        "trigger": "AFTER_FRIENDLY_MINION_PLAY",
+        "action": "REFRESH_ATTACK",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "igor",
+    "name": "Igor",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, evoque outras duas cópias desse lacaio.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_COPY",
+        "amount": 2,
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "igor_estiloso",
+    "name": "Igor Estiloso",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, escolha um lacaio aliado, ele copia os status de Igor Estiloso.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "COPY_SELF_STATS_TO_MINION",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "igor_insano",
+    "name": "Igor Insano",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, mate um lacaio aliado, renasça-o com vida cheia.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY_AND_RESUMMON_FULL_HEALTH",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "karl_marx",
+    "name": "Karl Marx",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 1,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, transforme todos os lacaios em 1/1.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SET_STATS",
+        "attack": 1,
+        "health": 1,
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "la_selecione",
+    "name": "La Selecione",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, no seu próximo turno seu primeiro lacaio custa 1 a menos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REDUCE_NEXT_TURN_FIRST_MINION_COST",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mafia_italiana",
+    "name": "Mafia Italiana",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, cause 1 de dano a todos os outros lacaios, se algum morrer repita esse efeito.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REPEAT_DAMAGE_IF_KILLS",
+        "amount": 1,
+        "target": {
+          "mode": "ALL_OTHER_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "niuraozao",
+    "name": "Niuraozão",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 6,
+    "health": 5,
+    "durability": null,
+    "text": "Custa 1 a menos caso você tenha uma Fera aliada em campo.",
+    "tags": [],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "COST_MODIFIER",
+        "action": "REDUCE_COST",
+        "amount": 1,
+        "condition": {
+          "type": "FRIENDLY_MINION_TRIBE_EXISTS",
+          "tribe": "FERA"
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "perfeitinha",
+    "name": "Perfeitinha",
+    "type": "SPELL",
+    "cost": 5,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Volte um lacaio para a mão do dono, congele os adjacentes.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RETURN_TO_HAND",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "FREEZE",
+        "target": {
+          "mode": "ADJACENT_TO_CHOSEN_MINION"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rica_coelinho",
+    "name": "Rica Coelinho",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 4,
+    "health": 6,
+    "durability": null,
+    "text": "Rapidez. Durante o seu turno esse lacaio pode pular para onde você quiser (Posição, Mão, Deck, Mortos).",
+    "tags": [
+      "RUSH"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "DURING_YOUR_TURN",
+        "action": "MOVE_SELF_TO_ZONE",
+        "valid_zones": [
+          "BOARD_POSITION",
+          "HAND",
+          "DECK",
+          "GRAVEYARD"
+        ],
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "saber",
+    "name": "Saber",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 3,
+    "health": 7,
+    "durability": null,
+    "text": "No final do turno, se Saber podia atacar mas não atacou, ele recebe +1/1.",
+    "tags": [
+      "END_TURN"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "END_OF_TURN",
+        "action": "CONDITIONAL_EFFECTS",
+        "condition": {
+          "type": "SELF_COULD_ATTACK_BUT_DID_NOT"
+        },
+        "effects": [
+          {
+            "action": "BUFF_STATS",
+            "attack_bonus": 1,
+            "health_bonus": 1,
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sabinho",
+    "name": "Sabinho",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 4,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, cure seu oponente em 4/8/12, compre 1/2/3 cartas.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL_OPPONENT_AND_DRAW_SCALING",
+        "options": [
+          {
+            "heal_amount": 4,
+            "draw_amount": 1
+          },
+          {
+            "heal_amount": 8,
+            "draw_amount": 2
+          },
+          {
+            "heal_amount": 12,
+            "draw_amount": 3
+          }
+        ],
+        "target": {
+          "mode": "OPPONENT_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "fusca_azul",
+    "name": "Fusca Azul",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 3,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, escolha um lacaio inimigo, ele ataca outro lacaio à sua escolha.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VEICULO"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "FORCE_MINION_ATTACK",
+        "source": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        },
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "saudades",
+    "name": "Saudades",
+    "type": "SPELL",
+    "cost": 5,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Volte um lacaio à mão do dono, ele custa 3 a mais.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RETURN_TO_HAND_AND_MODIFY_COST",
+        "cost_modifier": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "vic",
+    "name": "Vic",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 4,
+    "health": 2,
+    "durability": null,
+    "text": "Rapidez. Ao ser jogada, escolha um lacaio inimigo como alvo. Caso Vic o mate, ela o traz junto com ela para sua mão.",
+    "tags": [
+      "RUSH",
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "MARK_KILL_TARGET_RETURN_BOTH_TO_HAND",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "vinagra",
+    "name": "Vinagra",
+    "type": "SPELL",
+    "cost": 5,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Conceda +7/+7 a um lacaio aliado, ele perde o próximo ataque.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_STATS",
+        "attack_amount": 7,
+        "health_amount": 7,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "SKIP_NEXT_ATTACK",
+        "target": {
+          "mode": "SAME_AS_PREVIOUS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_3_anos_mestre_do_boliche",
+    "name": "Viní 3 anos Mestre do Boliche",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 2,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, cause 1 de dano a um lacaio inimigo e 2 aos adjacentes.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 1,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_ADJACENT_MINIONS",
+        "amount": 2,
+        "target": {
+          "mode": "ADJACENT_TO_PREVIOUS_TARGET"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_aleijado",
+    "name": "Viní Aleijado",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 4,
+    "health": 8,
+    "durability": null,
+    "text": "Não pode atacar enquanto for o único lacaio aliado em campo.",
+    "tags": [
+      "CONDITIONAL_CANT_ATTACK"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "CANT_ATTACK_WHILE_ONLY_FRIENDLY_MINION",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_aprendiz_de_mago",
+    "name": "Viní Aprendiz de Mago",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, cause a quantidade de cartas na sua mão como dano a um lacaio inimigo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_EQUAL_TO_HAND_SIZE",
+        "amount_source": "SELF_HAND_SIZE",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_assombrado",
+    "name": "Viní Assombrado",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Último Suspiro: Recrute um lacaio.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "RECRUIT_MINION",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_caipira",
+    "name": "Viní Caipira",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, compre um lacaio, transforme-o em uma Popó.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_MINION_AND_TRANSFORM",
+        "amount": 1,
+        "transform_into": "popo",
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_pescador",
+    "name": "Viní Pescador",
+    "type": "MINION",
+    "cost": 5,
+    "attack": 5,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, evoque um Peixe.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON",
+        "card_id": "peixe",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lucas_caipira",
+    "name": "Lucas Caipira",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 3,
+    "health": 4,
+    "durability": null,
+    "text": "Último Suspiro: Evoque duas Popós.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "SUMMON",
+        "card_id": "popo",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "muriel",
+    "name": "Muriel",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 4,
+    "health": 6,
+    "durability": null,
+    "text": "Último Suspiro: Adicione \"Hello World\" no meio do seu deck, ele já custa 1.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "ADD_CARD_TO_DECK_POSITION_AND_SET_COST",
+        "card_id": "hello_world",
+        "position": "MIDDLE",
+        "cost": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "shuochang",
+    "name": "說唱",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, suas rimas hipnotizam um lacaio inimigo nesse turno. Ele é incapaz de causar dano.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "CHINA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "PREVENT_DAMAGE_THIS_TURN",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "baiano",
+    "name": "Baiano",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 0,
+    "health": 12,
+    "durability": null,
+    "text": "Provocar. Não pode atacar. Sempre que esse lacaio recebe dano, ele recebe a mesma quantidade como ataque.",
+    "tags": [
+      "TAUNT",
+      "CANT_ATTACK"
+    ],
+    "tribes": [
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DAMAGE_TAKEN",
+        "action": "GAIN_ATTACK_EQUAL_TO_DAMAGE_TAKEN",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "blitz",
+    "name": "Blitz",
+    "type": "SPELL",
+    "cost": 6,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Escolha um lacaio inimigo, os demais em campo não podem atacar pelos próximos 2 turnos.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "LOCK_ALL_OTHER_MINIONS_FROM_ATTACKING",
+        "duration_turns": 2,
+        "excluded_target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        },
+        "target": {
+          "mode": "ALL_MINIONS_EXCEPT_CHOSEN"
+        }
+      }
+    ]
+  },
+  {
+    "id": "buraco_negro",
+    "name": "Buraco Negro",
+    "type": "SPELL",
+    "cost": 6,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Devolva todos os lacaios à mão do dono.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RETURN_ALL_MINIONS_TO_HAND",
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cardume_de_peixes",
+    "name": "Cardume de Peixes",
+    "type": "SPELL",
+    "cost": 6,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Evoque 4 Peixes, adicione 4 Peixes à sua mão.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON",
+        "card_id": "peixe",
+        "amount": 4,
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_CARD_TO_HAND",
+        "card_id": "peixe",
+        "amount": 4,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "carnaval",
+    "name": "Carnaval",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 4,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, compre um lacaio, se for um Brasileiro repita.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_MINION_REPEAT_IF_TRIBE",
+        "tribe": "BRASIL",
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "el_gusnabito",
+    "name": "El Gusnabito",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 6,
+    "health": 7,
+    "durability": null,
+    "text": "Último Suspiro: Revele a carta mais à esquerda e mais à direita da mão do oponente.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "REVEAL_LEFTMOST_AND_RIGHTMOST_HAND_CARDS",
+        "target": {
+          "mode": "OPPONENT_HAND"
+        }
+      }
+    ]
+  },
+  {
+    "id": "fusca",
+    "name": "Fusca",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 5,
+    "health": 7,
+    "durability": null,
+    "text": "Provocar. Rapidez.",
+    "tags": [
+      "TAUNT",
+      "RUSH"
+    ],
+    "tribes": [
+      "VEICULO"
+    ],
+    "effects": []
+  },
+  {
+    "id": "aulao",
+    "name": "Aulão",
+    "type": "SPELL",
+    "cost": 7,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Compre duas cartas, jogue a terceira.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "PLAY_TOP_CARD_FROM_DECK",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusnabo_o_mago",
+    "name": "Gusnabo, o mago!",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, destrua um lacaio aliado para destruir um lacaio inimigo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SACRIFICE_FRIENDLY_MINION_DESTROY_ENEMY_MINION",
+        "source": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        },
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "igao",
+    "name": "Igão",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 6,
+    "health": 9,
+    "durability": null,
+    "text": "Provocar. Dormente. Acorda quando você tomar dano.",
+    "tags": [
+      "TAUNT",
+      "DORMANT"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_SELF_HERO_TAKES_DAMAGE",
+        "action": "AWAKEN",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "jojo_botox",
+    "name": "Jojo Botox",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 5,
+    "health": 3,
+    "durability": null,
+    "text": "Rapidez. Escudo Divino. Fúria dos Ventos.",
+    "tags": [
+      "RUSH",
+      "DIVINE_SHIELD",
+      "WINDFURY"
+    ],
+    "tribes": [],
+    "effects": []
+  },
+  {
+    "id": "lamboia_religioso",
+    "name": "Lamboia Religioso",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 2,
+    "health": 7,
+    "durability": null,
+    "text": "Escudo Divino. Seus lacaios ao invés de morrerem voltam para o meio do seu deck.",
+    "tags": [
+      "DIVINE_SHIELD"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "REPLACE_FRIENDLY_MINION_DEATH_WITH_SHUFFLE_INTO_DECK",
+        "position": "MIDDLE",
+        "target": {
+          "mode": "FRIENDLY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lamboinha_rook_and_how",
+    "name": "Lamboinha Rook and How",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 6,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, adicione uma cópia 6/6 de um lacaio à sua mão, ela custa 6.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_MODIFIED_COPY_TO_HAND",
+        "attack": 6,
+        "health": 6,
+        "cost": 6,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "lucas",
+    "name": "Lucas",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 4,
+    "health": 9,
+    "durability": null,
+    "text": "Sempre que um aliado for atacado, esse lacaio nobremente recebe no lugar, ao invés do atacado.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_FRIENDLY_CHARACTER_ATTACKED",
+        "action": "REDIRECT_ATTACK_TO_SELF",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mano_lucas",
+    "name": "Mano Lucas",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, volte um lacaio para a mão do dono.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RETURN_TO_HAND",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "mario",
+    "name": "Mario",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 6,
+    "health": 7,
+    "durability": null,
+    "text": "Quando comprar essa carta, revele a carta do topo de seu deck, você pode escolher qual vai comprar.",
+    "tags": [],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_DRAW",
+        "action": "REVEAL_TOP_CARD_AND_CHOOSE_DRAW",
+        "target": {
+          "mode": "SELF_DECK_TOP",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "obansug",
+    "name": "Obansug",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 5,
+    "health": 1,
+    "durability": null,
+    "text": "Ao ser jogado, roube 3 de vida de um lacaio inimigo.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "STEAL_HEALTH",
+        "amount": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "portal",
+    "name": "Portal",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 0,
+    "health": 7,
+    "durability": null,
+    "text": "No começo do seu turno, você joga direto a carta ao invés de comprar.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_TURN_START",
+        "action": "REPLACE_DRAW_WITH_PLAY_TOP_CARD",
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "spiid",
+    "name": "Spiid",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 4,
+    "health": 9,
+    "durability": null,
+    "text": "Sempre que você jogar uma comida, restaure 4 de vida desse lacaio.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY_CARD",
+        "action": "HEAL",
+        "amount": 4,
+        "condition": {
+          "type": "PLAYED_CARD_TRIBE",
+          "tribe": "COMIDA"
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "spiid_faminto",
+    "name": "Spiid Faminto",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "No final do seu turno, Spiid devora um lacaio aliado à sua escolha e recebe seus atributos, +1/1 e seu texto.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_END_TURN",
+        "action": "DEVOUR_FRIENDLY_MINION_GAIN_ATTRIBUTES",
+        "bonus_attack": 1,
+        "bonus_health": 1,
+        "copy_text": true,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "vinas",
+    "name": "Vinas",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 6,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, seu primeiro lacaio no próximo turno custa 2 a menos, 3 a menos se for um Viní.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "NEXT_TURN_FIRST_MINION_COST_REDUCTION",
+        "amount": 2,
+        "conditional_amount": 3,
+        "condition": {
+          "type": "CARD_TRIBE",
+          "tribe": "VINI"
+        },
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vineba",
+    "name": "Vineba",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 1,
+    "health": 8,
+    "durability": null,
+    "text": "Provocar. Venenoso.",
+    "tags": [
+      "TAUNT",
+      "POISONOUS"
+    ],
+    "tribes": [],
+    "effects": []
+  },
+  {
+    "id": "vini_bebedor",
+    "name": "Viní Bebedor",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 6,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, o ataque e a vida de todos os lacaios são trocados. Último Suspiro: Troque-os novamente.",
+    "tags": [
+      "BATTLECRY",
+      "DEATHRATTLE"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SWAP_ATTACK_HEALTH",
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      },
+      {
+        "trigger": "ON_DEATH",
+        "action": "SWAP_ATTACK_HEALTH",
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_o_iluminado",
+    "name": "Viní, o Iluminado",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 3,
+    "health": 6,
+    "durability": null,
+    "text": "No final do seu turno, restaure 3 de vida de um aliado. (Pode reviver lacaios que morreram nesse turno)",
+    "tags": [],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_END_TURN",
+        "action": "HEAL_OR_REVIVE_FRIENDLY",
+        "amount": 3,
+        "can_revive_dead_this_turn": true,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_CHARACTER",
+            "FRIENDLY_MINION_DEAD_THIS_TURN"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_sertanejo",
+    "name": "Viní Sertanejo",
+    "type": "MINION",
+    "cost": 6,
+    "attack": 4,
+    "health": 8,
+    "durability": null,
+    "text": "Ao ser jogado, escolha um lacaio aliado, se ele for morto pelo adversário, Viní Sertanejo ganha +3 de ataque.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "MARK_FRIENDLY_MINION_FOR_SELF_BUFF_ON_OPPONENT_KILL",
+        "buff_attack": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "cristo_vive",
+    "name": "Cristo Vive",
+    "type": "SPELL",
+    "cost": 7,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Recrute um lacaio de custo até 7. Cure-se em 7 de vida. (Sempre recruta o lacaio mais caro possível)",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RECRUIT_HIGHEST_COST_MINION_UP_TO",
+        "max_cost": 7,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL",
+        "amount": 7,
+        "target": {
+          "mode": "SELF_HERO"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_monge",
+    "name": "Viní Monge",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "Esse lacaio não recebe dano de ataques.",
+    "tags": [
+      "IMMUNE_TO_ATTACK_DAMAGE"
+    ],
+    "tribes": [
+      "CHINA",
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "PASSIVE",
+        "action": "PREVENT_ATTACK_DAMAGE_TO_SELF",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "drenar_almas",
+    "name": "Drenar Almas",
+    "type": "SPELL",
+    "cost": 8,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Roubar Vida. Cause 3 de dano a todos os lacaios.",
+    "tags": [
+      "LIFESTEAL"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE",
+        "amount": 3,
+        "lifesteal": true,
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cultista_do_vini_flamejante",
+    "name": "Cultista do Viní Flamejante",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 4,
+    "health": 3,
+    "durability": null,
+    "text": "Ao ser jogado, incendeie um lacaio inimigo: Ele toma 5 de dano no começo de cada turno.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "APPLY_START_OF_TURN_DAMAGE_STATUS",
+        "status": "BURNING",
+        "amount": 5,
+        "timing": "START_OF_EACH_TURN",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "cultista_do_vini_geladinho",
+    "name": "Cultista do Viní Geladinho",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 5,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, congele todos os outros lacaios.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "FREEZE",
+        "target": {
+          "mode": "ALL_OTHER_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cultista_do_vini_sombrio",
+    "name": "Cultista do Viní Sombrio",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 3,
+    "health": 9,
+    "durability": null,
+    "text": "Provocar. Último Suspiro: Compre um lacaio com Último Suspiro do seu deck.",
+    "tags": [
+      "TAUNT",
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "DRAW_MINION_WITH_TAG",
+        "tag": "DEATHRATTLE",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "dede_santana_corrompido",
+    "name": "Dedé Santana Corrompido",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 9,
+    "health": 9,
+    "durability": null,
+    "text": "Ao ser jogado, seu oponente rouba uma carta da sua mão.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "CORROMPIDO"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "OPPONENT_STEALS_RANDOM_HAND_CARD",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_HAND"
+        }
+      }
+    ]
+  },
+  {
+    "id": "dois_caras_em_uma_moto",
+    "name": "Dois caras em uma Moto",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 6,
+    "health": 6,
+    "durability": null,
+    "text": "Rapidez. Só você pode alvejar feitiços nesse lacaio.",
+    "tags": [
+      "RUSH",
+      "FRIENDLY_SPELL_TARGET_ONLY"
+    ],
+    "tribes": [
+      "VEICULO",
+      "BRASIL"
+    ],
+    "effects": [
+      {
+        "trigger": "PASSIVE",
+        "action": "CANNOT_BE_TARGETED_BY_ENEMY_SPELLS",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "felps",
+    "name": "Felps",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Combo: Cause 8 de dano a um lacaio.",
+    "tags": [
+      "COMBO"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_COMBO",
+        "action": "DAMAGE",
+        "amount": 8,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION",
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "iglu_cachorrao_pro_player",
+    "name": "Iglu Cachorrão Pro Player",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 2,
+    "health": 2,
+    "durability": null,
+    "text": "Ao ser jogado, evoque 4 cópias desse lacaio.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "FERA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_COPY",
+        "amount": 4,
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mario_verde",
+    "name": "Mario Verde",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 7,
+    "health": 8,
+    "durability": null,
+    "text": "Tem +1/1 e Provocar enquanto for o único lacaio aliado em campo.",
+    "tags": [
+      "CONDITIONAL_TAUNT"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "CONDITIONAL_EFFECTS",
+        "condition": {
+          "type": "ONLY_FRIENDLY_MINION",
+          "target": "SELF"
+        },
+        "effects": [
+          {
+            "action": "BUFF_STATS",
+            "attack": 1,
+            "health": 1,
+            "target": {
+              "mode": "SELF"
+            }
+          },
+          {
+            "action": "ADD_TAG",
+            "tag": "TAUNT",
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poglu",
+    "name": "Poglu",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 7,
+    "health": 7,
+    "durability": null,
+    "text": "Esse lacaio é uma Comida, Fera, Brasileiro, Italiano, Viní, Veículo, Elemental, Fruta, Corrompido, etc.",
+    "tags": [],
+    "tribes": [
+      "TUDO",
+      "COMIDA",
+      "FERA",
+      "BRASIL",
+      "ITALIA",
+      "VINI",
+      "VEICULO",
+      "ELEMENTAL",
+      "FRUTA",
+      "CORROMPIDO"
+    ],
+    "effects": []
+  },
+  {
+    "id": "substancias_ilicitas",
+    "name": "Substâncias ilícitas",
+    "type": "SPELL",
+    "cost": 7,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Cause 4 de dano a todos os lacaios inimigos, ou reduza o ataque deles a 1.",
+    "tags": [
+      "CHOOSE_ONE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CHOOSE_ONE",
+        "choices": [
+          {
+            "action": "DAMAGE",
+            "amount": 4,
+            "target": {
+              "mode": "ENEMY_MINIONS"
+            }
+          },
+          {
+            "action": "SET_ATTACK",
+            "amount": 1,
+            "target": {
+              "mode": "ENEMY_MINIONS"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "tirania",
+    "name": "Tirania",
+    "type": "SPELL",
+    "cost": 7,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Substitua seus lacaios por outros que custem até 3 a mais, de sua escolha, do seu deck.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REPLACE_FRIENDLY_MINIONS_FROM_DECK",
+        "cost_increase_limit": 3,
+        "choice": true,
+        "target": {
+          "mode": "FRIENDLY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vineba_flamejante",
+    "name": "Vineba Flamejante",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 8,
+    "health": 2,
+    "durability": null,
+    "text": "Investida. Também causa dano aos lacaios adjacentes.",
+    "tags": [
+      "CHARGE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_ATTACK_MINION",
+        "action": "DAMAGE_ADJACENT_MINIONS",
+        "amount_source": "SELF_ATTACK",
+        "target": {
+          "mode": "ADJACENT_TO_ATTACK_TARGET"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vineba_geladinha",
+    "name": "Vineba Geladinha",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 3,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, congele todos os lacaios inimigos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "FREEZE",
+        "target": {
+          "mode": "ENEMY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_em_disparada",
+    "name": "Viní em Disparada",
+    "type": "MINION",
+    "cost": 7,
+    "attack": 7,
+    "health": 6,
+    "durability": null,
+    "text": "Rapidez. Ao ser jogado, remove Provocar e Escudo Divino dos lacaios inimigos.",
+    "tags": [
+      "RUSH",
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REMOVE_TAG",
+        "tag": "TAUNT",
+        "target": {
+          "mode": "ENEMY_MINIONS"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "REMOVE_TAG",
+        "tag": "DIVINE_SHIELD",
+        "target": {
+          "mode": "ENEMY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mao_tse_tung",
+    "name": "Mao Tsé-Tung",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 6,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, TODOS os outros lacaios passam fome pelo resto da partida, seu ataque é cortado pela metade (Arredondado pra cima).",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "CHINA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "APPLY_PERMANENT_ATTACK_HALF_STATUS",
+        "rounding": "CEIL",
+        "target": {
+          "mode": "ALL_OTHER_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "queima_de_estoque",
+    "name": "Queima de Estoque",
+    "type": "SPELL",
+    "cost": 8,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Descarte até dois feitiços da sua mão, para recrutar até dois lacaios.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DISCARD_UP_TO_CARDS",
+        "amount": 2,
+        "filter": {
+          "type": "SPELL"
+        },
+        "target": {
+          "mode": "SELF_HAND"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "RECRUIT_MINION",
+        "amount_source": "DISCARDED_COUNT",
+        "max_amount": 2,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ramoninho_mestre_da_nerf",
+    "name": "Ramoninho Mestre da Nerf",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 3,
+    "health": 3,
+    "durability": null,
+    "text": "Habilidade (4): Atire em um Lacaio inimigo, causando 3 de dano.",
+    "tags": [
+      "ACTIVATED_ABILITY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "action": "DAMAGE",
+        "activation_cost": 4,
+        "amount": 3,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_flamejante",
+    "name": "Viní Flamejante",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 7,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, incendeia o adversário, ele toma 2 de dano no começo de cada turno dele.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ELEMENTAL",
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "APPLY_START_OF_TURN_DAMAGE_STATUS",
+        "status": "BURNING",
+        "amount": 2,
+        "timing": "START_OF_TARGET_TURN",
+        "target": {
+          "mode": "OPPONENT_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "bomba_nuclear",
+    "name": "Bomba Nuclear",
+    "type": "SPELL",
+    "cost": 8,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Destrua todos os lacaios.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY",
+        "target": {
+          "mode": "ALL_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_monstrao",
+    "name": "Viní Monstrão",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 4,
+    "health": 10,
+    "durability": null,
+    "text": "No início do seu turno, dobre o ataque desse lacaio.",
+    "tags": [],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "START_OF_TURN",
+        "action": "DOUBLE_ATTACK",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "gusnabo_sagrado",
+    "name": "Gusnabo Sagrado",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 7,
+    "health": 7,
+    "durability": null,
+    "text": "Ao ser jogado, conjure Pera Sagrada nos lacaios adjacentes.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CAST_CARD_ON_MINIONS",
+        "card_id": "pera_sagrada",
+        "target": {
+          "mode": "ADJACENT_FRIENDLY_MINIONS"
+        }
+      }
+    ]
+  },
+  {
+    "id": "la_torre_de_pisa",
+    "name": "La torre de Pisa",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 8,
+    "health": 8,
+    "durability": null,
+    "text": "Depois que La torre de Pisa atacar um lacaio, você pode redistribuir os atributos atuais dela.",
+    "tags": [],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "AFTER_ATTACK",
+        "action": "REDISTRIBUTE_SELF_STATS",
+        "optional": true,
+        "condition": {
+          "target_type": "MINION"
+        },
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ninjagui10",
+    "name": "NinjaGui10",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 4,
+    "health": 9,
+    "durability": null,
+    "text": "Ao ser jogado, destrua um lacaio com ataque menor que esse.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY",
+        "condition": {
+          "type": "TARGET_ATTACK_LESS_THAN_SELF_ATTACK"
+        },
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "rainha_arvore",
+    "name": "Rainha Árvore",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 6,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, lhe causa 4 de dano 1/2/3 vezes, para invocar 1/2/3 Troncos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "CHOOSE_X_DAMAGE_SELF_PLAYER_SUMMON",
+        "amount": 4,
+        "choices": [
+          1,
+          2,
+          3
+        ],
+        "summon_card_id": "tronco",
+        "summon_count_source": "CHOSEN_X",
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ramoni",
+    "name": "Ramoni",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 5,
+    "health": 3,
+    "durability": null,
+    "text": "Rapidez. Último Suspiro: Evoque esse lacaio com -1/-1.",
+    "tags": [
+      "RUSH",
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "SUMMON_SELF_WITH_STAT_MODIFIER",
+        "attack_modifier": -1,
+        "health_modifier": -1,
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rogigor_o_devastador",
+    "name": "Rogigor, o Devastador",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 7,
+    "health": 7,
+    "durability": null,
+    "text": "Ao ser jogado, destrua todos os lacaios que custem X ou menos do seu deck.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY_MINIONS_IN_DECK_BY_COST",
+        "cost_threshold": "X",
+        "comparison": "LESS_THAN_OR_EQUAL",
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_dos_ventos",
+    "name": "Viní dos Ventos",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 5,
+    "health": 4,
+    "durability": null,
+    "text": "Fúria dos Ventos. Ao ser jogado, conceda Fúria dos Ventos, Rapidez e Escudo Divino a um lacaio aliado.",
+    "tags": [
+      "WINDFURY",
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ELEMENTAL"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "ADD_TAGS",
+        "tags": [
+          "WINDFURY",
+          "RUSH",
+          "DIVINE_SHIELD"
+        ],
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_geladinho",
+    "name": "Viní Geladinho",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 6,
+    "health": 7,
+    "durability": null,
+    "text": "Ao ser jogado, congele um lacaio inimigo, ele fica congelado até Viní Geladinho morrer.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "FREEZE_UNTIL_SELF_DIES",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "nando",
+    "name": "Nando",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Furtivo. Permanentemente.",
+    "tags": [
+      "STEALTH"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "PASSIVE",
+        "action": "PERMANENT_STEALTH",
+        "target": {
+          "mode": "SELF"
+        }
+      }
+    ]
+  },
+  {
+    "id": "o_mago_implacavel",
+    "name": "O Mago Implacável",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, compre o feitiço mais caro de seu deck, ele custa 1.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_HIGHEST_COST_SPELL_AND_SET_COST",
+        "set_cost": 1,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini_religioso",
+    "name": "Viní Religioso",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 3,
+    "health": 6,
+    "durability": null,
+    "text": "Ao ser jogado, sua vida máxima agora é 45. Cure-se em 15.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "VINI"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SET_MAX_HEALTH",
+        "amount": 45,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "HEAL",
+        "amount": 15,
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "el_pantheon",
+    "name": "El Pantheon",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, escolha 1 entre os últimos 3 lacaios aliados mortos para ser ressuscitado.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DISCOVER_AND_RESURRECT_RECENT_FRIENDLY_MINION",
+        "pool_size": 3,
+        "choose": 1,
+        "target": {
+          "mode": "FRIENDLY_GRAVEYARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "fusca_medicinal",
+    "name": "Fusca Medicinal",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 2,
+    "health": 6,
+    "durability": null,
+    "text": "No final do seu turno, ressuscite o último lacaio aliado morto.",
+    "tags": [],
+    "tribes": [
+      "VEICULO"
+    ],
+    "effects": [
+      {
+        "trigger": "END_OF_TURN",
+        "action": "RESURRECT_LAST_FRIENDLY_DEAD_MINION",
+        "target": {
+          "mode": "FRIENDLY_GRAVEYARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hora_de_nanar",
+    "name": "Hora de Nanar",
+    "type": "SPELL",
+    "cost": 9,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Coloque um lacaio inimigo na sua mão, ele custa 1.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "MOVE_ENEMY_MINION_TO_HAND_AND_SET_COST",
+        "set_cost": 1,
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ENEMY_MINION"
+          ]
+        },
+        "destination": {
+          "mode": "SELF_HAND"
+        }
+      }
+    ]
+  },
+  {
+    "id": "jordan",
+    "name": "Jordan",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 6,
+    "health": 6,
+    "durability": null,
+    "text": "Rapidez, Roubar vida, Escudo Divino.",
+    "tags": [
+      "RUSH",
+      "LIFESTEAL",
+      "DIVINE_SHIELD"
+    ],
+    "tribes": [],
+    "effects": []
+  },
+  {
+    "id": "reflorestamento",
+    "name": "Reflorestamento",
+    "type": "SPELL",
+    "cost": 9,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Evoque 2 troncos e renasça o último lacaio aliado morto.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON",
+        "card_id": "tronco",
+        "amount": 2,
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "RESURRECT_LAST_FRIENDLY_DEAD_MINION",
+        "target": {
+          "mode": "FRIENDLY_GRAVEYARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rica_domador_de_feras",
+    "name": "Rica Domador de Feras",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 3,
+    "health": 4,
+    "durability": null,
+    "text": "Provocar. Ao ser jogado, evoque um Row-Row, conceda-o Escudo Divino e Fúria dos Ventos.",
+    "tags": [
+      "TAUNT",
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_AND_ADD_TAGS",
+        "card_id": "row_row",
+        "tags": [
+          "DIVINE_SHIELD",
+          "WINDFURY"
+        ],
+        "target": {
+          "mode": "SELF_BOARD"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tomo_amaldiçoado",
+    "name": "Tomo Amaldiçoado",
+    "type": "SPELL",
+    "cost": 9,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Compre quatro feitiços. Seu próximo feitiço nesse turno custa vida ao invés de mana.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_CARD_TYPE",
+        "card_type": "SPELL",
+        "amount": 4,
+        "target": {
+          "mode": "SELF_DECK"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "NEXT_SPELL_COSTS_HEALTH_INSTEAD_OF_MANA",
+        "duration": "THIS_TURN",
+        "target": {
+          "mode": "SELF_PLAYER"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vagner_pikachu",
+    "name": "Vagner Pikachu",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, cause 1, 2 e 3 de dano (um de cada vez).",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DAMAGE_SEQUENCE",
+        "amounts": [
+          1,
+          2,
+          3
+        ],
+        "target": {
+          "mode": "CHOSEN_EACH",
+          "valid": [
+            "ENEMY_HERO",
+            "ENEMY_MINION"
+          ]
+        }
+      }
+    ]
+  }
+]

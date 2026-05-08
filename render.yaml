@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: cardgame
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn server.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SESSION_SECRET
+        generateValue: true
+      # Para usar Postgres no Render, descomente as duas linhas abaixo
+      # e crie um banco PostgreSQL no painel do Render, ligando-o ao serviço:
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: cardgame-db
+      #     property: connectionString
+    healthCheckPath: /healthz
+    autoDeploy: true
+
+# Banco Postgres opcional. Descomente o bloco abaixo se quiser persistência
+# entre redeploys (o plano free do Render apaga o disco a cada deploy, então
+# SQLite some). Banco free no Render expira em 30 dias.
+# databases:
+#   - name: cardgame-db
+#     plan: free
