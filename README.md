@@ -415,7 +415,7 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 
@@ -452,7 +452,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 ### Lote 5 — descarte/compra/revelação e cartas recém-compradas
@@ -474,7 +474,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 
@@ -502,7 +502,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 
@@ -525,7 +525,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 
@@ -549,7 +549,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 
@@ -572,7 +572,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-246 passed, 1 skipped
+253 passed, 1 skipped
 ```
 
 
@@ -639,7 +639,7 @@ Adicionado:
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `246 passed, 1 skipped`
+- `253 passed, 1 skipped`
 
 
 ## Lote 24 — segunda auditoria de cartas
@@ -694,3 +694,21 @@ Correções:
 
 Teste adicionado:
 - `tests/test_lote26_requested_fixes.py`
+
+
+## Lote 27 — mulligan, animações, Fortalecer e bugs reportados
+
+Correções:
+- A Moeda agora existe como carta real `coin`.
+- Burguês e o jogador que começa em segundo agora recebem a Moeda correta.
+- Mulligan mantém 3 cartas para o primeiro jogador e 4 para o segundo; a Moeda entra após o mulligan.
+- Animação de compra mostra carta grande saindo do deck, ficando em destaque e indo para a mão.
+- Animação de carta jogada/revelada/queimada agora dura 4 segundos e usa fila.
+- Queima por mão cheia mostra a carta queimada para ambos.
+- Frontend aceita alvos `MINION` e `ANY_CHARACTER`, corrigindo Cabeçada do Viní, Ataque do Viní Mago e Bloquear.
+- Viní em Disparada remove Provocar e Escudo Divino de verdade, incluindo o estado interno de Escudo Divino.
+- Fortalecer aparece como `Fortalecer (+1)` e continua validado no backend.
+- Guilãozinho agora tem evento de revelação compatível com a UI.
+
+Teste adicionado:
+- `tests/test_lote27_mulligan_ui_and_card_fixes.py`

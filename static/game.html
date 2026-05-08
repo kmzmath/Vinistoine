@@ -1946,10 +1946,13 @@ function hasValidChosenTarget(targetDesc) {
   for (const v of valid) {
     if (v === "FRIENDLY_MINION") candidates.push(...me.board);
     else if (v === "ENEMY_MINION") candidates.push(...opp.board);
-    else if (v === "ANY_MINION") candidates.push(...me.board, ...opp.board);
+    else if (v === "ANY_MINION" || v === "MINION") candidates.push(...me.board, ...opp.board);
     else if (v === "FRIENDLY_HERO") candidates.push("me");
     else if (v === "ENEMY_HERO") candidates.push("opp");
     else if (v === "ANY_HERO") candidates.push("me", "opp");
+    else if (v === "ANY_CHARACTER") candidates.push(...me.board, ...opp.board, "me", "opp");
+    else if (v === "FRIENDLY_CHARACTER") candidates.push(...me.board, "me");
+    else if (v === "ENEMY_CHARACTER") candidates.push(...opp.board, "opp");
     else if (v === "OTHER_FRIENDLY_MINION") candidates.push(...me.board);
   }
   // filtra stealth/immune
@@ -2248,8 +2251,19 @@ function animateFromDelta(oldS, newS) {
     if (ev.type === "play_card" && ev.player !== myPid) {
       enqueueOpponentPlay(ev);
     }
-    // === Carta revelada da mão ===
-    if (ev.type === "reveal_hand_card") {
+    // === Queima de carta por mão cheia ===
+    if (ev.type === "burn" && ev.card_id) {
+      enqueueOpponentPlay({
+        type: "burn",
+        player: ev.player,
+        card_id: ev.card_id,
+        card_name: (allCards[ev.card_id] || {}).name || ev.card_id,
+        reveal_label: "Carta queimada",
+        burned: true,
+      });
+    }
+    // === Carta revelada da mão / compra revelada ===
+    if (ev.type === "reveal_hand_card" || ev.type === "reveal_drawn_card") {
       showRevealNotice(ev);
     }
   }
@@ -2261,26 +2275,36 @@ function animateFromDelta(oldS, newS) {
 //   (ou fallback textual)
 // - Se é do oponente, mostro só o card-back (ele esconde o conteúdo)
 let drawAnimsScheduled = 0;
+const DRAW_ANIMATION_MS = 4000;
 function scheduleDrawAnimation(playerId, cardIdRevealed) {
-  const delay = drawAnimsScheduled * 140;
+  const delay = drawAnimsScheduled * DRAW_ANIMATION_MS;
   drawAnimsScheduled++;
   setTimeout(() => {
     flyDrawCard(playerId, cardIdRevealed);
-    drawAnimsScheduled = Math.max(0, drawAnimsScheduled - 1);
+    setTimeout(() => {
+      drawAnimsScheduled = Math.max(0, drawAnimsScheduled - 1);
+    }, DRAW_ANIMATION_MS);
   }, delay);
 }
 
-function flyDrawCard(playerId, cardIdRevealed) {
-  // Origem: deck-pile do jogador (sidebar direito)
-  const pileEl = document.querySelector(`.deck-pile[data-pile-owner='${playerId}']`);
-  // Destino: a mão do dono. Pra MIM é a hand-row real; pra ele é a fileira de
-  // backs no topo.
-  let handEl;
-  if (playerId === myPid) {
-    handEl = document.querySelector(".zone-my-hand");
-  } else {
-    handEl = document.querySelector(".zone-opp-hand");
+function buildAnimatedCard(cardId, faceDown = false) {
+  const wrap = document.createElement("div");
+  wrap.className = "animated-card-wrap";
+  if (faceDown || !cardId) {
+    wrap.classList.add("card-back-large");
+    return wrap;
   }
+  const card = allCards[cardId] || {};
+  const el = renderCard(card, card.cost ?? 0, { show_hand_stats: true });
+  wrap.appendChild(el);
+  return wrap;
+}
+
+function flyDrawCard(playerId, cardIdRevealed) {
+  const pileEl = document.querySelector(`.deck-pile[data-pile-owner='${playerId}']`);
+  let handEl = playerId === myPid
+    ? document.querySelector(".zone-my-hand")
+    : document.querySelector(".zone-opp-hand");
   if (!pileEl || !handEl) return;
 
   const pr = pileEl.getBoundingClientRect();
@@ -2288,59 +2312,47 @@ function flyDrawCard(playerId, cardIdRevealed) {
 
   const startX = pr.left + pr.width / 2;
   const startY = pr.top + pr.height / 2;
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
   const endX = hr.left + hr.width * 0.6;
   const endY = hr.top + hr.height / 2;
 
   const fly = document.createElement("div");
-  fly.className = "draw-fly start";
-
-  // Conteúdo: imagem real da carta (se conhecida) ou card-back
-  const isFaceDown = (playerId !== myPid) || !cardIdRevealed;
-  if (isFaceDown) {
-    fly.classList.add("face-down");
-  } else {
-    const card = allCards[cardIdRevealed] || {};
-    const hasImg = !!cardImages[cardIdRevealed];
-    if (hasImg) {
-      fly.classList.add("face-up", "with-image");
-      fly.style.backgroundImage = `url('${cardImages[cardIdRevealed]}')`;
-    } else {
-      fly.classList.add("face-up");
-      fly.innerHTML = `
-        <div class="fly-cost">${card.cost ?? 0}</div>
-        <div class="fly-name">${escapeHtml(card.name || "?")}</div>
-        ${card.type === "MINION"
-          ? `<div class="fly-stats"><span>${card.attack ?? 0}</span><span>${card.health ?? 0}</span></div>`
-          : ""}
-      `;
-    }
-  }
-
+  fly.className = "draw-fly-v2 start";
   fly.style.left = startX + "px";
   fly.style.top = startY + "px";
+
+  const isFaceDown = (playerId !== myPid) || !cardIdRevealed;
+  fly.appendChild(buildAnimatedCard(cardIdRevealed, isFaceDown));
   document.body.appendChild(fly);
 
-  // Próximo frame: começa a voar pra mão
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       fly.classList.remove("start");
-      fly.classList.add("flying");
-      fly.style.left = endX + "px";
-      fly.style.top = endY + "px";
+      fly.classList.add("showcase");
+      fly.style.left = centerX + "px";
+      fly.style.top = centerY + "px";
     });
   });
-  // Ao chegar: dissolve
+
   setTimeout(() => {
-    fly.classList.remove("flying");
+    fly.classList.remove("showcase");
+    fly.classList.add("to-hand");
+    fly.style.left = endX + "px";
+    fly.style.top = endY + "px";
+  }, 2750);
+
+  setTimeout(() => {
     fly.classList.add("land");
-  }, 600);
-  setTimeout(() => fly.remove(), 1100);
+  }, 3600);
+
+  setTimeout(() => fly.remove(), DRAW_ANIMATION_MS + 120);
 }
 
 // =================== ANUNCIADOR DE CARTA JOGADA ===================
 // Fila simples: cada carta jogada pelo oponente aparece por 2.5s. Se vier várias
 // em sequência, vão aparecendo uma por vez, sem atropelar animações.
-const OPPONENT_PLAY_ANNOUNCE_MS = 2500;
+const OPPONENT_PLAY_ANNOUNCE_MS = 4000;
 const opponentPlayQueue = [];
 let opponentPlayShowing = false;
 
@@ -2371,7 +2383,7 @@ function showOpponentPlayCard(ev) {
   wrap.className = "opp-play-announce";
 
   const inner = document.createElement("div");
-  inner.className = "card-anim";
+  inner.className = "card-anim" + (ev.burned ? " burned" : "");
 
   const hasImg = !!cardImages[cardId];
   if (hasImg) {
@@ -2400,15 +2412,13 @@ function showRevealNotice(ev) {
   const who = ev.player === myPid ? "Você revelou" : "Oponente revelou";
   const name = card.name || ev.card_id || "Carta";
   toast(`${who}: ${name}`);
-  if (ev.player !== myPid) {
-    enqueueOpponentPlay({
-      type: "play_card",
-      player: ev.player,
-      card_id: ev.card_id,
-      card_name: name,
-      reveal_label: "Carta revelada",
-    });
-  }
+  enqueueOpponentPlay({
+    type: "reveal",
+    player: ev.player,
+    card_id: ev.card_id,
+    card_name: name,
+    reveal_label: ev.player === myPid ? "Você revelou" : "Carta revelada",
+  });
 }
 
 

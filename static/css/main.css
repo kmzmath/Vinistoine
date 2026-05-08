@@ -1459,7 +1459,7 @@ input:focus { border-color: var(--gold); }
     0 0 50px rgba(0,0,0,0.85),
     inset 0 0 18px rgba(0,0,0,0.5);
   position: relative;
-  animation: announceCard 2.5s ease-out forwards;
+  animation: announceCard 4s ease-out forwards;
   display: flex; flex-direction: column;
   padding: 0.5rem;
 }
@@ -2139,4 +2139,87 @@ input:focus { border-color: var(--gold); }
   -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2 C9 5 7 8 7 11 C7 15 9.6 18 12 22 C14.4 18 17 15 17 11 C17 8 15 5 12 2 Z M10 9 C10.7 8.2 11.3 8.2 12 9 C12.7 8.2 13.3 8.2 14 9 C13.5 10 12.8 10.5 12 11 C11.2 10.5 10.5 10 10 9 Z M9 14 H15 V16 H9 Z' fill='white'/></svg>");
           mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2 C9 5 7 8 7 11 C7 15 9.6 18 12 22 C14.4 18 17 15 17 11 C17 8 15 5 12 2 Z M10 9 C10.7 8.2 11.3 8.2 12 9 C12.7 8.2 13.3 8.2 14 9 C13.5 10 12.8 10.5 12 11 C11.2 10.5 10.5 10 10 9 Z M9 14 H15 V16 H9 Z' fill='white'/></svg>");
   background: #eaffd6;
+}
+
+
+/* Lote 27: compra de carta com showcase grande por ~4s */
+.draw-fly-v2 {
+  position: fixed;
+  z-index: 25000;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.28) rotate(-16deg);
+  opacity: 0;
+  transition:
+    left 0.85s cubic-bezier(0.2, 0.75, 0.2, 1),
+    top 0.85s cubic-bezier(0.2, 0.75, 0.2, 1),
+    transform 0.85s cubic-bezier(0.2, 0.75, 0.2, 1),
+    opacity 0.28s ease;
+  filter: drop-shadow(0 22px 45px rgba(0,0,0,0.92));
+}
+.draw-fly-v2.showcase {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.28) rotate(0deg);
+}
+.draw-fly-v2.to-hand {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(0.38) rotate(10deg);
+}
+.draw-fly-v2.land {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2) rotate(16deg);
+}
+.draw-fly-v2 .animated-card-wrap .card {
+  width: 215px;
+  height: 310px;
+  margin: 0;
+  box-shadow: 0 0 28px rgba(245,201,105,0.5), 0 0 70px rgba(0,0,0,0.95);
+}
+.draw-fly-v2 .card-back-large {
+  width: 215px;
+  height: 310px;
+  border-radius: 14px;
+  border: 4px solid var(--gold);
+  background:
+    radial-gradient(circle at 50% 50%, var(--gold-dim) 8%, transparent 9%),
+    radial-gradient(circle at 0% 0%, rgba(212,166,74,0.3), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(181,62,44,0.2), transparent 50%),
+    linear-gradient(135deg, #2a1812, #0c0806);
+  box-shadow: 0 0 28px rgba(245,201,105,0.5), 0 0 70px rgba(0,0,0,0.95);
+}
+
+.opp-play-announce .card-anim.burned {
+  animation-name: announceBurnedCard;
+  border-color: #ff6a3d;
+  box-shadow: 0 0 28px rgba(255,80,40,0.85), 0 0 70px rgba(0,0,0,0.95);
+}
+.opp-play-announce .card-anim.burned::after {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  background:
+    radial-gradient(circle at 50% 80%, rgba(255,220,80,0.9), transparent 18%),
+    radial-gradient(circle at 40% 65%, rgba(255,80,20,0.75), transparent 28%),
+    radial-gradient(circle at 60% 65%, rgba(255,120,20,0.75), transparent 30%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: flameFlicker 0.22s infinite alternate;
+}
+@keyframes announceBurnedCard {
+  0%   { transform: translateX(-80px) scale(0.4) rotate(-12deg); opacity: 0; filter: brightness(1); }
+  15%  { transform: translateX(0) scale(1.05) rotate(2deg); opacity: 1; }
+  70%  { transform: translateX(0) scale(1) rotate(0); opacity: 1; filter: brightness(1.1); }
+  100% { transform: translateX(0) scale(0.8) rotate(8deg); opacity: 0; filter: brightness(0.25) grayscale(0.9); }
+}
+@keyframes flameFlicker {
+  from { opacity: 0.65; transform: scale(0.97) translateY(2px); }
+  to   { opacity: 1; transform: scale(1.04) translateY(-2px); }
+}
+
+/* Hover ainda maior e sempre acima de tudo */
+#hover-card-preview {
+  z-index: 50000;
+}
+#hover-card-preview .card {
+  width: 360px;
+  height: 520px;
 }

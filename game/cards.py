@@ -78,7 +78,7 @@ def is_collectible_card(card_id: str) -> bool:
     Tokens auxiliares usados pela engine, como a Moeda, continuam disponíveis
     via get_card(), mas não são colecionáveis.
     """
-    return card_id not in {"coin"}
+    return card_id not in {"coin", "moeda"}
 
 
 def card_max_copies(card_id: str) -> int:

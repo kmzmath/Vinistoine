@@ -1914,7 +1914,7 @@
       {
         "trigger": "ON_PLAY",
         "action": "ADD_CARD_TO_HAND",
-        "card_id": "moeda",
+        "card_id": "coin",
         "card_name": "Moeda",
         "amount": 1,
         "target": {
@@ -6795,6 +6795,28 @@
             "ENEMY_HERO",
             "ENEMY_MINION"
           ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "coin",
+    "name": "Moeda",
+    "type": "SPELL",
+    "cost": 0,
+    "attack": null,
+    "health": null,
+    "durability": null,
+    "text": "Ganhe 1 de mana neste turno.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "GAIN_TEMP_MANA",
+        "amount": 1,
+        "target": {
+          "mode": "SELF_PLAYER"
         }
       }
     ]
