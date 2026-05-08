@@ -415,7 +415,7 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 
@@ -452,7 +452,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 ### Lote 5 — descarte/compra/revelação e cartas recém-compradas
@@ -474,7 +474,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 
@@ -502,7 +502,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 
@@ -525,7 +525,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 
@@ -549,7 +549,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 
@@ -572,7 +572,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-235 passed, 1 skipped
+246 passed, 1 skipped
 ```
 
 
@@ -639,7 +639,7 @@ Adicionado:
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `235 passed, 1 skipped`
+- `246 passed, 1 skipped`
 
 
 ## Lote 24 — segunda auditoria de cartas
@@ -669,3 +669,28 @@ Correções:
 
 Teste adicionado:
 - `tests/test_lote25_requested_gameplay_fixes.py`
+
+
+## Lote 26 — ajustes de UI, Fortalecer e bugs reportados
+
+Correções:
+- Exibição de carta jogada pelo oponente agora dura 2,5 segundos.
+- Cartas jogadas pelo oponente entram em fila de 2,5 segundos cada, sem sobreposição.
+- Log de eventos agora usa sequência interna, evitando perda de animações quando o log chega ao limite de eventos.
+- Hover em lacaios agora mostra a carta grande, à esquerda do mouse e acima de tudo.
+- Venenoso agora tem selo visual.
+- Fortalecer agora custa +1 de mana para feitiços fortalecidos.
+- Nando 3 Anos não morre enquanto estiver Furtivo/Imune com 0 de vida.
+- Vic só volta com o alvo quando mata o alvo marcado por ataque.
+- Cardume de Peixes agora evoca 4 Peixes e adiciona 4 Peixes à mão.
+- Ramoni agora reevoca com base nos stats originais: 5/3 -> 4/2 -> 3/1 -> morre.
+- Lamboinha Má Cozinheiro pode ser jogado sem alvo se não houver Comida aliada.
+- Troca Justa compra normalmente se não houver carta para descartar.
+- Viní Estudioso revela a carta escolhida com aviso visual.
+- Sagrado Rafa concede Escudo Divino a lacaios jogados, não evocados.
+- Viní Religioso aumenta vida máxima do herói para 45 e permite cura acima de 30.
+- Justiça usa custo dinâmico também em ações legais.
+- Lamboinha Rook and How adiciona cópia 6 mana 6/6.
+
+Teste adicionado:
+- `tests/test_lote26_requested_fixes.py`

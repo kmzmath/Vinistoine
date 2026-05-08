@@ -869,6 +869,9 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
                 pending_to_consume.append(pm)
 
     cost = max(0, compute_dynamic_cost(state, p, card_in_hand, card) - extra_reduction)
+    # Fortalecer: feitiço fortalecido custa 1 de mana a mais.
+    if empowered and card.get("type") == "SPELL" and main_triggers != ["ON_PLAY"]:
+        cost += 1
     if pay_with_health:
         # Custa vida, não mana. Armadura não absorve este pagamento.
         if p.hero_health <= 0:
@@ -984,7 +987,8 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
             effects.fire_minion_trigger(state, m, "AFTER_FRIENDLY_MINION_PLAY",
                                         extra_ctx={"played_minion": new_minion.instance_id})
             effects.fire_minion_trigger(state, m, "ON_FRIENDLY_MINION_PLAYED",
-                                        extra_ctx={"played_minion": new_minion.instance_id})
+                                        extra_ctx={"played_minion": new_minion.instance_id,
+                                                   "chosen_target": new_minion.instance_id})
             effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_MINION",
                                         extra_ctx={"played_minion": new_minion.instance_id})
             play_card_ctx = {"card_type": "MINION",
@@ -1795,9 +1799,9 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
         dmg_to_attacker = 0 if attacker.has_tag("ATTACK_DAMAGE_IMMUNE") else target_atk
         # atacante sofre dano da defesa
         effects.damage_character(state, target, dmg_to_target, source_owner=player_id,
-                                 source_minion=attacker)
+                                 source_minion=attacker, is_attack=True)
         effects.damage_character(state, attacker, dmg_to_attacker, source_owner=foe.player_id,
-                                 source_minion=target)
+                                 source_minion=target, is_attack=True)
         state.log_event({
             "type": "attack",
             "attacker": attacker.instance_id,
@@ -1805,7 +1809,7 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
         })
     else:  # herói
         effects.damage_character(state, target, attacker_atk, source_owner=player_id,
-                                 source_minion=attacker)
+                                 source_minion=attacker, is_attack=True)
         state.log_event({
             "type": "attack",
             "attacker": attacker.instance_id,
@@ -1835,7 +1839,7 @@ def cleanup(state: GameState):
         dead: list[tuple[Minion, int]] = []
         for p in state.players:
             for m in list(p.board):
-                if m.health <= 0:
+                if m.health <= 0 and not m.immune:
                     dead.append((m, p.player_id))
         if not dead:
             break
@@ -1922,7 +1926,7 @@ def list_playable_cards(state: GameState, player_id: int) -> list[str]:
         card = get_card(c.card_id)
         if not card:
             continue
-        cost = c.effective_cost()
+        cost = compute_dynamic_cost(state, p, c, card)
         if p.mana < cost:
             continue
         if card.get("type") == "MINION" and len(p.board) >= MAX_BOARD_SIZE:

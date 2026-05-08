@@ -155,8 +155,8 @@ def test_vic_returns_self_and_marked_killed_target_to_hand():
            "target": {"mode": "CHOSEN", "valid": ["ENEMY_MINION"]}}
     effects.resolve_effect(state, eff, pid, vic, {"chosen_target": enemy.instance_id})
 
-    effects.damage_character(state, enemy, 4, source_owner=pid, source_minion=vic)
-    engine.cleanup(state)
+    ok, msg = engine.attack(state, pid, vic.instance_id, enemy.instance_id)
+    assert ok, msg
 
     assert state.find_minion(vic.instance_id) is None
     assert state.find_minion(enemy.instance_id) is None

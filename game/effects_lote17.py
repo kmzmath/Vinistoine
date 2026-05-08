@@ -361,6 +361,8 @@ def handle_minion_death_specials(state, minion: Minion, owner: int):
             continue
         if source_minion_id != pm.get("source_minion_id"):
             continue
+        if not source_info.get("is_attack"):
+            continue
         owner_id = int(pm.get("owner"))
         owner_state = state.players[owner_id]
         source_found = state.find_minion(source_minion_id)

@@ -200,6 +200,9 @@ def resolve_targets(state: GameState, target_desc: dict, source_owner: int,
     if mode == "ENEMY_MINIONS_EXCEPT_TRIBE":
         tribe = target_desc.get("tribe") or target_desc.get("excluded_tribe")
         return [m for m in foe.board if tribe and not m.has_tribe(tribe)]
+    if mode == "PLAYED_MINION":
+        played_id = target_desc.get("id") or chosen_target_id
+        return _target_by_id(state, played_id, source_owner, target_desc, source_minion, is_spell=is_spell) if played_id else []
     if mode == "DAMAGE_SOURCE":
         source_id = (target_desc.get("id") or chosen_target_id)
         return _target_by_id(state, source_id, source_owner, target_desc, source_minion, is_spell=is_spell) if source_id else []

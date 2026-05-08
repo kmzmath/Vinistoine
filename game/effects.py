@@ -42,7 +42,8 @@ def _mitigate_minion_damage(state: GameState, target: Minion, amount: int) -> in
 
 def damage_character(state: GameState, target, amount: int, source_owner: int,
                      source_minion: Optional[Minion] = None,
-                     is_spell: bool = False) -> int:
+                     is_spell: bool = False,
+                     is_attack: bool = False) -> int:
     """Aplica dano a um lacaio ou herói. Retorna dano realmente aplicado."""
     if amount <= 0:
         return 0
@@ -58,6 +59,7 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
             "source_owner": source_owner,
             "source_minion_id": source_minion.instance_id if source_minion else None,
             "is_spell": is_spell,
+            "is_attack": is_attack,
         }
         if target.immune:
             return 0
@@ -1551,3 +1553,6 @@ effects_lote24_second_audit.register_lote24_second_audit_handlers(handler)
 
 from . import effects_lote25_requested_fixes
 effects_lote25_requested_fixes.register_lote25_requested_fixes_handlers(handler)
+
+from . import effects_lote26_requested_fixes
+effects_lote26_requested_fixes.register_lote26_requested_fixes_handlers(handler)

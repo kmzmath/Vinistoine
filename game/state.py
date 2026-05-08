@@ -322,6 +322,10 @@ class GameState:
         }
 
     def log_event(self, event: dict):
+        if not hasattr(self, "_event_seq"):
+            self._event_seq = 0
+        self._event_seq += 1
+        event.setdefault("seq", self._event_seq)
         self.event_log.append(event)
 
 

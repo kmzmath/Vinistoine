@@ -771,6 +771,55 @@ function onAbilityButtonClick(e, m, eff, abilityIndex = 0) {
 }
 
 
+
+function ensureHoverCardRoot() {
+  let el = document.getElementById("hover-card-preview");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "hover-card-preview";
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function showMinionCardPreview(m, ev) {
+  const card = allCards[m.card_id] || {};
+  if (!card || !card.id) return;
+  const root = ensureHoverCardRoot();
+  root.innerHTML = "";
+  const previewCard = renderCard(card, card.cost ?? 0, {
+    show_hand_stats: true,
+    effective_attack: m.attack,
+    effective_health: m.health,
+    stats_modified: m.attack !== (card.attack ?? 0) || m.max_health !== (card.health ?? 0),
+  });
+  root.appendChild(previewCard);
+  root.classList.add("visible");
+  moveMinionCardPreview(ev);
+}
+
+function moveMinionCardPreview(ev) {
+  const root = document.getElementById("hover-card-preview");
+  if (!root || !root.classList.contains("visible")) return;
+  const margin = 18;
+  const width = 300;
+  const height = 430;
+  let left = ev.clientX - width - margin;
+  if (left < 8) left = ev.clientX + margin;
+  let top = ev.clientY - height / 2;
+  top = Math.max(8, Math.min(window.innerHeight - height - 8, top));
+  root.style.left = `${left}px`;
+  root.style.top = `${top}px`;
+}
+
+function hideMinionCardPreview() {
+  const root = document.getElementById("hover-card-preview");
+  if (!root) return;
+  root.classList.remove("visible");
+  root.innerHTML = "";
+}
+
+
 function renderMinion(m, isOpponent) {
   const div = document.createElement("div");
   div.className = "minion" + (isOpponent ? " opponent" : "");
@@ -809,9 +858,11 @@ function renderMinion(m, isOpponent) {
   // Apenas Deathrattle ou Passive (efeito contínuo) ganham selo central.
   // Battlecry/Charge/Rush/Windfury NÃO recebem selo (Windfury vira anel de vento).
   let primarySeal = null;
-  if (m.tags.includes("DEATHRATTLE") && !m.silenced) {
+  if (!isDormant && m.tags.includes("POISONOUS") && !m.silenced) {
+    primarySeal = "POISONOUS";
+  } else if (!isDormant && m.tags.includes("DEATHRATTLE") && !m.silenced) {
     primarySeal = "DEATHRATTLE";
-  } else if (isPassive && !m.silenced) {
+  } else if (!isDormant && isPassive && !m.silenced) {
     primarySeal = "PASSIVE";
   }
 
@@ -868,19 +919,11 @@ function renderMinion(m, isOpponent) {
     ${!isDormant ? `<div class="atk-badge ${atkChanged}">${m.attack}</div><div class="hp-badge ${hpChanged}">${m.health}</div>` : `<div class="dormant-label">DORMENTE</div>`}
     ${primarySeal && !isDormant ? `<div class="keyword-seal" data-kw="${primarySeal}" title="${KW_NAME[primarySeal] || primarySeal}"></div>` : ""}
     ${isSick && !isDormant ? `<div class="zzz-anim"><span class="z z1">z</span><span class="z z2">z</span><span class="z z3">Z</span></div>` : ""}
-    <div class="minion-card-preview"></div>
   `;
 
-  const preview = div.querySelector(".minion-card-preview");
-  if (preview && card && card.id) {
-    const previewCard = renderCard(card, card.cost ?? 0, {
-      show_hand_stats: true,
-      effective_attack: m.attack,
-      effective_health: m.health,
-      stats_modified: m.attack !== (card.attack ?? 0) || m.max_health !== (card.health ?? 0),
-    });
-    preview.appendChild(previewCard);
-  }
+  div.onmouseenter = (ev) => showMinionCardPreview(m, ev);
+  div.onmousemove = (ev) => moveMinionCardPreview(ev);
+  div.onmouseleave = () => hideMinionCardPreview();
 
   const abilityBtn = div.querySelector(".ability-btn");
   if (abilityBtn && firstAbility) {
@@ -1003,9 +1046,10 @@ function effectsForPlayMode(card, opts = {}) {
 
 function playHandCardWithMode(handCard, card, opts = {}) {
   const effects = effectsForPlayMode(card, opts);
+  const targetDescs = collectChosenTargetDescsForPlay(card, opts);
   const chosenEffect = effects.find(effectNeedsChosenTargetForPlay);
-  if (chosenEffect) {
-    const targetDescs = collectChosenTargetDescsForPlay(card, opts);
+  const hasUsableTarget = targetDescs.length > 0 && hasValidChosenTarget(targetDescs[0]);
+  if (chosenEffect && hasUsableTarget) {
     targetingMode = {
       hand_id: handCard.instance_id,
       card,
@@ -1038,7 +1082,7 @@ function showEmpowerModal(handCard, card) {
 
   const msg = document.createElement("div");
   msg.className = "muted";
-  msg.textContent = "Escolha se esta carta será jogada no modo normal ou fortalecido.";
+  msg.textContent = "Fortalecer custa 1 de mana a mais e usa o efeito fortalecido do feitiço.";
   overlay.appendChild(msg);
 
   const row = document.createElement("div");
@@ -1056,8 +1100,13 @@ function showEmpowerModal(handCard, card) {
 
   const empowered = document.createElement("button");
   empowered.className = "btn primary";
-  empowered.textContent = "Fortalecer";
+  empowered.textContent = "Fortalecer (+1)";
   empowered.onclick = () => {
+    const baseCost = handCard.effective_cost ?? handCard.cost_override ?? card.cost ?? 0;
+    if (state.you.mana < baseCost + 1) {
+      toast("Mana insuficiente para fortalecer");
+      return;
+    }
     clearPendingChoiceOverlay();
     playHandCardWithMode(handCard, card, { empowered: true });
   };
@@ -1906,8 +1955,12 @@ function hasValidChosenTarget(targetDesc) {
   // filtra stealth/immune
   candidates = candidates.filter(c => {
     if (typeof c === "string") return true;
+    if ((c.tags || []).includes("DORMANT")) return false;
     if (c.owner !== myPid && (c.keywords || []).includes("STEALTH")) return false;
     if (c.immune) return false;
+    const tribe = targetDesc.required_tribe || targetDesc.tribe;
+    const tribes = targetDesc.tribes || (tribe ? [tribe] : []);
+    if (tribes.length && !tribes.some(t => (c.tribes || []).includes(t) || (t === "COMIDA" && (c.tribes || []).includes("FRUTA")))) return false;
     return true;
   });
   if (!valid.length) return true;
@@ -2099,10 +2152,11 @@ function animateFromDelta(oldS, newS) {
     for (const m of p.board) newByid[m.instance_id] = m;
   }
 
-  // Eventos novos (do log)
-  const oldLogLen = (oldS.log || []).length;
-  const newLogLen = (newS.log || []).length;
-  const newEvents = (newS.log || []).slice(oldLogLen);
+  // Eventos novos (do log). Não use apenas tamanho: o servidor envia só os
+  // últimos 50 eventos, então depois de um tempo os tamanhos podem ser iguais
+  // mesmo com eventos novos.
+  const oldSeqs = new Set((oldS.log || []).map(ev => ev.seq).filter(v => v !== undefined));
+  const newEvents = (newS.log || []).filter(ev => ev.seq === undefined || !oldSeqs.has(ev.seq));
 
   // Para cada lacaio que sumiu (morreu), animar dying ANTES da rerenderização
   const deadIds = Object.keys(oldByid).filter(id => !newByid[id]);
@@ -2194,6 +2248,10 @@ function animateFromDelta(oldS, newS) {
     if (ev.type === "play_card" && ev.player !== myPid) {
       enqueueOpponentPlay(ev);
     }
+    // === Carta revelada da mão ===
+    if (ev.type === "reveal_hand_card") {
+      showRevealNotice(ev);
+    }
   }
 }
 
@@ -2280,8 +2338,9 @@ function flyDrawCard(playerId, cardIdRevealed) {
 }
 
 // =================== ANUNCIADOR DE CARTA JOGADA ===================
-// Fila simples: cada carta jogada pelo oponente aparece por 1s. Se vier várias
-// em sequência, vão aparecendo uma por vez.
+// Fila simples: cada carta jogada pelo oponente aparece por 2.5s. Se vier várias
+// em sequência, vão aparecendo uma por vez, sem atropelar animações.
+const OPPONENT_PLAY_ANNOUNCE_MS = 2500;
 const opponentPlayQueue = [];
 let opponentPlayShowing = false;
 
@@ -2298,8 +2357,8 @@ function processOpponentPlayQueue() {
   opponentPlayShowing = true;
   const ev = opponentPlayQueue.shift();
   showOpponentPlayCard(ev);
-  // próxima entra logo após 1s (igual ao tempo da animação CSS)
-  setTimeout(() => processOpponentPlayQueue(), 1000);
+  // próxima entra só depois do tempo completo de exibição
+  setTimeout(() => processOpponentPlayQueue(), OPPONENT_PLAY_ANNOUNCE_MS);
 }
 
 function showOpponentPlayCard(ev) {
@@ -2326,14 +2385,32 @@ function showOpponentPlayCard(ev) {
   }
   const label = document.createElement("div");
   label.className = "label";
-  label.textContent = "Oponente jogou";
+  label.textContent = ev.reveal_label || "Oponente jogou";
   inner.appendChild(label);
 
   wrap.appendChild(inner);
   document.body.appendChild(wrap);
 
-  setTimeout(() => wrap.remove(), 1100);
+  setTimeout(() => wrap.remove(), OPPONENT_PLAY_ANNOUNCE_MS + 150);
 }
+
+
+function showRevealNotice(ev) {
+  const card = allCards[ev.card_id] || {};
+  const who = ev.player === myPid ? "Você revelou" : "Oponente revelou";
+  const name = card.name || ev.card_id || "Carta";
+  toast(`${who}: ${name}`);
+  if (ev.player !== myPid) {
+    enqueueOpponentPlay({
+      type: "play_card",
+      player: ev.player,
+      card_id: ev.card_id,
+      card_name: name,
+      reveal_label: "Carta revelada",
+    });
+  }
+}
+
 
 // Adia animações até logo após o re-render (que apaga e recria os DOM nodes)
 let pendingAnims = [];
