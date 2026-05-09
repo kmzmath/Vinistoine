@@ -10,13 +10,29 @@ from . import targeting
 
 # Registry de handlers
 HANDLERS: dict[str, Callable] = {}
+# Histórico de quem registrou cada ação. Permite auditar overrides feitos
+# pelos arquivos de patch (effects_lote*.py) e descobrir handler-fantasma.
+HANDLER_REGISTRATIONS: dict[str, list[str]] = {}
 # Lista das ações que não temos handler ainda (pra registrar warnings)
 UNIMPLEMENTED_ACTIONS: set[str] = set()
 
 
 def handler(action_name: str):
     def deco(fn):
+        prev = HANDLERS.get(action_name)
         HANDLERS[action_name] = fn
+        owner = f"{getattr(fn, '__module__', '?')}.{getattr(fn, '__name__', '?')}"
+        history = HANDLER_REGISTRATIONS.setdefault(action_name, [])
+        history.append(owner)
+        if prev is not None:
+            # Não quebra o jogo, só registra para a auditoria. O último @handler
+            # ainda vence (comportamento histórico). Quem quiser ver duplicatas
+            # pode inspecionar HANDLER_REGISTRATIONS.
+            import logging
+            logging.getLogger(__name__).debug(
+                "handler %s sobrescrito (%s -> %s)",
+                action_name, history[-2] if len(history) > 1 else "?", owner,
+            )
         return fn
     return deco
 
@@ -349,22 +365,23 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
         minion.cant_attack = True
         minion.immune = True
         minion.summoning_sick = True
-        awaken_by_summon = next(
+        # Aceita qualquer effect com trigger FRIENDLY_MINIONS_SUMMONED, não só
+        # AWAKEN. O próprio dispatch do trigger respeita conditions/targets.
+        fms_threshold = next(
             (
                 int(e.get("amount", 2) or 2)
                 for e in (minion.effects or [])
                 if e.get("trigger") == "FRIENDLY_MINIONS_SUMMONED"
-                and e.get("action") == "AWAKEN"
             ),
             None,
         )
-        if awaken_by_summon is not None:
+        if fms_threshold is not None:
             state.pending_modifiers.append({
                 "kind": "friendly_summons_awaken_counter",
                 "target_id": minion.instance_id,
                 "owner": owner,
                 "count": 0,
-                "required": awaken_by_summon,
+                "required": fms_threshold,
             })
 
     p.board.insert(position, minion)
@@ -391,18 +408,27 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
             continue
         target = found[0]
         if "DORMANT" not in target.tags:
+            # Alvo não está mais dormente (acordou por outra rota): descarta o
+            # contador, em vez de mantê-lo flutuando para sempre.
             continue
         pm["count"] = int(pm.get("count", 0) or 0) + 1
         required = int(pm.get("required", 2) or 2)
         if pm["count"] >= required:
-            if "DORMANT" in target.tags:
-                target.tags.remove("DORMANT")
-            target.cant_attack = False
-            target.immune = False
-            target.summoning_sick = True
-            state.log_event({"type": "awaken", "minion": target.instance_id,
-                             "reason": "friendly_minions_summoned",
-                             "count": pm["count"]})
+            # Threshold batido: dispara FRIENDLY_MINIONS_SUMMONED como trigger
+            # real para que o handler de AWAKEN (com conditions/target/etc do
+            # JSON) decida o que fazer. Antes, o desperto era inline e ignorava
+            # tudo isso.
+            fire_minion_trigger(
+                state, target, "FRIENDLY_MINIONS_SUMMONED",
+                extra_ctx={
+                    "summoned_minion": minion.instance_id,
+                    "summoned_card_id": minion.card_id,
+                    "fms_count": pm["count"],
+                    "fms_required": required,
+                },
+            )
+            state.log_event({"type": "friendly_minions_summoned_threshold",
+                             "minion": target.instance_id, "count": pm["count"]})
             continue
         keep_modifiers.append(pm)
     state.pending_modifiers = keep_modifiers
@@ -414,6 +440,44 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
         pass
 
     return minion
+
+
+def grant_temporary_stat_buff(state: GameState, minion: Minion, attack: int = 0,
+                              health: int = 0,
+                              owner_for_revert: Optional[int] = None) -> None:
+    """Aplica +ataque/+vida que se reverte no fim do turno do dono indicado.
+
+    Diferente das tags _AURA_STAT (recalculadas a cada apply_continuous_effects),
+    este buff é stat bruto: somamos no momento e registramos um pending_modifier
+    `temporary_stat_buff` consumido em `engine._remove_temporary_tags_at_end_of_turn`.
+    Use isto para "ganhe +X de ataque até o fim do turno" e similares.
+    """
+    atk = int(attack or 0)
+    hp = int(health or 0)
+    if atk == 0 and hp == 0:
+        return
+    if owner_for_revert is None:
+        owner_for_revert = minion.owner
+    if atk:
+        minion.attack = max(0, minion.attack + atk)
+    if hp > 0:
+        minion.max_health += hp
+        minion.health += hp
+    elif hp < 0:
+        minion.max_health = max(1, minion.max_health + hp)
+        minion.health = min(minion.health, minion.max_health)
+    state.pending_modifiers.append({
+        "kind": "temporary_stat_buff",
+        "owner": owner_for_revert,
+        "minion_id": minion.instance_id,
+        "attack": atk,
+        "health": hp,
+    })
+    state.log_event({
+        "type": "temporary_stat_buff",
+        "minion": minion.instance_id,
+        "attack": atk, "health": hp,
+    })
 
 
 # ======================= HANDLERS DE AÇÃO =======================
@@ -1074,9 +1138,16 @@ def _summon_copy_with_stats(state, eff, source_owner, source_minion, ctx):
         new_m = summon_minion_from_card(state, source_owner, t.card_id,
                                         stat_override=(atk, hp))
         if not new_m:
-            return
-        # Cópia com stats explícitos não deve carregar buffs atuais, mas mantém
-        # identidade básica da carta.
+            # Não interrompe o efeito todo se um único summon falhou (ex: campo
+            # cheio em um dos lados): segue para os próximos alvos.
+            continue
+        # Preserva identidade do minion-fonte: tags, tribos e effects são
+        # copiados (sem buffs voláteis em tags _AURA_*) para que a cópia
+        # mantenha keywords/tribos/efeitos do original.
+        new_m.tags = [tg for tg in (t.tags or []) if not tg.startswith("_AURA_")]
+        new_m.tribes = list(t.tribes or [])
+        new_m.effects = [dict(e) for e in (t.effects or [])]
+        new_m.divine_shield = "DIVINE_SHIELD" in new_m.tags
         _apply_minion_modifications(new_m, eff.get("modifications"))
 
 
@@ -1092,8 +1163,11 @@ def _summon_self_with_stat_modifier(state, eff, source_owner, source_minion, ctx
 
 @handler("ADD_CARD_TO_HAND")
 def _add_card_hand(state, eff, source_owner, source_minion, ctx):
+    # Aceita ambas as formas: top-level "card_id" e nested "card.id".
+    # Lotes posteriores (lote26/27) padronizam para card_id; sem este fallback,
+    # se o lote27 não fosse o último a registrar, cartas como Cardume falhariam.
     card_data = eff.get("card") or {}
-    card_id = card_data.get("id")
+    card_id = eff.get("card_id") or card_data.get("id")
     n = eff.get("amount", 1)
     if not card_id:
         return

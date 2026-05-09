@@ -193,13 +193,16 @@ def resolve_targets(state: GameState, target_desc: dict, source_owner: int,
         return _filter_minions(target_desc, list(me.board), source_owner, source_minion)
     if mode == "MINIONS_WITH_TRIBE":
         tribe = target_desc.get("tribe") or target_desc.get("required_tribe")
-        return [m for m in state.all_minions() if not tribe or m.has_tribe(tribe)]
+        pool = [m for m in state.all_minions() if not tribe or m.has_tribe(tribe)]
+        return _filter_minions(target_desc, pool, source_owner, source_minion)
     if mode == "ALL_MINIONS_EXCEPT_TRIBE":
         tribe = target_desc.get("tribe") or target_desc.get("excluded_tribe")
-        return [m for m in state.all_minions() if tribe and not m.has_tribe(tribe)]
+        pool = [m for m in state.all_minions() if tribe and not m.has_tribe(tribe)]
+        return _filter_minions(target_desc, pool, source_owner, source_minion)
     if mode == "ENEMY_MINIONS_EXCEPT_TRIBE":
         tribe = target_desc.get("tribe") or target_desc.get("excluded_tribe")
-        return [m for m in foe.board if tribe and not m.has_tribe(tribe)]
+        pool = [m for m in foe.board if tribe and not m.has_tribe(tribe)]
+        return _filter_minions(target_desc, pool, source_owner, source_minion)
     if mode == "PLAYED_MINION":
         played_id = target_desc.get("id") or chosen_target_id
         return _target_by_id(state, played_id, source_owner, target_desc, source_minion, is_spell=is_spell) if played_id else []
@@ -210,7 +213,8 @@ def resolve_targets(state: GameState, target_desc: dict, source_owner: int,
         damaged_id = target_desc.get("id") or chosen_target_id
         if damaged_id:
             return _target_by_id(state, damaged_id, source_owner, target_desc, source_minion, is_spell=is_spell)
-        return [m for m in state.all_minions() if m.health < m.max_health]
+        pool = [m for m in state.all_minions() if m.health < m.max_health]
+        return _filter_minions(target_desc, pool, source_owner, source_minion)
 
     # Reusa o alvo escolhido como "alvo anterior". Isso cobre cartas como
     # Mamma Mia, que escolhem um alvo e depois aplicam condição/buff no mesmo.
@@ -254,7 +258,11 @@ def resolve_targets(state: GameState, target_desc: dict, source_owner: int,
         pool = _filter_minions(target_desc, state.all_minions(), source_owner, source_minion)
         return [state.rng.choice(pool)] if pool else []
     if mode == "RANDOM_ENEMY_CHARACTER":
-        pool = [foe] + _filter_minions(target_desc, list(foe.board), source_owner, source_minion)
+        # Filtra herói imune: alvo aleatório não deve "queimar" em alvo intocável.
+        hero_pool = []
+        if not foe.hero_immune and not (is_spell and getattr(foe, "hero_spell_target_immune", False)):
+            hero_pool = [foe]
+        pool = hero_pool + _filter_minions(target_desc, list(foe.board), source_owner, source_minion)
         return [state.rng.choice(pool)] if pool else []
 
     # Não tratados aqui: SELF_DECK, SELF_HAND, BOTH_DECKS etc são tratados pelas

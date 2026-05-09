@@ -89,6 +89,12 @@ function preloadImage(url) {
 async function preloadAllAssets() {
   try {
     const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
+    // Sem URLs (ex: API de imagens falhou) não devemos travar em 0% nem
+    // mostrar "NaN%": vai direto para 100%.
+    if (!urls.length) {
+      updateAssetProgress(1, 1);
+      return;
+    }
     let done = 0;
     updateAssetProgress(0, urls.length);
     await Promise.all(urls.map(async (url) => {
@@ -112,7 +118,14 @@ function connect() {
   const proto = window.location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${window.location.host}/ws/match/${matchId}?token=${encodeURIComponent(token)}`);
   ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);
+    let msg;
+    try {
+      msg = JSON.parse(ev.data);
+    } catch (err) {
+      console.error("WS payload inválido:", err, ev.data);
+      return;
+    }
+    if (!msg || typeof msg !== "object") return;
     if (msg.type === "joined") {
       myPid = msg.your_player_id;
       // Se o primeiro state chegou ANTES de joined, agora finalmente sabemos
@@ -138,7 +151,16 @@ function connect() {
 }
 
 function send(action, data = {}) {
-  ws.send(JSON.stringify({ action, ...data }));
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    toast("Conexão indisponível");
+    return;
+  }
+  try {
+    ws.send(JSON.stringify({ action, ...data }));
+  } catch (err) {
+    console.warn("Falha ao enviar ao servidor:", err);
+    toast("Conexão indisponível");
+  }
 }
 
 function escapeHtml(value) {
@@ -1020,19 +1042,37 @@ function decorateTargetCandidates() {
   document.querySelectorAll(".minion, .hero").forEach(el => {
     el.classList.remove("targeting-active");
   });
+  // Lacaio dormente nunca é alvo válido. Marcamos no DOM via tag DORMANT.
+  const isDormantEl = (el) => {
+    const id = el.dataset && el.dataset.minionId;
+    if (!id) return false;
+    const allBoards = [
+      ...((state.you && state.you.board) || []),
+      ...((state.opponent && state.opponent.board) || []),
+    ];
+    const m = allBoards.find(x => x.instance_id === id);
+    return !!(m && (m.tags || []).includes("DORMANT"));
+  };
   if (targetingMode || abilityMode) {
     // Validação final é do backend; aqui só indicamos alvos clicáveis.
-    document.querySelectorAll(".minion, .hero").forEach(el => el.classList.add("targeting-active"));
+    document.querySelectorAll(".minion, .hero").forEach(el => {
+      if (el.classList.contains("minion") && isDormantEl(el)) return;
+      el.classList.add("targeting-active");
+    });
   }
   if (attackingMode) {
-    // valid targets: lacaios oponentes e (se nenhum taunt) o herói
-    const oppHasTaunt = state.opponent.board.some(m => (m.keywords || []).includes("TAUNT"));
+    // valid targets: lacaios oponentes não-dormentes e (se nenhum taunt-vivo) o herói.
+    // Provocar imune não conta para fechamento (o engine também filtra).
+    const oppHasTaunt = state.opponent.board.some(
+      m => (m.keywords || []).includes("TAUNT") && !m.immune && !(m.tags || []).includes("DORMANT")
+    );
     document.querySelectorAll(".minion[data-owner='opp']").forEach(el => {
       const id = el.dataset.minionId;
       const m = state.opponent.board.find(x => x.instance_id === id);
       if (!m) return;
+      if ((m.tags || []).includes("DORMANT")) return;
       if (oppHasTaunt) {
-        if ((m.keywords || []).includes("TAUNT")) el.classList.add("targeting-active");
+        if ((m.keywords || []).includes("TAUNT") && !m.immune) el.classList.add("targeting-active");
       } else {
         el.classList.add("targeting-active");
       }
@@ -2389,20 +2429,23 @@ function animateFromDelta(oldS, newS) {
 // - Se a carta é minha e eu sei o card_id, mostro a imagem da carta
 //   (ou fallback textual)
 // - Se é do oponente, mostro só o card-back (ele esconde o conteúdo)
-let drawAnimsScheduled = 0;
+// Próximo timestamp em que uma nova animação pode começar. Multiplicar por
+// `count * duration` (versão antiga) somava durations heterogêneos errados:
+// uma compra de 3s podia ser disparada com delay 1000ms, ou uma de 1s com
+// delay 6000ms. Usar um cursor evita sobreposição e gaps grandes.
+let nextDrawAnimAt = 0;
 const TURN_START_DRAW_MS = 3000;
 const EFFECT_DRAW_MS = 1000;
 const OPPONENT_DRAW_MS = 700;
 function scheduleDrawAnimation(playerId, cardIdRevealed, reason = "effect") {
   const isMine = playerId === myPid;
   const duration = !isMine ? OPPONENT_DRAW_MS : (reason === "turn_start" ? TURN_START_DRAW_MS : EFFECT_DRAW_MS);
-  const delay = drawAnimsScheduled * duration;
-  drawAnimsScheduled++;
+  const now = Date.now();
+  const startAt = Math.max(now, nextDrawAnimAt);
+  const delay = startAt - now;
+  nextDrawAnimAt = startAt + duration;
   setTimeout(() => {
     flyDrawCard(playerId, cardIdRevealed, { duration, showcase: isMine && reason === "turn_start" });
-    setTimeout(() => {
-      drawAnimsScheduled = Math.max(0, drawAnimsScheduled - 1);
-    }, duration);
   }, delay);
 }
 
@@ -2507,10 +2550,18 @@ function buildAnnouncementCard(cardId, extraClass = "") {
     inner.style.backgroundImage = `url('${cardImages[cardId]}')`;
   } else {
     inner.classList.add("fallback");
-    inner.innerHTML = `
-      <div class="name-fallback">${cardName}</div>
-      ${card.text ? `<div class="text-fallback">${card.text}</div>` : ""}
-    `;
+    // Importante: card.name e card.text são server-provided e podem conter
+    // tags/aspas. Usar textContent (via createElement) evita XSS.
+    const nameEl = document.createElement("div");
+    nameEl.className = "name-fallback";
+    nameEl.textContent = cardName;
+    inner.appendChild(nameEl);
+    if (card.text) {
+      const textEl = document.createElement("div");
+      textEl.className = "text-fallback";
+      textEl.textContent = card.text;
+      inner.appendChild(textEl);
+    }
   }
   return inner;
 }

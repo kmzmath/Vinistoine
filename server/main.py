@@ -15,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depe
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, conlist, constr
 from typing import Optional
 
 from .db import init_db, get_session, User, Deck
@@ -81,28 +81,36 @@ def require_user(request: Request) -> User:
 
 
 # ============================ Schemas ============================
+# Limites generosos mas que evitam DoS por payloads gigantes (1MB de senha,
+# decks com 30k cartas etc.). card_id é hex/snake-case curto.
+_NICK = constr(min_length=1, max_length=40, strip_whitespace=True)
+_PASS = constr(min_length=1, max_length=128)
+_CARD_ID = constr(min_length=1, max_length=64)
+
+
 class RegisterIn(BaseModel):
-    nickname: str
-    password: str
+    nickname: _NICK
+    password: _PASS
 
 
 class LoginIn(BaseModel):
-    nickname: str
-    password: str
+    nickname: _NICK
+    password: _PASS
 
 
 class DeckIn(BaseModel):
-    name: str
-    cards: list[str]
+    name: constr(min_length=1, max_length=60, strip_whitespace=True)
+    # max_length aceita decks até DECK_SIZE; o validador de regras checa o resto.
+    cards: conlist(_CARD_ID, max_length=DECK_SIZE)
 
 
 class CreateMatchIn(BaseModel):
     deck_id: Optional[int] = None
-    mode: str = "constructed"
+    mode: constr(min_length=1, max_length=32) = "constructed"
 
 
 class JoinMatchIn(BaseModel):
-    code: str
+    code: constr(min_length=1, max_length=16, strip_whitespace=True)
     deck_id: Optional[int] = None
 
 
@@ -213,7 +221,10 @@ def validate_deck(card_ids: list[str]) -> Optional[str]:
     if len(card_ids) != DECK_SIZE:
         return f"O deck deve ter exatamente {DECK_SIZE} cartas (você tem {len(card_ids)})"
     counts = Counter(card_ids)
-    for cid, cnt in counts.items():
+    # Primeiro varre identidade/tipo (não-coletáveis, IDs inválidos, tipo errado).
+    # Só depois verifica limite de cópias, para que mensagens mais específicas
+    # apareçam antes do simples "Máximo N cópias".
+    for cid in counts:
         if cid in NON_COLLECTIBLE_CARD_IDS:
             return f"Carta não permitida no deck: {cid}"
         card = get_card(cid)
@@ -221,8 +232,10 @@ def validate_deck(card_ids: list[str]) -> Optional[str]:
             return f"Carta inválida: {cid}"
         if card.get("type") not in {"MINION", "SPELL"}:
             return f"Tipo de carta não permitido no deck: {card.get('name', cid)}"
+    for cid, cnt in counts.items():
         max_c = card_max_copies(cid)
         if cnt > max_c:
+            card = get_card(cid)
             return f"Máximo {max_c} cópias de '{card.get('name')}'"
     return None
 
@@ -327,8 +340,24 @@ def list_matches():
 
 
 # ============================ WebSocket de partida ============================
+def _is_origin_allowed(origin: Optional[str]) -> bool:
+    """Permite Origins listadas em ALLOWED_CORS_ORIGINS. CORSMiddleware NÃO se
+    aplica a WebSocket upgrades, então fazemos a checagem manual aqui."""
+    if not ALLOWED_CORS_ORIGINS:
+        return True
+    if origin is None:
+        # Cliente não-browser (CLI/tests) costuma omitir Origin: aceitamos.
+        return True
+    return origin in ALLOWED_CORS_ORIGINS
+
+
 @app.websocket("/ws/match/{match_id}")
 async def match_ws(websocket: WebSocket, match_id: str, token: str):
+    origin = websocket.headers.get("origin")
+    if not _is_origin_allowed(origin):
+        # Recusa antes do accept para evitar handshake completo.
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     user = get_user_from_token(token)
     if user is None:
