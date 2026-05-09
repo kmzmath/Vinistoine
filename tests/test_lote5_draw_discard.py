@@ -1,4 +1,4 @@
-"""Lote 5 — escolhas de descarte/compra e cartas recém-compradas."""
+"""Lote 5 - escolhas de descarte/compra e cartas recém-compradas."""
 from __future__ import annotations
 
 from game import engine, effects

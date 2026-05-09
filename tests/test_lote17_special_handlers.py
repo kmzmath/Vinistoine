@@ -1,4 +1,4 @@
-"""Lote 17 — handlers especiais finais."""
+"""Lote 17 - handlers especiais finais."""
 from __future__ import annotations
 
 from game import engine, effects

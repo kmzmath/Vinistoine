@@ -1,4 +1,4 @@
-"""Lote 13 — recrutamento, ressurreição, transformação e cura especial."""
+"""Lote 13 - recrutamento, ressurreição, transformação e cura especial."""
 from __future__ import annotations
 
 from game import engine, effects

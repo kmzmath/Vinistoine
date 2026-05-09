@@ -1,4 +1,4 @@
-"""Lote 26 — correções adicionais solicitadas em gameplay."""
+"""Lote 26 - correções adicionais solicitadas em gameplay."""
 from __future__ import annotations
 
 from game import engine, effects

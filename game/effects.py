@@ -124,7 +124,7 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
         except Exception:
             pass
 
-        # GAIN_ATTACK_ON_DAMAGE: Baiano — ganha atk pelo dano levado
+        # GAIN_ATTACK_ON_DAMAGE: Baiano - ganha atk pelo dano levado
         if target.has_tag("GAIN_ATTACK_ON_DAMAGE") and not target.silenced:
             target.attack += amount
             state.log_event({"type": "gain_attack_on_damage",

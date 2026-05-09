@@ -1,4 +1,4 @@
-"""Lote 25 — correções solicitadas após teste em partida real.
+"""Lote 25 - correções solicitadas após teste em partida real.
 
 Inclui:
 - Congelar perde só o próximo ataque.

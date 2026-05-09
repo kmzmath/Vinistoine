@@ -328,7 +328,7 @@ def test_divine_shield_bloqueia_poisonous():
     ok, msg = engine.attack(state, pid, poisonous_m.instance_id, target.instance_id)
     assert ok, msg
 
-    # Divine shield absorveu — target ainda em jogo
+    # Divine shield absorveu - target ainda em jogo
     f = state.find_minion(target.instance_id)
     assert f is not None, "target não deveria morrer porque o shield bloqueou"
     assert f[0].divine_shield is False  # shield consumido

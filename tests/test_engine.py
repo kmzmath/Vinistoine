@@ -317,7 +317,7 @@ def test_battlecry_sem_alvo_valido_joga_sem_alvo():
             if state.current_player == pid:
                 p.board = []  # mantém vazio
 
-    # Joga sem alvo — deve funcionar agora
+    # Joga sem alvo - deve funcionar agora
     ok, msg = engine.play_card(state, pid, target_hand.instance_id, chosen_target=None)
     assert ok, f"esperava sucesso, falhou: {msg}"
     # se for MINION, agora há 1 lacaio em campo

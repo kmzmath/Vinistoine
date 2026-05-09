@@ -1,20 +1,20 @@
 """
-LOTE 3 — Família 1: Manipulação de Deck (12 ações, 10 cartas)
+LOTE 3 - Família 1: Manipulação de Deck (12 ações, 10 cartas)
 
 Ações cobertas:
 - LOOK_TOP_CARDS já existe; aqui REORDER_TOP_CARDS reusa o ctx.revealed_cards
-- REORDER_TOP_CARDS    — Lamboia: reorganiza top 3
-- OPTIONAL_SWAP_REVEALED_TOP_CARDS — Lamboia 3 Anos: troca top de cada deck
-- REVEAL_TOP_CARD_EACH_DECK   — Viní 3 Anos Abridor de Caixa
-- DISCARD_LOWEST_COST_REVEALED_CARD — Viní 3 Anos Abridor de Caixa
-- DRAW_HIGHEST_COST_REVEALED_CARD   — Stonks
-- REVEAL_TOP_CARD_AND_CHOOSE_DRAW   — Mario (trigger ON_DRAW)
-- REPLACE_DRAW_WITH_PLAY_TOP_CARD   — Portal (passivo)
-- PLAY_TOP_CARD_FROM_DECK           — Aulão
-- PLAY_FROM_DECK                    — Fome
-- ADD_CARD_TO_DECK_POSITION_AND_SET_COST — Muriel
-- SHUFFLE_THIS_INTO_DECK            — Moeda Perdida
-- TRANSFORM_THIS_CARD               — Moeda Perdida (trigger ON_DRAW)
+- REORDER_TOP_CARDS    - Lamboia: reorganiza top 3
+- OPTIONAL_SWAP_REVEALED_TOP_CARDS - Lamboia 3 Anos: troca top de cada deck
+- REVEAL_TOP_CARD_EACH_DECK   - Viní 3 Anos Abridor de Caixa
+- DISCARD_LOWEST_COST_REVEALED_CARD - Viní 3 Anos Abridor de Caixa
+- DRAW_HIGHEST_COST_REVEALED_CARD   - Stonks
+- REVEAL_TOP_CARD_AND_CHOOSE_DRAW   - Mario (trigger ON_DRAW)
+- REPLACE_DRAW_WITH_PLAY_TOP_CARD   - Portal (passivo)
+- PLAY_TOP_CARD_FROM_DECK           - Aulão
+- PLAY_FROM_DECK                    - Fome
+- ADD_CARD_TO_DECK_POSITION_AND_SET_COST - Muriel
+- SHUFFLE_THIS_INTO_DECK            - Moeda Perdida
+- TRANSFORM_THIS_CARD               - Moeda Perdida (trigger ON_DRAW)
 
 NOTA sobre triggers novos: introduzimos o trigger ON_DRAW (disparado por
 draw_card no momento em que a carta sai do deck pra mão). A integração

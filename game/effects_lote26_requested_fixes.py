@@ -1,4 +1,4 @@
-"""Lote 26 — ajustes de UI/mecânica e correções de cartas reportadas.
+"""Lote 26 - ajustes de UI/mecânica e correções de cartas reportadas.
 
 Correções principais:
 - Cardume adiciona Peixes à mão via `card_id` direto.

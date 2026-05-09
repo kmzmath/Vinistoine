@@ -1,4 +1,4 @@
-"""Lote 10 — mão/deck/reveal/trocas.
+"""Lote 10 - mão/deck/reveal/trocas.
 
 Ações cobertas:
 - REVEAL_CARD_FROM_HAND

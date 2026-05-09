@@ -1,4 +1,4 @@
-"""Lote 16 — mão/deck/zonas e mana extra."""
+"""Lote 16 - mão/deck/zonas e mana extra."""
 from __future__ import annotations
 
 from game import engine, effects

@@ -1,4 +1,4 @@
-"""Lote 22 — correções encontradas em teste manual de cartas.
+"""Lote 22 - correções encontradas em teste manual de cartas.
 
 Correções:
 - Hello World: ADD_COPY_TO_DECK com card_id/cost_override.

@@ -1,4 +1,4 @@
-"""Lote 18 — habilidades ativadas e efeitos durante o turno."""
+"""Lote 18 - habilidades ativadas e efeitos durante o turno."""
 from __future__ import annotations
 
 from game import engine

@@ -1,4 +1,4 @@
-"""Lote 24 — segunda auditoria de execução de cartas.
+"""Lote 24 - segunda auditoria de execução de cartas.
 
 Correções de alta confiança:
 - Queima de Estoque não deve recrutar duas vezes.

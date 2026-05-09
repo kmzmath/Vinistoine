@@ -1,4 +1,4 @@
-"""Lote 19 — triggers de dano, summon e carta jogada.
+"""Lote 19 - triggers de dano, summon e carta jogada.
 
 Triggers integrados:
 - ON_DAMAGE_TAKEN

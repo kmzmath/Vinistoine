@@ -1,4 +1,4 @@
-"""Lote 20 — Combo, Fortalecer e auras recalculadas."""
+"""Lote 20 - Combo, Fortalecer e auras recalculadas."""
 from __future__ import annotations
 
 from game import engine, effects

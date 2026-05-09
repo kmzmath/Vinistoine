@@ -1,4 +1,4 @@
-"""Lote 19 — triggers de dano, summon e carta jogada."""
+"""Lote 19 - triggers de dano, summon e carta jogada."""
 from __future__ import annotations
 
 from game import engine, effects

@@ -1,4 +1,4 @@
-"""Lote 29 — animações/features e correções Caverna/Dorminhoco."""
+"""Lote 29 - animações/features e correções Caverna/Dorminhoco."""
 from __future__ import annotations
 
 from game import engine, effects

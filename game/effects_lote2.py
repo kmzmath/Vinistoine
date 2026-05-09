@@ -1,5 +1,5 @@
 """
-Lote 2 — 30 ações simples que desbloqueiam +30 cartas.
+Lote 2 - 30 ações simples que desbloqueiam +30 cartas.
 
 Cada handler é registrado via `handler` decorator passado por `register_lote2_handlers()`,
 chamado pelo `effects.py`.
@@ -340,7 +340,7 @@ def register_lote2_handlers(handler):
     @handler("BUFF_ATTACK_PER_MINION_TRIBE")
     def _buff_atk_per_tribe(state, eff, source_owner, source_minion, ctx):
         """Pastel: +1 atk por cada lacaio Brasileiro ou Chinês.
-        Acumula até "expirar" — passivo recalculado a cada cleanup. Simplificação:
+        Acumula até "expirar" - passivo recalculado a cada cleanup. Simplificação:
         recalcula no momento do trigger.
         """
         per_amount = eff.get("amount", 1)
@@ -356,7 +356,7 @@ def register_lote2_handlers(handler):
         if source_minion:
             # Para passivos contínuos, esse handler é chamado em ON_PLAY.
             # Como simplificação aplicamos UMA vez: stat estático no momento de jogar.
-            # Para a real "aura" precisaria de recalcular sempre — deixaremos esse 
+            # Para a real "aura" precisaria de recalcular sempre - deixaremos esse 
             # delta como permanent.
             source_minion.attack += n * per_amount
             state.log_event({"type": "buff_per_tribe",
@@ -372,7 +372,7 @@ def register_lote2_handlers(handler):
         """Garçom: custa 1 a menos por cada lacaio aliado.
         Mecânica: ao ENTRAR EM CAMPO o efeito já foi feito via cost menor; mas para
         cartas de mão isto deveria ser passivo de mão (IN_HAND). Por enquanto, 
-        recalculamos custo de SELF (na carta na mão) ANTES de jogar — verifica
+        recalculamos custo de SELF (na carta na mão) ANTES de jogar - verifica
         em play_card via pending_modifiers.
         Como o handler é disparado no ON_PLAY (já entrou em campo), aqui é tarde 
         demais. A solução real é implementar IN_HAND triggers. SIMPLIFICAÇÃO: 

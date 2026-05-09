@@ -1,4 +1,4 @@
-"""Lote 15 — estados/passivos complexos."""
+"""Lote 15 - estados/passivos complexos."""
 from __future__ import annotations
 
 from game import engine, effects

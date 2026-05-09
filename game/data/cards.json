@@ -3954,7 +3954,7 @@
     "attack": 3,
     "health": 6,
     "durability": null,
-    "text": "Sempre que você jogar um lacaio, este recebe 1 de dano e causa 1 de dano a um lacaio inimigo.",
+    "text": "Sempre que você jogar um lacaio, Viní em Chamas recebe 1 de dano e causa 1 de dano a um lacaio inimigo.",
     "tags": [],
     "tribes": [
       "VINI"
@@ -3965,7 +3965,7 @@
         "action": "DAMAGE",
         "amount": 1,
         "target": {
-          "mode": "PLAYED_MINION"
+          "mode": "SELF"
         }
       },
       {

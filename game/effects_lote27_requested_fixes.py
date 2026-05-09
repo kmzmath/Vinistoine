@@ -1,4 +1,4 @@
-"""Lote 27 — ajustes de mulligan/moeda, targeting, burn e cartas reportadas."""
+"""Lote 27 - ajustes de mulligan/moeda, targeting, burn e cartas reportadas."""
 from __future__ import annotations
 
 from .state import CardInHand, Minion, PlayerState, MAX_HAND_SIZE, gen_id

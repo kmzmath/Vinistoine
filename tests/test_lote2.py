@@ -1,5 +1,5 @@
 """
-Testes do Lote 2 — 30 ações novas.
+Testes do Lote 2 - 30 ações novas.
 """
 from __future__ import annotations
 import pytest
@@ -247,10 +247,10 @@ def test_poisonous_against_tribe():
     foe = 1 - pid
     grama = _force_minion(state, pid, attack=1, health=3,
                            tags=["POISONOUS_VS_VINI"], ready=True)
-    # Vini target — deve morrer
+    # Vini target - deve morrer
     vini = _force_minion(state, foe, attack=1, health=10)
     vini.tribes = ["VINI"]
-    # Não-Vini target — não morre
+    # Não-Vini target - não morre
     other = _force_minion(state, foe, attack=1, health=10)
     other.tribes = ["BRASILEIRO"]
 
@@ -261,7 +261,7 @@ def test_poisonous_against_tribe():
 
     # Reseta grama (refresh)
     grama.attacks_this_turn = 0
-    # Grama ataca outro brasileiro — não morre por veneno (mas leva o atk)
+    # Grama ataca outro brasileiro - não morre por veneno (mas leva o atk)
     ok, _ = engine.attack(state, pid, grama.instance_id, other.instance_id)
     assert ok
     f = state.find_minion(other.instance_id)

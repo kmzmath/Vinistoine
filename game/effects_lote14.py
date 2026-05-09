@@ -1,4 +1,4 @@
-"""Lote 14 — ataques forçados e dano especial.
+"""Lote 14 - ataques forçados e dano especial.
 
 Ações cobertas:
 - FORCE_MINION_ATTACK

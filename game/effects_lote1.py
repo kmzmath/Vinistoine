@@ -1,5 +1,5 @@
 """
-Lote 1 de handlers — ações com maior impacto direto.
+Lote 1 de handlers - ações com maior impacto direto.
 Importado por effects.py (que registra os handlers via @handler).
 
 Cobre:
@@ -34,7 +34,7 @@ def register_lote1_handlers(handler):
     def _reduce_cost(state, eff, source_owner, source_minion, ctx):
         """Reduz o custo de cartas-alvo na mão (ou cartas futuras).
         Modes suportados: SELF (a carta na mão de auto-buff), CHOSEN (mão),
-        NEXT_CARD_PLAYED_THIS_TURN, ALL_FRIENDLY_MINIONS (em mão? não — geralmente
+        NEXT_CARD_PLAYED_THIS_TURN, ALL_FRIENDLY_MINIONS (em mão? não - geralmente
         só faz sentido em mão).
         """
         amount = eff.get("amount", 1)
@@ -60,7 +60,7 @@ def register_lote1_handlers(handler):
         if mode == "SELF_CARD":
             # A própria carta na mão (REDUCE_COST passivo de mão)
             # No JSON: trigger IN_HAND. Por enquanto aplicamos o efeito como
-            # imediato — quando essa função roda em IN_HAND, source ainda é a
+            # imediato - quando essa função roda em IN_HAND, source ainda é a
             # carta. Vamos pular pois requer recálculo a cada estado.
             return
 
@@ -276,7 +276,7 @@ def register_lote1_handlers(handler):
 
     @handler("DRAW_CARD_FROM_DECK")
     def _draw_card_from_deck(state, eff, source_owner, source_minion, ctx):
-        """Compra uma carta específica do topo do próprio deck — equivalente
+        """Compra uma carta específica do topo do próprio deck - equivalente
         a DRAW_CARD por enquanto (sem filtros adicionais). Filtros como
         'preferred_tribe' são tratados em DRAW_MINION."""
         amount = eff.get("amount", 1)
@@ -419,7 +419,7 @@ def register_lote1_handlers(handler):
 
     @handler("LOOK_TOP_CARDS")
     def _look_top_cards(state, eff, source_owner, source_minion, ctx):
-        """Apenas registra para o jogador olhar — em produção mandaríamos
+        """Apenas registra para o jogador olhar - em produção mandaríamos
         os IDs ao cliente do dono. Por hora salva no event_log e em ctx pra
         encadeamentos."""
         amount = eff.get("amount", 1)

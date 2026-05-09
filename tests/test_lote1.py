@@ -1,6 +1,6 @@
 """
 Testes para as ações implementadas no Lote 1.
-Cada teste foca numa mecânica isolada — usa cartas reais do JSON quando
+Cada teste foca numa mecânica isolada - usa cartas reais do JSON quando
 possível, ou monta um lacaio sintético se a carta de exemplo não está disponível.
 """
 from __future__ import annotations

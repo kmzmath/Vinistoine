@@ -1,4 +1,4 @@
-"""Lote 27 — mulligan/moeda, targeting de UI e animações/eventos."""
+"""Lote 27 - mulligan/moeda, targeting de UI e animações/eventos."""
 from __future__ import annotations
 
 from pathlib import Path

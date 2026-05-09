@@ -1,4 +1,4 @@
-"""Lote 28 — preload, animações de compra, Moeda e bugs reportados."""
+"""Lote 28 - preload, animações de compra, Moeda e bugs reportados."""
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,4 +1,4 @@
-"""Lote 24 — segunda auditoria de cartas.
+"""Lote 24 - segunda auditoria de cartas.
 
 Foca em interações que a cobertura estrutural não pegava:
 - efeito de descarte + recrutamento em sequência;

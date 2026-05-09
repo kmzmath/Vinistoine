@@ -1,4 +1,4 @@
-"""Lote 6 — invocação, cópias, destruição e auras simples."""
+"""Lote 6 - invocação, cópias, destruição e auras simples."""
 from __future__ import annotations
 
 from game import engine, effects

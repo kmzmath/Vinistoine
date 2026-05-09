@@ -134,7 +134,7 @@ def start_turn(state: GameState):
     _deliver_delayed_draws(state, p)
 
     # Reset de contadores e summoning sickness.
-    # IMPORTANTE: NÃO descongela aqui — o freeze é uma penalidade de "perder
+    # IMPORTANTE: NÃO descongela aqui - o freeze é uma penalidade de "perder
     # 1 turno". Lacaio congelado tem o turno desperdiçado; descongela no FIM
     # do turno (em end_turn), porque aí já provou que não atacou.
     for m in p.board:
@@ -184,7 +184,7 @@ def start_turn(state: GameState):
             mid = pm.get("minion_id")
             f = state.find_minion(mid)
             if f is None:
-                sot_to_remove.append(pm)  # lacaio morreu — limpa
+                sot_to_remove.append(pm)  # lacaio morreu - limpa
                 continue
             m, owner_pid = f
             if timing == "START_OF_EACH_TURN":

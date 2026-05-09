@@ -1,4 +1,4 @@
-"""Lote 7 — controle de mesa, sacrifício, ressurreição e substituição."""
+"""Lote 7 - controle de mesa, sacrifício, ressurreição e substituição."""
 from __future__ import annotations
 
 import game.cards as _cards_mod

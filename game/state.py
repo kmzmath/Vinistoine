@@ -119,7 +119,7 @@ class Minion:
             "activated_abilities_this_turn": self.activated_abilities_this_turn,
             "ability_uses_remaining": dict(self.ability_uses_remaining),
             "owner": self.owner,
-            # Calculados — cliente usa pra decidir quando mostrar borda verde "pode atacar"
+            # Calculados - cliente usa pra decidir quando mostrar borda verde "pode atacar"
             "can_attack": self.can_attack(),
             "can_attack_hero": self.can_attack_hero(),
             # Lista de keywords ativas (visíveis), considerando silence
@@ -268,7 +268,7 @@ class GameState:
     # Cartas compradas pela última ação de compra. Usado por efeitos encadeados
     # como Investidor, Foco e Guilãozinho. Armazenamos instance_ids da mão.
     last_drawn_card_instance_ids: list[str] = field(default_factory=list)
-    # Lacaios ressurrectíveis recentemente (por turno) — limpado entre turnos
+    # Lacaios ressurrectíveis recentemente (por turno) - limpado entre turnos
     # se o usuário decidir.
     last_target_id: Optional[str] = None  # último alvo de uma ação (pra ADJACENT_TO_PREVIOUS_TARGET)
 

@@ -189,7 +189,7 @@ def list_cards(include_tokens: bool = False):
 @app.get("/api/card-images")
 def list_card_images():
     """Lista quais cartas têm imagem em /static/cards/. Cliente usa pra escolher
-    entre mostrar a foto ou o fallback colorido — assim evitamos um monte de
+    entre mostrar a foto ou o fallback colorido - assim evitamos um monte de
     404 no console.
     """
     images_dir = STATIC_DIR / "cards"

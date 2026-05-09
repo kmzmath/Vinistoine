@@ -1,4 +1,4 @@
-"""Lote 21 — modo Decks Aleatórios."""
+"""Lote 21 - modo Decks Aleatórios."""
 from __future__ import annotations
 
 import asyncio

@@ -1,4 +1,4 @@
-"""Lote 17 — handlers especiais finais.
+"""Lote 17 - handlers especiais finais.
 
 Ações cobertas:
 - CAST_CARD_ON_MINIONS

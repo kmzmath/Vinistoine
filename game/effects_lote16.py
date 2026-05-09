@@ -1,4 +1,4 @@
-"""Lote 16 — mão/deck/zonas e mana extra.
+"""Lote 16 - mão/deck/zonas e mana extra.
 
 Ações cobertas:
 - DISCARD_UP_TO_CARDS

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saguão — Carta &amp; Lâmina</title>
+  <title>Saguão - Carta &amp; Lâmina</title>
   <link rel="stylesheet" href="/static/css/main.css" />
 </head>
 <body>
@@ -138,7 +138,7 @@ async function loadDecks() {
   const sel = document.getElementById("deck-select");
   sel.innerHTML = "";
   if (savedDecks.length === 0) {
-    sel.innerHTML = '<option value="">— Nenhum deck salvo —</option>';
+    sel.innerHTML = '<option value="">- Nenhum deck salvo -</option>';
   } else {
     for (const d of savedDecks) {
       const opt = document.createElement("option");

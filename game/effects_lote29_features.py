@@ -1,4 +1,4 @@
-"""Lote 29 — features/animações e correções de Caverna/Dorminhoco.
+"""Lote 29 - features/animações e correções de Caverna/Dorminhoco.
 
 - REVEAL_TOP_CARD com BOTH_DECKS registra duas cartas reveladas.
 - DRAW_HIGHEST_COST_REVEALED_CARD e DISCARD_LOWEST_COST_REVEALED_CARD logam eventos completos para animação.

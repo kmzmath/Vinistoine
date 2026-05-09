@@ -1,4 +1,4 @@
-"""Lote 10 — efeitos de mão/deck/revelação."""
+"""Lote 10 - efeitos de mão/deck/revelação."""
 from __future__ import annotations
 
 from game import engine, effects

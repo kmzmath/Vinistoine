@@ -1,4 +1,4 @@
-"""Lote 8 — proteção, targeting e prevenção de ataque/dano."""
+"""Lote 8 - proteção, targeting e prevenção de ataque/dano."""
 from __future__ import annotations
 
 import game.cards as _cards_mod

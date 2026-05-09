@@ -1,4 +1,4 @@
-"""Lote 23 — bugs prováveis encontrados por auditoria estática."""
+"""Lote 23 - bugs prováveis encontrados por auditoria estática."""
 from __future__ import annotations
 
 from game import engine, effects

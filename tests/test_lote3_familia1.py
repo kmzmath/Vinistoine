@@ -1,4 +1,4 @@
-"""Testes da Família 1 do Lote 3 — Manipulação de Deck."""
+"""Testes da Família 1 do Lote 3 - Manipulação de Deck."""
 from __future__ import annotations
 import pytest
 import game.cards as _cards_mod
@@ -157,7 +157,7 @@ def test_play_from_deck_filtro_tribo_e_custo():
     pid = state.current_player
     p = state.players[pid]
     # ravioli é COMIDA custo 4, camarao é COMIDA custo 1, vini_zumbi NÃO é comida
-    # Topo: ravioli (4) — pula, camarao (1) — passa
+    # Topo: ravioli (4) - pula, camarao (1) - passa
     p.deck = ["ravioli", "camarao"] + p.deck
     eff = {
         "action": "PLAY_FROM_DECK", "amount": 1,
@@ -259,7 +259,7 @@ def test_transform_this_card_via_on_draw():
     hand_before_ids = {c.instance_id for c in p.hand}
 
     effects.draw_card(state, p, 1)
-    # A carta original (moeda_perdida) virou "coin" — procurar entre as
+    # A carta original (moeda_perdida) virou "coin" - procurar entre as
     # novas cartas da mão. Não devemos achar moeda_perdida.
     new_cards = [c for c in p.hand if c.instance_id not in hand_before_ids]
     assert any(c.card_id == "coin" for c in new_cards), \
@@ -276,7 +276,7 @@ def test_mario_pega_carta_revelada_se_mais_cara():
     pid = state.current_player
     p = state.players[pid]
     # Coloca Mario no topo, e logo abaixo uma carta cara
-    cara = "stonks"  # cost 1 — vou usar uma cara real
+    cara = "stonks"  # cost 1 - vou usar uma cara real
     cara_card = get_card("stonks")
     # Mario custo 6. Vou usar custo maior pra ser pega
     # Não tem nada mais caro que mario disponível; vou injetar um fake

@@ -1,4 +1,4 @@
-"""Lote 9 — custo, mana e efeitos de próximo turno.
+"""Lote 9 - custo, mana e efeitos de próximo turno.
 
 Ações cobertas:
 - BUFF_NEXT_PLAYED_TRIBE_HEALTH

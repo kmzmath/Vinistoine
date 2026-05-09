@@ -1,4 +1,4 @@
-"""Lote 15 — estados/passivos complexos.
+"""Lote 15 - estados/passivos complexos.
 
 Ações cobertas:
 - FREEZE_UNTIL_SELF_DIES

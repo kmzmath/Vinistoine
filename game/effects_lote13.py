@@ -1,4 +1,4 @@
-"""Lote 13 — recrutamento, ressurreição, transformação e cura especial.
+"""Lote 13 - recrutamento, ressurreição, transformação e cura especial.
 
 Ações cobertas:
 - RECRUIT_FIRST_MINION_WITH_COST

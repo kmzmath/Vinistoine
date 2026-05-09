@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Partida — Carta &amp; Lâmina</title>
+  <title>Partida - Carta &amp; Lâmina</title>
   <link rel="stylesheet" href="/static/css/main.css" />
 </head>
 <body>
@@ -116,7 +116,7 @@ function connect() {
     if (msg.type === "joined") {
       myPid = msg.your_player_id;
       // Se o primeiro state chegou ANTES de joined, agora finalmente sabemos
-      // quem somos — re-renderiza com a perspectiva certa
+      // quem somos - re-renderiza com a perspectiva certa
       if (state) render();
     }
     if (msg.type === "state") {
@@ -255,7 +255,7 @@ function renderMulligan() {
 }
 
 function doConfirmMulligan() {
-  // Snapshot dos IDs ATUAIS — depois do swap, os instance_ids das cartas
+  // Snapshot dos IDs ATUAIS - depois do swap, os instance_ids das cartas
   // trocadas mudam, então comparar com este set identifica as "novas".
   mulliganOldHandIds = new Set(state.you.hand.map(c => c.instance_id));
   mulliganConfirming = true;
@@ -279,7 +279,7 @@ function doConfirmMulligan() {
   }, 580);
 }
 
-// Chamada quando recebemos novo estado durante MULLIGAN —
+// Chamada quando recebemos novo estado durante MULLIGAN -
 // usa mulliganOldHandIds pra que renderMulligan saiba quais cartas
 // devem entrar com animação flying-in
 function onMulliganStateUpdate(newState) {
@@ -287,7 +287,7 @@ function onMulliganStateUpdate(newState) {
   // até a próxima atualização (quando ambos confirmam, sai do MULLIGAN)
   if (mulliganConfirming) {
     mulliganConfirming = false;
-    // mulliganOldHandIds permanece — renderMulligan vai detectar cartas novas
+    // mulliganOldHandIds permanece - renderMulligan vai detectar cartas novas
   }
 }
 
@@ -350,7 +350,7 @@ const TAG_SHORT = {
 function tagShort(t) { return TAG_SHORT[t] || t.slice(0, 8); }
 
 // Símbolos curtos pros selos no minion (1-2 letras)
-// Mantido só pra referência/legenda — o selo central usa SVGs via CSS agora
+// Mantido só pra referência/legenda - o selo central usa SVGs via CSS agora
 const KW_SYMBOL = {
   DEATHRATTLE: "☠",   // Último suspiro (caveira via SVG)
   PASSIVE: "⚡",       // Efeito contínuo (raio via SVG)
@@ -2024,7 +2024,7 @@ function describeChoice(choice) {
 }
 
 // Replica leve da lógica do backend pra o cliente decidir se pede alvo.
-// Mantém o jogo fluido — sem isso, qualquer carta com 'CHOSEN' pediria alvo
+// Mantém o jogo fluido - sem isso, qualquer carta com 'CHOSEN' pediria alvo
 // mesmo quando ele não existe.
 function hasValidChosenTarget(targetDesc) {
   const valid = targetDesc.valid || [];

@@ -1,4 +1,4 @@
-"""Lote 14 — ataques forçados e dano especial."""
+"""Lote 14 - ataques forçados e dano especial."""
 from __future__ import annotations
 
 from game import engine, effects

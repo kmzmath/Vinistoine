@@ -1,4 +1,4 @@
-"""Testes do Lote 9 — custo, mana e efeitos de próximo turno."""
+"""Testes do Lote 9 - custo, mana e efeitos de próximo turno."""
 from __future__ import annotations
 
 import game.cards as _cards_mod

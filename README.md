@@ -125,7 +125,7 @@ A forma mais simples (Blueprint via `render.yaml`):
 
 ### Persistência: SQLite vs Postgres
 
-Por padrão o app usa SQLite num arquivo local — simples, mas o plano free do
+Por padrão o app usa SQLite num arquivo local - simples, mas o plano free do
 Render limpa o disco a cada redeploy, então **as contas e decks somem**
 quando você redeploya.
 
@@ -151,9 +151,9 @@ Ou descomente os blocos no `render.yaml` que já preparei pra isso.
 
 As imagens das cartas vão em duas pastas:
 
-- `static/cards/{card_id}.png` (ou `.jpg`, `.webp`) — imagem da carta. O
+- `static/cards/{card_id}.png` (ou `.jpg`, `.webp`) - imagem da carta. O
   `card_id` é o `id` da carta no `game/data/cards.json` (ex.: `vini_zumbi.png`).
-- `static/heroes/{username}.png` — avatar do herói/jogador. O `username` é o
+- `static/heroes/{username}.png` - avatar do herói/jogador. O `username` é o
   nickname em minúsculas (ex.: `lucas.png` para o jogador "Lucas").
 
 ### Como a imagem é usada
@@ -161,14 +161,14 @@ As imagens das cartas vão em duas pastas:
 A imagem de cada carta é tratada como **full-art estilo Hearthstone**: ela
 preenche o retângulo inteiro da carta na mão, no construtor de decks e na
 tela de mulligan. Custo, atk, hp, nome e texto da carta são lidos
-diretamente da própria arte — o cliente não desenha overlays por cima
+diretamente da própria arte - o cliente não desenha overlays por cima
 quando a imagem está presente.
 
 No campo de batalha, o lacaio é mostrado num anel circular. O `background`
 é zoomado e centrado na parte alta da carta (onde costuma estar a
 ilustração principal), evitando pegar moldura/banner.
 
-**Não é preciso ter as 240 imagens prontas** — adicione aos poucos. Quando
+**Não é preciso ter as 240 imagens prontas** - adicione aos poucos. Quando
 uma imagem está ausente, o cliente mostra automaticamente um fallback
 textual (custo no canto, nome, texto, atk/hp) usando o tema escuro/dourado.
 O servidor expõe `GET /api/card-images` que lista exatamente quais arquivos
@@ -178,7 +178,7 @@ existem, então não há requests 404 no console.
 
 - **Cartas:** 400×543px ou maior, formato PNG/JPG/WebP. A proporção da carta
   na mão é aproximadamente 130:200 (≈0.65), então qualquer formato vertical
-  do Hearthstone (~0.74) é cropado ligeiramente nas laterais — se quiser
+  do Hearthstone (~0.74) é cropado ligeiramente nas laterais - se quiser
   encaixe perfeito, use a proporção 0.65.
 - **Heróis:** 512×512px ou maior, formato quadrado.
 
@@ -276,11 +276,11 @@ def _reduce_cost(state, eff, source_owner, source_minion, ctx):
 ```
 
 Cada handler recebe:
-- `state` — `GameState` da partida
-- `eff` — o dict do efeito vindo do JSON da carta
-- `source_owner` — id do jogador que disparou (0 ou 1)
-- `source_minion` — `Minion` que disparou, ou `None` se foi feitiço/herói
-- `ctx` — contexto da resolução (`chosen_target`, `is_spell`, etc)
+- `state` - `GameState` da partida
+- `eff` - o dict do efeito vindo do JSON da carta
+- `source_owner` - id do jogador que disparou (0 ou 1)
+- `source_minion` - `Minion` que disparou, ou `None` se foi feitiço/herói
+- `ctx` - contexto da resolução (`chosen_target`, `is_spell`, etc)
 
 Para priorizar próximos handlers, consulte `docs/CARD_COVERAGE.md` ou rode `python scripts/card_coverage.py`.
 
@@ -327,9 +327,9 @@ O estado mandado pra cada jogador esconde a mão e o deck do oponente
 Projeto privado para uso entre amigos. As 240 cartas são de autoria do
 proprietário do repositório.
 
-## Atualizações aplicadas — Lote 1 e Lote 2
+## Atualizações aplicadas - Lote 1 e Lote 2
 
-### Lote 1 — robustez básica
+### Lote 1 - robustez básica
 
 - O servidor bloqueia o host tentando entrar na própria sala.
 - Tokens/cartas auxiliares como `coin` não são aceitos em decks.
@@ -341,7 +341,7 @@ proprietário do repositório.
 - Corrigido o caso de carta com `health: 0` ser transformada em `1` por uso indevido de `or 1`.
 - Condições desconhecidas em `CONDITIONAL_EFFECTS` agora são registradas no log como `unimplemented_condition`.
 
-### Lote 2 — escolhas pendentes e múltiplos alvos
+### Lote 2 - escolhas pendentes e múltiplos alvos
 
 Foi adicionada infraestrutura básica de escolha pendente no servidor e na engine.
 
@@ -415,24 +415,24 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
 
-### Lote 3 — cobertura automática do `cards.json`
+### Lote 3 - cobertura automática do `cards.json`
 
 Foi adicionado um analisador de schema/cobertura para impedir que o JSON das cartas evolua sem a engine acompanhar.
 
 Novos arquivos:
 
-- `game/card_coverage.py` — coleta actions, triggers, target modes e conditions usados pelas cartas.
-- `scripts/card_coverage.py` — gera `docs/CARD_COVERAGE.md`.
-- `docs/CARD_COVERAGE.md` — relatório legível da cobertura atual.
-- `tests/test_card_schema_coverage.py` — teste de regressão que falha quando aparece vocabulário novo não rastreado.
+- `game/card_coverage.py` - coleta actions, triggers, target modes e conditions usados pelas cartas.
+- `scripts/card_coverage.py` - gera `docs/CARD_COVERAGE.md`.
+- `docs/CARD_COVERAGE.md` - relatório legível da cobertura atual.
+- `tests/test_card_schema_coverage.py` - teste de regressão que falha quando aparece vocabulário novo não rastreado.
 
 Com isso, o projeto passa a ter um radar objetivo do que falta implementar nas cartas.
 
-### Lote 4 — keywords e valores modificados na mão
+### Lote 4 - keywords e valores modificados na mão
 
 Correções aplicadas a bugs reportados nos testes manuais:
 
@@ -452,10 +452,10 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
-### Lote 5 — descarte/compra/revelação e cartas recém-compradas
+### Lote 5 - descarte/compra/revelação e cartas recém-compradas
 
 Correções aplicadas a cartas específicas do backlog manual:
 
@@ -474,12 +474,12 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
 
 
-### Lote 6 — invocação, cópias, destruição e auras simples
+### Lote 6 - invocação, cópias, destruição e auras simples
 
 Correções aplicadas a cartas específicas do backlog manual e a handlers de invocação:
 
@@ -502,11 +502,11 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
 
-### Lote 7 — controle de mesa, sacrifício e substituição
+### Lote 7 - controle de mesa, sacrifício e substituição
 
 Correções aplicadas a cartas específicas de controle de mesa:
 
@@ -525,11 +525,11 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
 
-### Lote 8 — proteção, targeting e prevenção
+### Lote 8 - proteção, targeting e prevenção
 
 Correções aplicadas a keywords/efeitos defensivos e de restrição:
 
@@ -549,11 +549,11 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
 
-### Lote 9 — custo, mana e efeitos de próximo turno
+### Lote 9 - custo, mana e efeitos de próximo turno
 
 Correções aplicadas a efeitos que alteram custo, mana e compra atrasada:
 
@@ -572,11 +572,11 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
 
-### Lote 10 — efeitos de mão, deck e revelação
+### Lote 10 - efeitos de mão, deck e revelação
 
 Correções aplicadas a efeitos que manipulam cartas na mão e no deck:
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-268 passed, 1 skipped
+271 passed, 1 skipped
 ```
 
 
@@ -614,7 +614,7 @@ Além de partidas com decks construídos, o lobby agora permite criar salas no m
 Nesse modo, nenhum jogador precisa escolher deck salvo: quando os dois entram e conectam na partida, o servidor gera um deck aleatório de 30 cartas colecionáveis para cada jogador.
 
 
-## Lote 22 — correções de cartas reportadas em teste manual
+## Lote 22 - correções de cartas reportadas em teste manual
 
 Correções cobertas por testes:
 - Hello World voltando ao deck custando 1.
@@ -632,17 +632,17 @@ Teste adicionado:
 - `tests/test_lote22_manual_bugfixes.py`
 
 
-## Lote 23 — auditoria de bugs prováveis
+## Lote 23 - auditoria de bugs prováveis
 
 Adicionado:
 - `tests/test_lote23_audit_probable_bugs.py`
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `268 passed, 1 skipped`
+- `271 passed, 1 skipped`
 
 
-## Lote 24 — segunda auditoria de cartas
+## Lote 24 - segunda auditoria de cartas
 
 Correções:
 - Queima de Estoque não recruta mais lacaios extras além da quantidade de cartas descartadas.
@@ -653,7 +653,7 @@ Teste adicionado:
 - `tests/test_lote24_second_audit.py`
 
 
-## Lote 25 — correções solicitadas em partida online
+## Lote 25 - correções solicitadas em partida online
 
 Correções:
 - Modo Decks Aleatórios agora gera deck singleton: 30 cartas sem repetição.
@@ -671,7 +671,7 @@ Teste adicionado:
 - `tests/test_lote25_requested_gameplay_fixes.py`
 
 
-## Lote 26 — ajustes de UI, Fortalecer e bugs reportados
+## Lote 26 - ajustes de UI, Fortalecer e bugs reportados
 
 Correções:
 - Exibição de carta jogada pelo oponente agora dura 2,5 segundos.
@@ -696,7 +696,7 @@ Teste adicionado:
 - `tests/test_lote26_requested_fixes.py`
 
 
-## Lote 27 — mulligan, animações, Fortalecer e bugs reportados
+## Lote 27 - mulligan, animações, Fortalecer e bugs reportados
 
 Correções:
 - A Moeda agora existe como carta real `coin`.
@@ -714,7 +714,7 @@ Teste adicionado:
 - `tests/test_lote27_mulligan_ui_and_card_fixes.py`
 
 
-## Lote 28 — preload de imagens, animações de compra e correções de cartas
+## Lote 28 - preload de imagens, animações de compra e correções de cartas
 
 Correções:
 - Lobby e tela de partida agora pré-carregam imagens de cartas/heróis com barra de carregamento.
@@ -735,7 +735,7 @@ Teste adicionado:
 - `tests/test_lote28_preload_draw_coin_and_cards.py`
 
 
-## Lote 28.1 — correção do loader de imagens
+## Lote 28.1 - correção do loader de imagens
 
 Correção:
 - O lobby agora chama `preloadCardAssets()` ao iniciar.
@@ -746,7 +746,7 @@ Teste adicionado:
 - `tests/test_lote28_1_loader_fix.py`
 
 
-## Lote 29 — animações e correções Caverna/Dorminhoco
+## Lote 29 - animações e correções Caverna/Dorminhoco
 
 Correções e features:
 - Viní Flamejante agora marca o herói incendiado como status público; a UI exibe moldura de fogo animada no herói afetado.
@@ -759,3 +759,23 @@ Correções e features:
 
 Teste adicionado:
 - `tests/test_lote29_features_and_bugfixes.py`
+
+
+## Lote 30 - nome do jogo e hífen curto
+
+Alterações:
+- Nome visível do jogo alterado para Vinístone.
+- Travessões e outros traços longos em arquivos de texto foram trocados por hífen curto "-".
+- Nomes de arquivos e pastas não foram alterados para evitar quebrar deploy/imports.
+
+Teste adicionado:
+- `tests/test_lote30_nome_hifen.py`
+
+
+## Lote 31 - Viní em Chamas
+
+Correção:
+- Viní em Chamas agora recebe 1 de dano em si mesmo quando você joga um lacaio, em vez de causar esse dano no lacaio jogado.
+
+Teste adicionado:
+- `tests/test_lote31_vini_em_chamas.py`

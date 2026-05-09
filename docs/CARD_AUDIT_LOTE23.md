@@ -1,6 +1,6 @@
-# Auditoria de cartas — Lote 23
+# Auditoria de cartas - Lote 23
 
-Base auditada: `Vinistone_updated_lote22_manual_bugfixes.zip`.
+Base auditada: `Vinístone_updated_lote22_manual_bugfixes.zip`.
 
 ## Método
 

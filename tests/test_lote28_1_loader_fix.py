@@ -1,4 +1,4 @@
-"""Lote 28.1 — loader de assets não deve ficar preso em 0%."""
+"""Lote 28.1 - loader de assets não deve ficar preso em 0%."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

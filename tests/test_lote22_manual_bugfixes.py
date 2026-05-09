@@ -1,4 +1,4 @@
-"""Lote 22 — correções reportadas em teste manual."""
+"""Lote 22 - correções reportadas em teste manual."""
 from __future__ import annotations
 
 from game import engine, effects
