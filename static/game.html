@@ -1103,12 +1103,27 @@ function moveMinionCardPreview(ev) {
   const root = document.getElementById("hover-card-preview");
   if (!root || !root.classList.contains("visible")) return;
   const margin = 18;
-  const width = 300;
-  const height = 430;
+  // O preview tem tamanho fixo via CSS: 360x520 em desktops grandes,
+  // 300x430 em telas menores. Usamos o tamanho real renderizado para
+  // posicionar com precisão, com fallback sensato.
+  const rect = root.getBoundingClientRect();
+  const width = rect.width || 320;
+  const height = rect.height || 460;
+
+  // X: prefere à esquerda do cursor; se não couber, vai à direita.
   let left = ev.clientX - width - margin;
-  if (left < 8) left = ev.clientX + margin;
-  let top = ev.clientY - height / 2;
+  if (left < 8) left = Math.min(window.innerWidth - width - 8, ev.clientX + margin);
+
+  // Y: prefere ACIMA do cursor (cartas da mão ficam no rodapé da tela e
+  // o preview centralizado vertical estoura embaixo). Se não couber acima,
+  // tenta abaixo; em último caso, encosta no topo.
+  let top = ev.clientY - height - margin;
+  if (top < 8) {
+    const below = ev.clientY + margin;
+    top = (below + height + 8 <= window.innerHeight) ? below : 8;
+  }
   top = Math.max(8, Math.min(window.innerHeight - height - 8, top));
+
   root.style.left = `${left}px`;
   root.style.top = `${top}px`;
 }
