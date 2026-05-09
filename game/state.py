@@ -241,6 +241,10 @@ class PlayerState:
             "hero_attacks_this_turn": self.hero_attacks_this_turn,
             "fatigue_counter": self.fatigue_counter,
             "cards_played_this_turn": self.cards_played_this_turn,
+            # Flags úteis pra UI saber regras especiais ativas neste turno.
+            # Tomo Amaldiçoado deixa esse flag True para que a mão libere o
+            # clique em feitiços mesmo sem mana suficiente (o custo vira HP).
+            "next_spell_costs_health": False,
         }
 
 
@@ -336,6 +340,19 @@ class GameState:
 
     def to_dict(self, viewer_id: int) -> dict:
         """Serializa o estado pra um jogador específico, escondendo info privada."""
+        you = self.players[viewer_id].to_dict(hide_hand=False)
+        opponent = self.players[1 - viewer_id].to_dict(hide_hand=True)
+        # Anexa flags por-jogador derivados de pending_modifiers para a UI.
+        for pm in self.pending_modifiers:
+            if pm.get("consumed"):
+                continue
+            kind = pm.get("kind")
+            owner = pm.get("owner")
+            if kind == "next_spell_costs_health_instead_of_mana":
+                if owner == viewer_id:
+                    you["next_spell_costs_health"] = True
+                else:
+                    opponent["next_spell_costs_health"] = True
         return {
             "game_id": self.game_id,
             "current_player": self.current_player,
@@ -346,8 +363,8 @@ class GameState:
             "public_statuses": self._public_statuses(),
             "mulligan_done": list(self.mulligan_done),
             "pending_choice": self._pending_choice_for_viewer(viewer_id),
-            "you": self.players[viewer_id].to_dict(hide_hand=False),
-            "opponent": self.players[1 - viewer_id].to_dict(hide_hand=True),
+            "you": you,
+            "opponent": opponent,
             "log": self.event_log[-50:],  # últimos 50 eventos
         }
 
