@@ -56,11 +56,16 @@ class Minion:
     owner: int = 0  # 0 ou 1
 
     def has_tag(self, tag: str) -> bool:
+        # DORMANT precede silence: um dormente silenciado continua dormente
+        # (cant_attack/immune permanecem True), então a engine e o targeting
+        # devem continuar tratando-o como inerte para evitar zumbi-targetável.
+        if tag == "DORMANT":
+            return "DORMANT" in self.tags
         if self.silenced:
             return False
         # Dormente não existe de fato na mesa para fins de Provocar/Furtividade/etc.
         # Mantemos a tag DORMANT visível para a UI, mas desativamos as demais.
-        if tag != "DORMANT" and "DORMANT" in self.tags:
+        if "DORMANT" in self.tags:
             return False
         return tag in self.tags
 
@@ -233,6 +238,8 @@ class PlayerState:
             "hero_immune": self.hero_immune,
             "hero_spell_target_immune": self.hero_spell_target_immune,
             "hero_frozen": self.hero_frozen,
+            "hero_attacks_this_turn": self.hero_attacks_this_turn,
+            "fatigue_counter": self.fatigue_counter,
             "cards_played_this_turn": self.cards_played_this_turn,
         }
 

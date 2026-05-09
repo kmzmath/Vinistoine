@@ -343,6 +343,17 @@ def end_turn(state: GameState, player_id: int):
         else:
             p.hero_frozen = False
 
+    # Congelados aplicados DURANTE este turno (no inimigo) ficam com
+    # freeze_pending=True. No fim do nosso turno marcamos esses como
+    # "amadurecidos" (pending=False) para que descongelem no fim do
+    # próximo turno do dono - assim o lacaio perde apenas UM ataque.
+    foe_state = state.opponent_of(player_id)
+    for m in foe_state.board:
+        if m.frozen and m.freeze_pending:
+            m.freeze_pending = False
+    if foe_state.hero_frozen and getattr(foe_state, "hero_freeze_pending", False):
+        foe_state.hero_freeze_pending = False
+
     # Reverte custos temporários de cartas, como Estrategista.
     keep_modifiers_for_cost = []
     for pm in state.pending_modifiers:
@@ -368,7 +379,16 @@ def end_turn(state: GameState, player_id: int):
 
     # === Limpa cartas com ECHO ainda na mão ao fim do turno ===
     # ECHO faz a carta voltar à mão após uso. No fim do turno, é descartada.
-    p.hand = [c for c in p.hand if not c.echo_temporary]
+    expired_echo = [c for c in p.hand if c.echo_temporary]
+    for c in expired_echo:
+        state.log_event({
+            "type": "echo_expire",
+            "instance_id": c.instance_id,
+            "card_id": c.card_id,
+            "player": player_id,
+        })
+    if expired_echo:
+        p.hand = [c for c in p.hand if not c.echo_temporary]
 
     apply_continuous_effects(state)
     cleanup(state)
@@ -440,10 +460,19 @@ def apply_continuous_effects(state: GameState):
                         atk = _parse_int(parts[-2])
                         hp = _parse_int(parts[-1])
                         m.attack = max(0, m.attack - atk)
-                        m.max_health = max(1, m.max_health - hp)
-                        m.health = m.health - hp
-                        if m.health > m.max_health:
-                            m.health = m.max_health
+                        if hp > 0:
+                            # Aura removida que dava +X de vida: NÃO subtrair de
+                            # health, só recortar pelo novo max. Subtrair matava
+                            # lacaios já machucados quando a fonte da aura morria.
+                            new_max = max(1, m.max_health - hp)
+                            m.health = min(m.health, new_max)
+                            m.max_health = new_max
+                        else:
+                            # Aura debuff (-hp): devolve hp ao retirar.
+                            m.max_health = max(1, m.max_health - hp)
+                            m.health = m.health - hp
+                            if m.health > m.max_health:
+                                m.health = m.max_health
                     m.tags.remove(tag)
                 elif tag.startswith("_AURA_TAG:"):
                     parts = tag.split(":", 2)
@@ -1803,8 +1832,9 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
             return False, "Lacaio dormente não pode ser atacado"
         target = target_minion
 
-    # valida TAUNT no inimigo: se houver lacaio com TAUNT, deve atacar ele primeiro
-    enemy_taunts = [m for m in foe.board if m.has_tag("TAUNT") and not m.has_tag("STEALTH")]
+    # valida TAUNT no inimigo: se houver lacaio com TAUNT, deve atacar ele primeiro.
+    # Provocar imune não conta - senão o jogador fica sem alvo legal e o jogo trava.
+    enemy_taunts = [m for m in foe.board if m.has_tag("TAUNT") and not m.has_tag("STEALTH") and not m.immune]
     if enemy_taunts:
         if isinstance(target, PlayerState):
             return False, "Há lacaios com Provocar"
@@ -1902,10 +1932,13 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
 
 def cleanup(state: GameState):
     """Remove lacaios mortos, dispara deathrattles, checa fim de jogo. Pode iterar."""
-    apply_continuous_effects(state)
     iterations = 0
     while iterations < 50:
         iterations += 1
+        # Recalcula auras a cada iteração: se um deathrattle anterior matou
+        # uma fonte de aura, dependentes precisam ter status ajustado antes
+        # de detectar a próxima onda de mortes.
+        apply_continuous_effects(state)
         # coleta mortos
         dead: list[tuple[Minion, int]] = []
         for p in state.players:
@@ -2020,7 +2053,7 @@ def list_legal_attack_targets(state: GameState, player_id: int,
     if not attacker or not attacker.can_attack():
         return []
 
-    enemy_taunts = [m for m in foe.board if m.has_tag("TAUNT") and not m.has_tag("STEALTH")]
+    enemy_taunts = [m for m in foe.board if m.has_tag("TAUNT") and not m.has_tag("STEALTH") and not m.immune]
     targets = []
     if enemy_taunts:
         for m in enemy_taunts:

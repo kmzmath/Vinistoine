@@ -10,13 +10,29 @@ from . import targeting
 
 # Registry de handlers
 HANDLERS: dict[str, Callable] = {}
+# Histórico de quem registrou cada ação. Permite auditar overrides feitos
+# pelos arquivos de patch (effects_lote*.py) e descobrir handler-fantasma.
+HANDLER_REGISTRATIONS: dict[str, list[str]] = {}
 # Lista das ações que não temos handler ainda (pra registrar warnings)
 UNIMPLEMENTED_ACTIONS: set[str] = set()
 
 
 def handler(action_name: str):
     def deco(fn):
+        prev = HANDLERS.get(action_name)
         HANDLERS[action_name] = fn
+        owner = f"{getattr(fn, '__module__', '?')}.{getattr(fn, '__name__', '?')}"
+        history = HANDLER_REGISTRATIONS.setdefault(action_name, [])
+        history.append(owner)
+        if prev is not None:
+            # Não quebra o jogo, só registra para a auditoria. O último @handler
+            # ainda vence (comportamento histórico). Quem quiser ver duplicatas
+            # pode inspecionar HANDLER_REGISTRATIONS.
+            import logging
+            logging.getLogger(__name__).debug(
+                "handler %s sobrescrito (%s -> %s)",
+                action_name, history[-2] if len(history) > 1 else "?", owner,
+            )
         return fn
     return deco
 
@@ -1074,9 +1090,16 @@ def _summon_copy_with_stats(state, eff, source_owner, source_minion, ctx):
         new_m = summon_minion_from_card(state, source_owner, t.card_id,
                                         stat_override=(atk, hp))
         if not new_m:
-            return
-        # Cópia com stats explícitos não deve carregar buffs atuais, mas mantém
-        # identidade básica da carta.
+            # Não interrompe o efeito todo se um único summon falhou (ex: campo
+            # cheio em um dos lados): segue para os próximos alvos.
+            continue
+        # Preserva identidade do minion-fonte: tags, tribos e effects são
+        # copiados (sem buffs voláteis em tags _AURA_*) para que a cópia
+        # mantenha keywords/tribos/efeitos do original.
+        new_m.tags = [tg for tg in (t.tags or []) if not tg.startswith("_AURA_")]
+        new_m.tribes = list(t.tribes or [])
+        new_m.effects = [dict(e) for e in (t.effects or [])]
+        new_m.divine_shield = "DIVINE_SHIELD" in new_m.tags
         _apply_minion_modifications(new_m, eff.get("modifications"))
 
 
@@ -1092,8 +1115,11 @@ def _summon_self_with_stat_modifier(state, eff, source_owner, source_minion, ctx
 
 @handler("ADD_CARD_TO_HAND")
 def _add_card_hand(state, eff, source_owner, source_minion, ctx):
+    # Aceita ambas as formas: top-level "card_id" e nested "card.id".
+    # Lotes posteriores (lote26/27) padronizam para card_id; sem este fallback,
+    # se o lote27 não fosse o último a registrar, cartas como Cardume falhariam.
     card_data = eff.get("card") or {}
-    card_id = card_data.get("id")
+    card_id = eff.get("card_id") or card_data.get("id")
     n = eff.get("amount", 1)
     if not card_id:
         return
