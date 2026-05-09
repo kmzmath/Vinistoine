@@ -208,7 +208,7 @@ input:focus { border-color: var(--gold); }
 
 /* ============= Cartas (genérico) ============= */
 .card {
-  width: 180px; height: 260px;
+  width: 210px; height: 304px;
   border-radius: 8px;
   background: linear-gradient(180deg, #2a2218 0%, #1a140e 100%);
   border: 2px solid var(--gold-dim);
@@ -544,30 +544,74 @@ input:focus { border-color: var(--gold); }
   background-color: #2a1810;
 }
 
-/* === ARENA: a "mesa" central onde o jogo acontece === */
+/* === ARENA: a "mesa" central onde o jogo acontece ===
+   Camadas:
+   1. base: pergaminho/madeira escura (gradiente radial dourado).
+   2. ::before: textura sutil (grão de madeira/pergaminho via repeating-gradient).
+   3. ::after: vinheta escura nos cantos para dar profundidade.
+   4. divisor central (.arena-divider) entre os dois lados do campo,
+      adicionado pelo HTML; se ausente, .arena-center::before substitui. */
 .arena-layout {
   position: relative;
   width: calc(100vw - 110px);
   height: 100vh;
   margin: 0 auto;
   background:
-    radial-gradient(ellipse 75% 80% at 50% 50%,
-      #ead7a8 0%,
-      #d2bc8a 35%,
-      #b39568 70%,
-      #806132 100%
+    radial-gradient(ellipse 80% 90% at 50% 50%,
+      #f1dca5 0%,
+      #d8be86 28%,
+      #b39568 58%,
+      #7a5a2e 88%,
+      #4a3618 100%
     );
   border: 14px solid;
   border-image: linear-gradient(
     180deg,
-    #c8b88a 0%,
+    #d2c08e 0%,
     #8a7050 50%,
     #5a4530 100%
   ) 1;
   box-shadow:
-    inset 0 0 80px rgba(80, 50, 20, 0.55),
-    inset 0 8px 20px rgba(60, 35, 15, 0.4),
-    0 0 40px rgba(0, 0, 0, 0.7);
+    inset 0 0 100px rgba(60, 35, 15, 0.75),
+    inset 0 12px 26px rgba(40, 22, 8, 0.55),
+    0 0 40px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+}
+
+/* Textura de madeira/pergaminho com linhas tênues. */
+.arena-layout::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      92deg,
+      rgba(80, 55, 25, 0.0) 0px,
+      rgba(80, 55, 25, 0.0) 60px,
+      rgba(70, 45, 20, 0.07) 61px,
+      rgba(70, 45, 20, 0.07) 62px
+    ),
+    repeating-linear-gradient(
+      178deg,
+      rgba(120, 80, 40, 0.0) 0px,
+      rgba(120, 80, 40, 0.0) 110px,
+      rgba(95, 65, 30, 0.05) 111px,
+      rgba(95, 65, 30, 0.05) 113px
+    );
+  mix-blend-mode: multiply;
+  z-index: 0;
+}
+/* Vinheta escura nos cantos para profundidade. */
+.arena-layout::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 95% 100% at 50% 50%,
+    transparent 55%,
+    rgba(20, 10, 4, 0.5) 100%);
+  z-index: 0;
 }
 
 .arena-center {
@@ -577,8 +621,9 @@ input:focus { border-color: var(--gold); }
   display: flex;
   flex-direction: column;
   /* padding direito maior pra dar espaço ao botão (~100px) e decks (~80px) */
-  padding: 4% 230px 5% 5%;
+  padding: 3.6% 240px 4% 4.5%;
   box-sizing: border-box;
+  z-index: 1;
 }
 
 /* === DECKS NA LATERAL DIREITA DA MESA === */
@@ -595,8 +640,8 @@ input:focus { border-color: var(--gold); }
 }
 .deck-pile {
   position: relative;
-  width: 80px;
-  height: 110px;
+  width: 96px;
+  height: 130px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -608,19 +653,19 @@ input:focus { border-color: var(--gold); }
 }
 .deck-back {
   position: absolute;
-  width: 64px;
-  height: 92px;
-  border-radius: 5px;
+  width: 76px;
+  height: 108px;
+  border-radius: 6px;
   background:
     radial-gradient(circle at 50% 50%,
-      rgba(212,166,74,0.4) 8%,
+      rgba(232, 200, 130, 0.55) 6%,
       transparent 9%),
-    radial-gradient(circle at 30% 30%, rgba(255, 220, 150, 0.2), transparent 50%),
-    linear-gradient(135deg, #5a3a22, #2a1812 50%, #1a0c08);
-  border: 2px solid #8a6a30;
+    radial-gradient(circle at 30% 30%, rgba(255, 220, 150, 0.22), transparent 50%),
+    linear-gradient(135deg, #6a4626, #2a1812 55%, #150904);
+  border: 2px solid #a87a36;
   box-shadow:
-    1px 2px 4px rgba(0,0,0,0.6),
-    inset 0 0 8px rgba(255, 200, 130, 0.15);
+    2px 3px 6px rgba(0,0,0,0.7),
+    inset 0 0 12px rgba(255, 200, 130, 0.2);
 }
 .deck-back:nth-child(1) { top: 0; left: 0; transform: rotate(-2deg); }
 .deck-back:nth-child(2) { top: 2px; left: 4px; transform: rotate(0deg); }
@@ -630,21 +675,21 @@ input:focus { border-color: var(--gold); }
 .deck-count {
   position: relative;
   z-index: 5;
-  font-family: 'Cinzel'; font-weight: 900; font-size: 1.4rem;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 1.55rem;
   color: #fff;
-  background: radial-gradient(circle at 35% 30%, #5a4a2a, #2a1808);
-  border: 3px solid #d4a64a;
+  background: radial-gradient(circle at 35% 30%, #6a553a, #281606);
+  border: 3px solid #e8c878;
   border-radius: 50%;
-  width: 38px; height: 38px;
+  width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
   text-shadow:
     0 2px 4px rgba(0,0,0,0.9),
-    0 0 8px rgba(0,0,0,0.7);
+    0 0 10px rgba(0,0,0,0.75);
   box-shadow:
-    0 2px 6px rgba(0,0,0,0.8),
-    inset 0 0 8px rgba(0,0,0,0.5),
-    inset 0 0 0 2px rgba(255, 220, 150, 0.3);
-  margin-left: 6px;
+    0 3px 8px rgba(0,0,0,0.85),
+    inset 0 0 10px rgba(0,0,0,0.55),
+    inset 0 0 0 2px rgba(255, 220, 150, 0.36);
+  margin-left: 8px;
 }
 .deck-label {
   position: absolute;
@@ -664,11 +709,11 @@ input:focus { border-color: var(--gold); }
   position: relative;
 }
 .zone-opp-hand {
-  min-height: 60px;
+  min-height: 70px;
 }
 .zone-my-hand {
-  min-height: 180px;
-  padding: 0.4rem 2rem;
+  min-height: 230px;
+  padding: 0.5rem 2.4rem;
   /* Cartas em arco: o transform aplicado por JS rotaciona/translada cada
      carta. Centro do arco vira a base de cada item. */
   align-items: flex-end;
@@ -898,46 +943,132 @@ input:focus { border-color: var(--gold); }
 }
 .deck-info span { color: var(--gold-bright); }
 
-/* ===== CAMPO DE BATALHA ===== */
+/* ===== CAMPO DE BATALHA =====
+   Tem 2 "linhas" (row-board) - opp em cima, you embaixo. Entre as duas há
+   uma faixa central de demarcação simulando o limite das zonas. Cada linha
+   tem um piso decorativo (textura de pedra/madeira) e uma luz ambiente da
+   "cor" do jogador (vermelho-escuro pro inimigo, dourado pro próprio). */
 .battlefield {
   flex: 1; display: flex; flex-direction: column; justify-content: center;
   gap: 0;
-  padding: 0.4rem 1rem;
+  padding: 0.5rem 1rem;
   position: relative;
 }
+
+/* Faixa central que separa as duas zonas - "linha do front". */
+.battlefield::before {
+  content: "";
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  top: 50%;
+  height: 8px;
+  transform: translateY(-50%);
+  background:
+    linear-gradient(90deg,
+      transparent 0%,
+      rgba(40, 24, 10, 0.0) 4%,
+      rgba(80, 50, 22, 0.55) 14%,
+      rgba(140, 100, 50, 0.85) 50%,
+      rgba(80, 50, 22, 0.55) 86%,
+      rgba(40, 24, 10, 0.0) 96%,
+      transparent 100%
+    );
+  border-top: 1px solid rgba(220, 190, 140, 0.45);
+  border-bottom: 1px solid rgba(20, 10, 4, 0.55);
+  box-shadow:
+    0 0 14px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  z-index: 2;
+}
+/* Pequenos "rivets" dourados ao longo da faixa central. */
+.battlefield::after {
+  content: "";
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background-image: radial-gradient(circle, rgba(232,200,120,0.9) 0 1.5px, transparent 2px);
+  background-size: 56px 100%;
+  background-repeat: repeat-x;
+  pointer-events: none;
+  z-index: 3;
+}
+
 .row-board {
-  display: flex; gap: 0.5rem; align-items: center;
+  display: flex; gap: 0.6rem; align-items: center;
   justify-content: center; flex-wrap: nowrap;
-  min-height: 160px;
+  min-height: 200px;
   padding: 0.8rem 0.4rem;
   position: relative;
 }
-/* Áreas vagamente "carved" no pergaminho */
+
+/* Piso de cada zona: trapézio de pedra com leve perspectiva e textura. */
 .row-board.opp::before,
 .row-board.you::before {
   content: "";
   position: absolute;
-  inset: 8% 6%;
+  left: 6%;
+  right: 6%;
+  top: 6%;
+  bottom: 6%;
+  border-radius: 18px / 90px;
+  pointer-events: none;
+  z-index: 0;
+  /* Pedra rachada: gradiente + ruído com repeating-radial-gradient. */
+  background:
+    radial-gradient(ellipse at 50% 40%,
+      rgba(255, 235, 180, 0.10) 0%,
+      transparent 65%
+    ),
+    repeating-radial-gradient(
+      ellipse at 50% 50%,
+      rgba(60, 38, 18, 0.0) 0px,
+      rgba(60, 38, 18, 0.0) 18px,
+      rgba(50, 30, 14, 0.10) 19px,
+      rgba(50, 30, 14, 0.10) 22px
+    );
+  box-shadow:
+    inset 0 4px 10px rgba(40, 22, 8, 0.45),
+    inset 0 -8px 16px rgba(60, 35, 15, 0.55);
+}
+/* Brilho de cor que tinta cada zona. */
+.row-board.opp::after,
+.row-board.you::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 12%;
+  bottom: 12%;
   border-radius: 50%;
   pointer-events: none;
+  z-index: 0;
+  filter: blur(18px);
+  opacity: 0.85;
 }
-.row-board.opp::before {
-  background:
-    radial-gradient(ellipse at center,
-      rgba(150, 50, 30, 0.06) 0%,
-      transparent 70%);
+.row-board.opp::after {
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(190, 50, 40, 0.18) 0%,
+    rgba(150, 30, 25, 0.10) 30%,
+    transparent 70%);
 }
-.row-board.you::before {
-  background:
-    radial-gradient(ellipse at center,
-      rgba(212, 166, 74, 0.10) 0%,
-      transparent 70%);
+.row-board.you::after {
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(245, 200, 100, 0.22) 0%,
+    rgba(212, 166, 74, 0.13) 30%,
+    transparent 70%);
 }
+
+/* Os filhos (lacaios e indicadores) ficam acima dos overlays. */
+.row-board > * { position: relative; z-index: 1; }
 
 /* ============ MINION REDONDO (estilo Hearthstone) ============ */
 .minion {
-  width: 110px; height: 144px;
-  padding-top: 14px;
+  width: 132px; height: 168px;
+  padding-top: 16px;
   box-sizing: border-box;
   position: relative;
   cursor: pointer;
@@ -950,7 +1081,7 @@ input:focus { border-color: var(--gold); }
 
 /* Anel/foto do lacaio */
 .minion .portrait-ring {
-  width: 100px; height: 100px;
+  width: 120px; height: 120px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 35% 25%, rgba(255,210,140,0.35), transparent 55%),
@@ -999,10 +1130,10 @@ input:focus { border-color: var(--gold); }
 .minion .atk-badge,
 .minion .hp-badge {
   position: absolute;
-  width: 32px; height: 32px;
+  width: 38px; height: 38px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Cinzel'; font-weight: 900; font-size: 1.1rem;
+  font-family: 'Cinzel'; font-weight: 900; font-size: 1.3rem;
   color: white;
   text-shadow: 0 1px 2px rgba(0,0,0,0.85);
   border: 2px solid var(--gold);
@@ -1945,42 +2076,140 @@ input:focus { border-color: var(--gold); }
   40% { transform: scale(1.2); opacity: 1; }
 }
 
-/* Toast / log */
+/* ====== Histórico de eventos: barra vertical de ícones (estilo Hearthstone)
+   Fica colado à borda esquerda do tabuleiro. Cada item é um ícone pequeno
+   com a "essência" do evento; ao passar o mouse, expande um tooltip com
+   a descrição e (quando aplicável) a arte da carta envolvida. */
 .log-overlay {
   position: fixed;
-  left: 0.6rem; bottom: 0.6rem;
-  width: 240px;
-  max-height: 180px;
-  overflow: hidden;
-  background: rgba(20, 16, 12, 0.78);
-  border: 1px solid var(--line);
-  padding: 0.4rem 0.5rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
-  color: var(--ink-dim);
-  border-radius: 3px;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   z-index: 8;
-  transition: max-height 0.25s ease, opacity 0.25s ease;
-  opacity: 0.55;
+  pointer-events: none;
+  /* Itens individuais reativam pointer-events. */
 }
-.log-overlay:hover {
-  opacity: 1;
-  max-height: 60vh;
-  overflow-y: auto;
+.log-icon {
+  pointer-events: auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 220, 150, 0.22), transparent 50%),
+    linear-gradient(135deg, #3a2614, #1a0e08);
+  border: 2px solid #8a6a30;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.65),
+    inset 0 0 6px rgba(255, 200, 130, 0.12);
+  position: relative;
+  cursor: default;
+  animation: logIconAppear 0.35s ease;
 }
-.log-overlay .log-title {
-  font-family: 'Cinzel'; color: var(--gold);
-  font-size: 0.65rem; letter-spacing: 0.15em;
-  padding: 0 0 4px 0;
-  border-bottom: 1px dashed var(--line);
-  margin-bottom: 4px;
-  display: flex; justify-content: space-between; align-items: center;
+@keyframes logIconAppear {
+  from { transform: translateX(-12px) scale(0.7); opacity: 0; }
+  to   { transform: translateX(0) scale(1);     opacity: 1; }
 }
-.log-overlay .log-title .hint {
-  font-family: 'JetBrains Mono'; color: var(--ink-faint);
-  font-size: 0.55rem; letter-spacing: 0; font-weight: 400;
+.log-icon:hover {
+  border-color: var(--gold-bright);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.7),
+    0 0 12px rgba(245, 201, 105, 0.65);
 }
-.log-entry { padding: 0.1em 0; border-bottom: 1px dashed rgba(255,255,255,0.04); }
+
+.log-icon-inner {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 1rem;
+  color: #f1d896;
+  text-shadow:
+    0 1px 0 #000,
+    0 0 3px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+}
+.log-icon-inner.art {
+  /* Arte da carta como conteúdo principal do ícone. */
+  filter: saturate(1.05) brightness(0.95);
+}
+
+/* Cores temáticas por tipo de evento. */
+.log-icon-attack       { border-color: #c46a3a; }
+.log-icon-damage       { border-color: #c45a3a; }
+.log-icon-death        { border-color: #6a3a3a; }
+.log-icon-heal         { border-color: #4caa6a; }
+.log-icon-burn         { border-color: #d96a2a; }
+.log-icon-freeze       { border-color: #6ec0e0; }
+.log-icon-shield       { border-color: #d4c47a; }
+.log-icon-silence      { border-color: #8a72a0; }
+.log-icon-draw         { border-color: #a8a8c0; }
+.log-icon-discard      { border-color: #777; }
+.log-icon-turn         { border-color: var(--gold); }
+.log-icon-game         { border-color: var(--gold-bright); }
+.log-icon-play         { border-color: var(--gold); }
+.log-icon-summon       { border-color: #a8c060; }
+.log-icon-info         { border-color: #909090; }
+.log-icon-fatigue      { border-color: #5c5c5c; }
+.log-icon-concede      { border-color: #c43a4a; }
+.log-icon-turn .log-icon-inner { font-size: 0.78rem; letter-spacing: 0.04em; }
+.log-icon-damage .log-icon-inner,
+.log-icon-heal .log-icon-inner { font-size: 0.85rem; }
+
+/* Tooltip que aparece ao lado direito do ícone. */
+.log-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 180px;
+  max-width: 260px;
+  background: rgba(15, 10, 6, 0.96);
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.82rem;
+  color: var(--ink);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.75),
+    0 0 10px rgba(245, 201, 105, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  white-space: normal;
+  z-index: 10;
+}
+.log-icon:hover .log-tooltip { opacity: 1; }
+.log-tooltip .tip-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+  margin-bottom: 3px;
+}
+.log-tooltip .tip-text {
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+.log-tooltip .tip-card-art {
+  margin-top: 6px;
+  width: 200px;
+  height: 290px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 6px;
+  border: 1px solid var(--gold-dim);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+}
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
