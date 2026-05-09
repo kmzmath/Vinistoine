@@ -2076,42 +2076,140 @@ input:focus { border-color: var(--gold); }
   40% { transform: scale(1.2); opacity: 1; }
 }
 
-/* Toast / log */
+/* ====== Histórico de eventos: barra vertical de ícones (estilo Hearthstone)
+   Fica colado à borda esquerda do tabuleiro. Cada item é um ícone pequeno
+   com a "essência" do evento; ao passar o mouse, expande um tooltip com
+   a descrição e (quando aplicável) a arte da carta envolvida. */
 .log-overlay {
   position: fixed;
-  left: 0.6rem; bottom: 0.6rem;
-  width: 240px;
-  max-height: 180px;
-  overflow: hidden;
-  background: rgba(20, 16, 12, 0.78);
-  border: 1px solid var(--line);
-  padding: 0.4rem 0.5rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
-  color: var(--ink-dim);
-  border-radius: 3px;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   z-index: 8;
-  transition: max-height 0.25s ease, opacity 0.25s ease;
-  opacity: 0.55;
+  pointer-events: none;
+  /* Itens individuais reativam pointer-events. */
 }
-.log-overlay:hover {
-  opacity: 1;
-  max-height: 60vh;
-  overflow-y: auto;
+.log-icon {
+  pointer-events: auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 220, 150, 0.22), transparent 50%),
+    linear-gradient(135deg, #3a2614, #1a0e08);
+  border: 2px solid #8a6a30;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.65),
+    inset 0 0 6px rgba(255, 200, 130, 0.12);
+  position: relative;
+  cursor: default;
+  animation: logIconAppear 0.35s ease;
 }
-.log-overlay .log-title {
-  font-family: 'Cinzel'; color: var(--gold);
-  font-size: 0.65rem; letter-spacing: 0.15em;
-  padding: 0 0 4px 0;
-  border-bottom: 1px dashed var(--line);
-  margin-bottom: 4px;
-  display: flex; justify-content: space-between; align-items: center;
+@keyframes logIconAppear {
+  from { transform: translateX(-12px) scale(0.7); opacity: 0; }
+  to   { transform: translateX(0) scale(1);     opacity: 1; }
 }
-.log-overlay .log-title .hint {
-  font-family: 'JetBrains Mono'; color: var(--ink-faint);
-  font-size: 0.55rem; letter-spacing: 0; font-weight: 400;
+.log-icon:hover {
+  border-color: var(--gold-bright);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.7),
+    0 0 12px rgba(245, 201, 105, 0.65);
 }
-.log-entry { padding: 0.1em 0; border-bottom: 1px dashed rgba(255,255,255,0.04); }
+
+.log-icon-inner {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 1rem;
+  color: #f1d896;
+  text-shadow:
+    0 1px 0 #000,
+    0 0 3px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+}
+.log-icon-inner.art {
+  /* Arte da carta como conteúdo principal do ícone. */
+  filter: saturate(1.05) brightness(0.95);
+}
+
+/* Cores temáticas por tipo de evento. */
+.log-icon-attack       { border-color: #c46a3a; }
+.log-icon-damage       { border-color: #c45a3a; }
+.log-icon-death        { border-color: #6a3a3a; }
+.log-icon-heal         { border-color: #4caa6a; }
+.log-icon-burn         { border-color: #d96a2a; }
+.log-icon-freeze       { border-color: #6ec0e0; }
+.log-icon-shield       { border-color: #d4c47a; }
+.log-icon-silence      { border-color: #8a72a0; }
+.log-icon-draw         { border-color: #a8a8c0; }
+.log-icon-discard      { border-color: #777; }
+.log-icon-turn         { border-color: var(--gold); }
+.log-icon-game         { border-color: var(--gold-bright); }
+.log-icon-play         { border-color: var(--gold); }
+.log-icon-summon       { border-color: #a8c060; }
+.log-icon-info         { border-color: #909090; }
+.log-icon-fatigue      { border-color: #5c5c5c; }
+.log-icon-concede      { border-color: #c43a4a; }
+.log-icon-turn .log-icon-inner { font-size: 0.78rem; letter-spacing: 0.04em; }
+.log-icon-damage .log-icon-inner,
+.log-icon-heal .log-icon-inner { font-size: 0.85rem; }
+
+/* Tooltip que aparece ao lado direito do ícone. */
+.log-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 180px;
+  max-width: 260px;
+  background: rgba(15, 10, 6, 0.96);
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.82rem;
+  color: var(--ink);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.75),
+    0 0 10px rgba(245, 201, 105, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  white-space: normal;
+  z-index: 10;
+}
+.log-icon:hover .log-tooltip { opacity: 1; }
+.log-tooltip .tip-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+  margin-bottom: 3px;
+}
+.log-tooltip .tip-text {
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+.log-tooltip .tip-card-art {
+  margin-top: 6px;
+  width: 200px;
+  height: 290px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 6px;
+  border: 1px solid var(--gold-dim);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+}
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);

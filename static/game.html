@@ -2945,45 +2945,185 @@ render = function() {
   requestAnimationFrame(() => flushPendingAnims());
 };
 
-// ============ Log ============
-function renderLog() {
-  const box = document.getElementById("log-overlay");
-  box.innerHTML = `<div class="log-title">
-    <span>HISTÓRICO</span>
-    <span class="hint">passe o mouse</span>
-  </div>`;
-  const events = state.log || [];
-  for (let i = events.length - 1; i >= 0; i--) {
+// ============ Log (estilo Hearthstone: barra vertical de ícones) ============
+//
+// O log de eventos vira uma coluna estreita à esquerda do tabuleiro. Cada
+// entrada é um pequeno ícone com a "essência" do evento (carta jogada,
+// ataque, morte, dano, etc.). Ao passar o mouse, expande para mostrar a
+// descrição completa em um tooltip.
+
+const LOG_MAX_ITEMS = 8;
+
+// Heurísticas para agregar eventos relacionados em um único item visual.
+// Ex: play_card + summon imediatamente em seguida = uma só entrada.
+function buildLogItems(events) {
+  const items = [];
+  const seenSeq = new Set();
+  for (let i = 0; i < events.length; i++) {
     const ev = events[i];
-    const div = document.createElement("div");
-    div.className = "log-entry";
-    div.textContent = formatEvent(ev);
-    box.appendChild(div);
+    if (ev.seq !== undefined && seenSeq.has(ev.seq)) continue;
+    const item = makeLogItem(ev, events, i);
+    if (!item) continue;
+    if (ev.seq !== undefined) seenSeq.add(ev.seq);
+    // Marca eventos consumidos (ex: o summon que veio com o play_card).
+    if (item.consumedSeqs) {
+      for (const s of item.consumedSeqs) seenSeq.add(s);
+    }
+    items.push(item);
+  }
+  // Mais recentes primeiro, limita pra não poluir.
+  return items.slice(-LOG_MAX_ITEMS).reverse();
+}
+
+function makeLogItem(ev, all, idx) {
+  const playerLabel = ev.player !== undefined ? playerName(ev.player) : "";
+  const consumed = [];
+  switch (ev.type) {
+    case "game_start":
+      return { kind: "game", icon: "✦", title: "Início da partida",
+               text: `Começa: ${playerName(ev.first_player)}` };
+    case "turn_start":
+      return { kind: "turn", icon: `T${ev.turn}`, title: `Turno ${ev.turn}`,
+               text: `Vez de ${playerName(ev.player)}` };
+    case "play_card": {
+      // Tenta absorver o summon imediatamente posterior (mesmo player) para
+      // não duplicar.
+      const next = all[idx + 1];
+      if (next && next.type === "summon" && next.owner === ev.player) {
+        if (next.seq !== undefined) consumed.push(next.seq);
+      }
+      return {
+        kind: "play",
+        cardId: ev.card_id,
+        title: `${playerLabel} jogou ${ev.card_name || "?"}`,
+        text: `Custo: ${ev.cost ?? "?"}`,
+        consumedSeqs: consumed,
+      };
+    }
+    case "summon": {
+      const cardId = ev.minion && ev.minion.card_id;
+      return {
+        kind: "summon",
+        cardId,
+        icon: cardId ? null : "+",
+        title: `${playerName(ev.owner)} evocou ${ev.minion?.name || "?"}`,
+        text: ev.minion ? `${ev.minion.attack}/${ev.minion.health}` : "",
+      };
+    }
+    case "attack":
+      return { kind: "attack", icon: "⚔",
+               title: "Ataque",
+               text: `${ev.attacker || "?"} → ${ev.target || "?"}` };
+    case "damage":
+      return { kind: "damage", icon: `-${ev.amount}`,
+               title: "Dano",
+               text: `${ev.amount} em ${ev.target_kind || "alvo"}` };
+    case "heal":
+      return { kind: "heal", icon: `+${ev.amount}`,
+               title: "Cura", text: `+${ev.amount}` };
+    case "death":
+      return { kind: "death", icon: "☠",
+               title: "Lacaio morreu",
+               text: ev.minion || "" };
+    case "draw":
+      return { kind: "draw", icon: "↑",
+               title: `${playerLabel} comprou`,
+               text: ev.card_id ? (allCards[ev.card_id]?.name || ev.card_id) : "" };
+    case "fatigue":
+      return { kind: "fatigue", icon: "⌛",
+               title: `${playerLabel} - Fadiga`,
+               text: `${ev.amount} de dano` };
+    case "discard":
+      return { kind: "discard", icon: "✕",
+               title: `${playerLabel} descartou`, text: "" };
+    case "burn":
+      return { kind: "burn", icon: "🔥",
+               title: `Carta queimada`,
+               text: ev.card_id ? (allCards[ev.card_id]?.name || ev.card_id) : "Mão cheia" };
+    case "divine_shield_break":
+      return { kind: "shield", icon: "◈",
+               title: "Escudo Divino quebrado", text: "" };
+    case "silence":
+      return { kind: "silence", icon: "Ø",
+               title: "Silenciado", text: "" };
+    case "freeze":
+      return { kind: "freeze", icon: "❄",
+               title: "Congelado", text: "" };
+    case "concede":
+      return { kind: "concede", icon: "🏳",
+               title: `${playerLabel} se rendeu`, text: "" };
+    case "no_targets_available":
+      return { kind: "info", icon: "?",
+               title: ev.card_name || "Carta",
+               text: "Sem alvos válidos" };
+    case "game_end":
+      return { kind: "game", icon: "★",
+               title: "Fim de partida",
+               text: `Vencedor: ${ev.winner === -1 ? "Empate" : playerName(ev.winner)}` };
+    case "unimplemented_action":
+      return { kind: "info", icon: "!",
+               title: "Efeito não implementado", text: ev.action || "" };
+    default:
+      // Eventos verbosos/irrelevantes (echo_expire, temporary_*, aplicações
+      // internas de aura) não viram entradas no histórico visual.
+      return null;
   }
 }
 
-function formatEvent(ev) {
-  switch (ev.type) {
-    case "game_start": return `Início. Joga primeiro: P${ev.first_player}`;
-    case "turn_start": return `--- Turno ${ev.turn} (P${ev.player}) ---`;
-    case "play_card": return `P${ev.player} jogou ${ev.card_name} (${ev.cost})`;
-    case "summon": return `→ Surgiu ${ev.minion?.name || "?"}`;
-    case "attack": return `Ataque ${ev.attacker} → ${ev.target}`;
-    case "damage": return `${ev.amount} de dano em ${ev.target_kind}`;
-    case "heal": return `+${ev.amount} de cura`;
-    case "death": return `☠ Lacaio morreu`;
-    case "draw": return `P${ev.player} comprou`;
-    case "fatigue": return `P${ev.player} fadiga: ${ev.amount}`;
-    case "discard": return `P${ev.player} descartou`;
-    case "burn": return `P${ev.player} queimou (mão cheia)`;
-    case "divine_shield_break": return `Escudo Divino quebrado`;
-    case "silence": return `Silenciado`;
-    case "concede": return `P${ev.player} se rendeu`;
-    case "no_targets_available": return `${escapeHtml(ev.card_name)}: sem alvos válidos`;
-    case "game_end": return `=== Fim de jogo. Vencedor: P${ev.winner} ===`;
-    case "unimplemented_action": return `[!] efeito não implementado: ${ev.action}`;
-    default: return JSON.stringify(ev);
+function playerName(pid) {
+  if (pid === myPid) return state?.you?.name || "Você";
+  if (pid === 1 - myPid) return state?.opponent?.name || "Oponente";
+  return `P${pid}`;
+}
+
+function renderLog() {
+  const box = document.getElementById("log-overlay");
+  box.innerHTML = "";
+  const events = state.log || [];
+  const items = buildLogItems(events);
+  for (const item of items) {
+    box.appendChild(buildLogIcon(item));
   }
+}
+
+function buildLogIcon(item) {
+  const wrap = document.createElement("div");
+  wrap.className = `log-icon log-icon-${item.kind}`;
+
+  const inner = document.createElement("div");
+  inner.className = "log-icon-inner";
+  const cardImg = item.cardId ? cardImages[item.cardId] : null;
+  if (cardImg) {
+    inner.classList.add("art");
+    inner.style.backgroundImage = `url("${encodeURI(cardImg)}")`;
+  } else {
+    inner.classList.add("glyph");
+    inner.textContent = item.icon || "•";
+  }
+  wrap.appendChild(inner);
+
+  const tip = document.createElement("div");
+  tip.className = "log-tooltip";
+  const t1 = document.createElement("div");
+  t1.className = "tip-title";
+  t1.textContent = item.title || "";
+  tip.appendChild(t1);
+  if (item.text) {
+    const t2 = document.createElement("div");
+    t2.className = "tip-text";
+    t2.textContent = item.text;
+    tip.appendChild(t2);
+  }
+  // Para entradas com cardId, embute uma miniatura grande no tooltip.
+  if (item.cardId && cardImages[item.cardId]) {
+    const big = document.createElement("div");
+    big.className = "tip-card-art";
+    big.style.backgroundImage = `url("${encodeURI(cardImages[item.cardId])}")`;
+    tip.appendChild(big);
+  }
+  wrap.appendChild(tip);
+
+  return wrap;
 }
 
 // ============ End overlay ============
