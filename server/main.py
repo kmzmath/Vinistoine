@@ -340,22 +340,37 @@ def list_matches():
 
 
 # ============================ WebSocket de partida ============================
-def _is_origin_allowed(origin: Optional[str]) -> bool:
-    """Permite Origins listadas em ALLOWED_CORS_ORIGINS. CORSMiddleware NÃO se
-    aplica a WebSocket upgrades, então fazemos a checagem manual aqui."""
-    if not ALLOWED_CORS_ORIGINS:
+def _is_origin_allowed(websocket: WebSocket) -> bool:
+    """Bloqueia Cross-Site WebSocket Hijacking sem quebrar deploy.
+
+    Aceita:
+    1. requisições sem header Origin (CLI/test runner);
+    2. mesma-origem (Origin.host == Host) - cobre o caso normal do app
+       servindo a si mesmo, em qualquer domínio (Render, localhost, etc.);
+    3. Origin listado em ALLOWED_CORS_ORIGINS (cross-origin explícito).
+
+    O CORSMiddleware não cobre o handshake de WS, então a checagem é manual.
+    """
+    origin = websocket.headers.get("origin")
+    if not origin:
         return True
-    if origin is None:
-        # Cliente não-browser (CLI/tests) costuma omitir Origin: aceitamos.
-        return True
+    # Same-origin: confere host da Origin contra Host do request.
+    host = websocket.headers.get("host")
+    if host:
+        try:
+            from urllib.parse import urlparse
+            origin_host = urlparse(origin).netloc
+            if origin_host and origin_host == host:
+                return True
+        except Exception:
+            pass
+    # Allowlist explícita (cross-origin).
     return origin in ALLOWED_CORS_ORIGINS
 
 
 @app.websocket("/ws/match/{match_id}")
 async def match_ws(websocket: WebSocket, match_id: str, token: str):
-    origin = websocket.headers.get("origin")
-    if not _is_origin_allowed(origin):
-        # Recusa antes do accept para evitar handshake completo.
+    if not _is_origin_allowed(websocket):
         await websocket.close(code=1008)
         return
     await websocket.accept()

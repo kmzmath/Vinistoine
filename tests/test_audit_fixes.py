@@ -257,3 +257,41 @@ def test_handler_registrations_guardam_historico():
     assert history is not None and len(history) >= 2, (
         "Esperava ver overrides registrados para auditoria"
     )
+
+
+# ===== server: WS aceita mesma-origem em qualquer host =====
+
+def test_ws_origin_aceita_mesma_origem():
+    """Regressão: a checagem de Origin não pode bloquear deploy quando o
+    domínio não está em ALLOWED_CORS_ORIGINS - basta Origin == Host."""
+    pytest.importorskip("sqlalchemy")
+    from server.main import _is_origin_allowed
+
+    class _FakeWS:
+        def __init__(self, headers):
+            self.headers = headers
+
+    # Render-like: domínio fora de ALLOWED_CORS_ORIGINS, mas Origin == Host.
+    ws = _FakeWS({
+        "origin": "https://vinistoine.onrender.com",
+        "host": "vinistoine.onrender.com",
+    })
+    assert _is_origin_allowed(ws) is True
+
+    # Sem Origin (curl/teste): aceita.
+    ws = _FakeWS({"host": "vinistoine.onrender.com"})
+    assert _is_origin_allowed(ws) is True
+
+    # Cross-origin com host diferente do listado: nega.
+    ws = _FakeWS({
+        "origin": "https://attacker.com",
+        "host": "vinistoine.onrender.com",
+    })
+    assert _is_origin_allowed(ws) is False
+
+    # localhost dev: porta padrão coincide com Host.
+    ws = _FakeWS({
+        "origin": "http://localhost:8000",
+        "host": "localhost:8000",
+    })
+    assert _is_origin_allowed(ws) is True
