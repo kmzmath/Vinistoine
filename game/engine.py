@@ -239,8 +239,11 @@ def start_turn(state: GameState):
                     "type": "play_top_instead_of_draw", "card_id": cid,
                 })
     else:
-        # compra carta normalmente
+        # compra carta normalmente. Marca o motivo para a UI usar animação lenta
+        # só na compra automática de início do turno.
+        state._draw_reason = "turn_start"
         effects.draw_card(state, p, 1)
+        state._draw_reason = None
 
     state.log_event({"type": "turn_start", "player": p.player_id, "turn": state.turn_number})
 

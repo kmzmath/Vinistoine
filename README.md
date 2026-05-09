@@ -415,7 +415,7 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 
@@ -452,7 +452,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 ### Lote 5 — descarte/compra/revelação e cartas recém-compradas
@@ -474,7 +474,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 
@@ -502,7 +502,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 
@@ -525,7 +525,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 
@@ -549,7 +549,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 
@@ -572,7 +572,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-253 passed, 1 skipped
+259 passed, 1 skipped
 ```
 
 
@@ -639,7 +639,7 @@ Adicionado:
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `253 passed, 1 skipped`
+- `259 passed, 1 skipped`
 
 
 ## Lote 24 — segunda auditoria de cartas
@@ -712,3 +712,24 @@ Correções:
 
 Teste adicionado:
 - `tests/test_lote27_mulligan_ui_and_card_fixes.py`
+
+
+## Lote 28 — preload de imagens, animações de compra e correções de cartas
+
+Correções:
+- Lobby e tela de partida agora pré-carregam imagens de cartas/heróis com barra de carregamento.
+- A tela de partida carrega cartas auxiliares com `include_tokens=1`, permitindo renderizar a Moeda.
+- Compra automática do começo do turno usa animação lenta de 3s.
+- Compras por efeito no meio do turno usam animação rápida de 1s.
+- Compra do oponente usa animação curta sem mostrar carta no centro da tela.
+- Hover de lacaio só mostra a carta depois de 1,5s parado.
+- Moldura normal do lacaio ficou mais fina; moldura verde de ataque ficou mais grossa.
+- Moeda foi consolidada como carta real `coin`; `moeda` vira alias.
+- Burguês adiciona a Moeda correta.
+- Spaghetti mostra opções legíveis após atacar.
+- Vagner Pikachu agora permite escolher os três alvos sequenciais.
+- Iglu Atleta, após já ter atacado, ganha nova oportunidade apenas contra lacaios inimigos.
+- Viní Formoso recebeu arquivo `static/cards/vini_formoso.png` como placeholder, pois a arte real não estava no pacote.
+
+Teste adicionado:
+- `tests/test_lote28_preload_draw_coin_and_cards.py`

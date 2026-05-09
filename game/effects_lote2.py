@@ -204,9 +204,24 @@ def register_lote2_handlers(handler):
                                             source_minion, ctx.get("chosen_target"))
         for t in targets:
             if isinstance(t, Minion):
+                had_already_attacked = int(t.attacks_this_turn or 0) > 0
                 t.attacks_this_turn = 0
                 t.summoning_sick = False
-                state.log_event({"type": "refresh_attack", "minion": t.instance_id})
+                # Iglu Atleta ganha uma nova oportunidade de ataque por Rapidez:
+                # se ele já atacou neste turno, essa nova oportunidade deve mirar
+                # apenas lacaios, não o herói inimigo.
+                if had_already_attacked and "CANT_ATTACK_HERO_THIS_TURN" not in t.tags:
+                    t.tags.append("CANT_ATTACK_HERO_THIS_TURN")
+                    state.pending_modifiers.append({
+                        "kind": "temporary_tag",
+                        "owner": t.owner,
+                        "minion_id": t.instance_id,
+                        "tag": "CANT_ATTACK_HERO_THIS_TURN",
+                        "remove_at": "end_of_turn",
+                        "added_now": True,
+                    })
+                state.log_event({"type": "refresh_attack", "minion": t.instance_id,
+                                 "minion_only": had_already_attacked})
 
     # ============================================================
     # DEFESA / PROTEÇÃO

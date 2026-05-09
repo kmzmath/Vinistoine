@@ -31,7 +31,7 @@ STATIC_DIR = ROOT_DIR / "static"
 
 # Cartas auxiliares/tokens que podem existir no loader, mas não devem ser
 # exibidas no deckbuilder nem aceitas em decks salvos.
-NON_COLLECTIBLE_CARD_IDS = {"coin"}
+NON_COLLECTIBLE_CARD_IDS = {"coin", "moeda"}
 ALLOWED_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -178,9 +178,11 @@ def me(request: Request):
 
 # ============================ Cartas ============================
 @app.get("/api/cards")
-def list_cards():
-    # O cliente usa esta rota para o deckbuilder. Tokens como a Moeda existem
-    # para a engine, mas não são cartas colecionáveis.
+def list_cards(include_tokens: bool = False):
+    # O deckbuilder usa a rota padrão e não deve ver tokens. O jogo passa
+    # include_tokens=1 para conseguir renderizar a Moeda e outros auxiliares.
+    if include_tokens:
+        return all_cards()
     return [c for c in all_cards() if c.get("id") not in NON_COLLECTIBLE_CARD_IDS]
 
 

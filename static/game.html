@@ -11,6 +11,14 @@
   <div class="log-overlay" id="log-overlay"></div>
   <div id="overlay-root"></div>
   <div id="fx-layer" style="position: fixed; inset: 0; pointer-events: none; z-index: 20;"></div>
+  <div id="asset-loading-overlay" class="asset-loading-overlay">
+    <div class="asset-loading-box">
+      <h2>Carregando cartas</h2>
+      <div class="asset-loading-text" id="asset-loading-text">Preparando arquivos...</div>
+      <div class="asset-progress"><div id="asset-progress-fill"></div></div>
+      <div class="asset-loading-count" id="asset-loading-count">0%</div>
+    </div>
+  </div>
 
 <script>
 const token = localStorage.getItem("auth_token");
@@ -31,10 +39,12 @@ let targetingMode = null;  // { hand_id, card }
 let attackingMode = null;  // { attacker_id }
 let abilityMode = null;    // { minion_id, effect, ability_index }
 let mousePos = { x: 0, y: 0 };
+let hoverPreviewTimer = null;
+let hoverPreviewLastEvent = null;
 
 // =========== Network ===========
 async function loadCards() {
-  const r = await fetch("/api/cards");
+  const r = await fetch("/api/cards?include_tokens=1");
   const list = await r.json();
   for (const c of list) allCards[c.id] = c;
 }
@@ -46,6 +56,41 @@ async function loadCardImages() {
     heroImages = data.heroes || {};
   } catch (e) {
     console.warn("Não foi possível carregar lista de imagens:", e);
+  }
+}
+
+function updateAssetProgress(done, total) {
+  const pct = total ? Math.round((done / total) * 100) : 100;
+  const fill = document.getElementById("asset-progress-fill");
+  const count = document.getElementById("asset-loading-count");
+  const text = document.getElementById("asset-loading-text");
+  if (fill) fill.style.width = `${pct}%`;
+  if (count) count.textContent = `${pct}%`;
+  if (text) text.textContent = total ? `Carregando ${done}/${total} imagens...` : "Nenhuma imagem para carregar.";
+}
+
+function preloadImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
+async function preloadAllAssets() {
+  const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
+  let done = 0;
+  updateAssetProgress(0, urls.length);
+  for (const url of urls) {
+    await preloadImage(url);
+    done++;
+    updateAssetProgress(done, urls.length);
+  }
+  const overlay = document.getElementById("asset-loading-overlay");
+  if (overlay) {
+    overlay.classList.add("hidden");
+    setTimeout(() => overlay.remove(), 250);
   }
 }
 
@@ -921,9 +966,22 @@ function renderMinion(m, isOpponent) {
     ${isSick && !isDormant ? `<div class="zzz-anim"><span class="z z1">z</span><span class="z z2">z</span><span class="z z3">Z</span></div>` : ""}
   `;
 
-  div.onmouseenter = (ev) => showMinionCardPreview(m, ev);
-  div.onmousemove = (ev) => moveMinionCardPreview(ev);
-  div.onmouseleave = () => hideMinionCardPreview();
+  div.onmouseenter = (ev) => {
+    hoverPreviewLastEvent = ev;
+    clearTimeout(hoverPreviewTimer);
+    hoverPreviewTimer = setTimeout(() => {
+      showMinionCardPreview(m, hoverPreviewLastEvent || ev);
+    }, 1500);
+  };
+  div.onmousemove = (ev) => {
+    hoverPreviewLastEvent = ev;
+    moveMinionCardPreview(ev);
+  };
+  div.onmouseleave = () => {
+    clearTimeout(hoverPreviewTimer);
+    hoverPreviewTimer = null;
+    hideMinionCardPreview();
+  };
 
   const abilityBtn = div.querySelector(".ability-btn");
   if (abilityBtn && firstAbility) {
@@ -999,7 +1057,15 @@ function collectChosenTargetDescsForEffect(eff, out = []) {
   const src = eff.source || {};
   const tgt = eff.target || {};
   if (src.mode === "CHOSEN") out.push(src);
-  if (["CHOSEN", "CHOSEN_EACH", "CHOSEN_ADJACENT_DIRECTION"].includes(tgt.mode)) out.push(tgt);
+  if (tgt.mode === "CHOSEN") out.push(tgt);
+  else if (tgt.mode === "CHOSEN_EACH") {
+    const n = (eff.amounts || []).length || Number(eff.amount || 1) || 1;
+    for (let i = 0; i < Math.max(1, n); i++) {
+      out.push({ ...tgt, mode: "CHOSEN" });
+    }
+  } else if (tgt.mode === "CHOSEN_ADJACENT_DIRECTION") {
+    out.push({ ...tgt, mode: "CHOSEN" });
+  }
   for (const sub of (eff.effects || [])) collectChosenTargetDescsForEffect(sub, out);
   for (const sub of (eff.additional_effects || [])) collectChosenTargetDescsForEffect(sub, out);
   return out;
@@ -1889,6 +1955,9 @@ function showChooseOneModal(handCard, card, chooseEffect) {
 function describeChoice(choice) {
   const action = choice.action;
   const amount = choice.amount;
+  const option = choice.option ? `[${choice.option}] ` : "";
+  const atkAmount = choice.attack_amount ?? choice.attack_bonus ?? (typeof amount === "object" ? amount.attack : amount);
+  const hpAmount = choice.health_amount ?? choice.health_bonus ?? (typeof amount === "object" ? amount.health : amount);
   const tgt = choice.target || {};
   const targetText = (() => {
     if (tgt.mode === "ENEMY_MINIONS") return "todos os lacaios inimigos";
@@ -1908,10 +1977,11 @@ function describeChoice(choice) {
     return `Cure ${amount ?? 1}${targetText ? " em " + targetText : ""}`;
   }
   if (action === "BUFF_STATS") {
-    if (typeof amount === "object") {
-      return `Conceda +${amount.attack ?? 0}/+${amount.health ?? 0}${targetText ? " a " + targetText : ""}`;
-    }
-    return `Conceda +${amount}/+${amount}${targetText ? " a " + targetText : ""}`;
+    return `${option}Conceda +${atkAmount ?? 0}/+${hpAmount ?? 0}${targetText ? " a " + targetText : ""}`;
+  }
+  if (action === "ADD_TAG") {
+    const names = { DIVINE_SHIELD: "Escudo Divino", TAUNT: "Provocar", STEALTH: "Furtividade", RUSH: "Rapidez", CHARGE: "Investida" };
+    return `${option}Conceda ${names[choice.tag] || choice.tag || "keyword"}${targetText ? " a " + targetText : ""}`;
   }
   if (action === "BUFF_ATTACK") {
     return `+${amount} de ataque${targetText ? " em " + targetText : ""}`;
@@ -2245,7 +2315,7 @@ function animateFromDelta(oldS, newS) {
         const handCard = (newS.you.hand || []).find(c => c.instance_id === inst);
         if (handCard) cardIdRevealed = handCard.card_id;
       }
-      scheduleDrawAnimation(player, cardIdRevealed);
+      scheduleDrawAnimation(player, cardIdRevealed, ev.reason || "effect");
     }
     // === Anúncio de carta jogada pelo oponente ===
     if (ev.type === "play_card" && ev.player !== myPid) {
@@ -2275,15 +2345,19 @@ function animateFromDelta(oldS, newS) {
 //   (ou fallback textual)
 // - Se é do oponente, mostro só o card-back (ele esconde o conteúdo)
 let drawAnimsScheduled = 0;
-const DRAW_ANIMATION_MS = 4000;
-function scheduleDrawAnimation(playerId, cardIdRevealed) {
-  const delay = drawAnimsScheduled * DRAW_ANIMATION_MS;
+const TURN_START_DRAW_MS = 3000;
+const EFFECT_DRAW_MS = 1000;
+const OPPONENT_DRAW_MS = 700;
+function scheduleDrawAnimation(playerId, cardIdRevealed, reason = "effect") {
+  const isMine = playerId === myPid;
+  const duration = !isMine ? OPPONENT_DRAW_MS : (reason === "turn_start" ? TURN_START_DRAW_MS : EFFECT_DRAW_MS);
+  const delay = drawAnimsScheduled * duration;
   drawAnimsScheduled++;
   setTimeout(() => {
-    flyDrawCard(playerId, cardIdRevealed);
+    flyDrawCard(playerId, cardIdRevealed, { duration, showcase: isMine && reason === "turn_start" });
     setTimeout(() => {
       drawAnimsScheduled = Math.max(0, drawAnimsScheduled - 1);
-    }, DRAW_ANIMATION_MS);
+    }, duration);
   }, delay);
 }
 
@@ -2300,16 +2374,17 @@ function buildAnimatedCard(cardId, faceDown = false) {
   return wrap;
 }
 
-function flyDrawCard(playerId, cardIdRevealed) {
+function flyDrawCard(playerId, cardIdRevealed, opts = {}) {
+  const duration = opts.duration || EFFECT_DRAW_MS;
+  const showcase = !!opts.showcase;
   const pileEl = document.querySelector(`.deck-pile[data-pile-owner='${playerId}']`);
-  let handEl = playerId === myPid
+  const handEl = playerId === myPid
     ? document.querySelector(".zone-my-hand")
     : document.querySelector(".zone-opp-hand");
   if (!pileEl || !handEl) return;
 
   const pr = pileEl.getBoundingClientRect();
   const hr = handEl.getBoundingClientRect();
-
   const startX = pr.left + pr.width / 2;
   const startY = pr.top + pr.height / 2;
   const centerX = window.innerWidth / 2;
@@ -2318,35 +2393,39 @@ function flyDrawCard(playerId, cardIdRevealed) {
   const endY = hr.top + hr.height / 2;
 
   const fly = document.createElement("div");
-  fly.className = "draw-fly-v2 start";
+  fly.className = "draw-fly-v2 start" + (showcase ? " slow" : " quick") + (playerId !== myPid ? " opponent-draw" : "");
   fly.style.left = startX + "px";
   fly.style.top = startY + "px";
+  fly.style.setProperty("--draw-duration", `${duration}ms`);
 
   const isFaceDown = (playerId !== myPid) || !cardIdRevealed;
   fly.appendChild(buildAnimatedCard(cardIdRevealed, isFaceDown));
   document.body.appendChild(fly);
 
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
+  if (showcase) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       fly.classList.remove("start");
       fly.classList.add("showcase");
       fly.style.left = centerX + "px";
       fly.style.top = centerY + "px";
-    });
-  });
+    }));
+    setTimeout(() => {
+      fly.classList.remove("showcase");
+      fly.classList.add("to-hand");
+      fly.style.left = endX + "px";
+      fly.style.top = endY + "px";
+    }, Math.max(900, duration - 700));
+  } else {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fly.classList.remove("start");
+      fly.classList.add("to-hand");
+      fly.style.left = endX + "px";
+      fly.style.top = endY + "px";
+    }));
+  }
 
-  setTimeout(() => {
-    fly.classList.remove("showcase");
-    fly.classList.add("to-hand");
-    fly.style.left = endX + "px";
-    fly.style.top = endY + "px";
-  }, 2750);
-
-  setTimeout(() => {
-    fly.classList.add("land");
-  }, 3600);
-
-  setTimeout(() => fly.remove(), DRAW_ANIMATION_MS + 120);
+  setTimeout(() => fly.classList.add("land"), Math.max(250, duration - 180));
+  setTimeout(() => fly.remove(), duration + 80);
 }
 
 // =================== ANUNCIADOR DE CARTA JOGADA ===================
@@ -2570,7 +2649,9 @@ function renderEndOverlay() {
 }
 
 // ============ Init ============
-Promise.all([loadCards(), loadCardImages()]).then(connect);
+Promise.all([loadCards(), loadCardImages()])
+  .then(preloadAllAssets)
+  .then(connect);
 </script>
 </body>
 </html>

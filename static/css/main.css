@@ -910,7 +910,7 @@ input:focus { border-color: var(--gold); }
   background:
     radial-gradient(circle at 35% 25%, rgba(255,210,140,0.35), transparent 55%),
     radial-gradient(circle, #4a3a26, #1a0e08);
-  border: 4px solid var(--gold-dim);
+  border: 2px solid var(--gold-dim);
   background-size: cover;
   background-position: center 22%;
   position: relative;
@@ -1112,6 +1112,7 @@ input:focus { border-color: var(--gold); }
 
 /* === PODE ATACAR: borda verde brilhante === */
 .minion.can-attack .portrait-ring {
+  border-width: 7px;
   border-color: #66ff7a;
   box-shadow:
     inset 0 -6px 10px rgba(0,0,0,0.4),
@@ -1508,7 +1509,7 @@ input:focus { border-color: var(--gold); }
 .minion.opponent .portrait-ring {
   border-color: #8a4a3a;
 }
-.minion.opponent.can-attack .portrait-ring { border-color: #66ff7a; }
+.minion.opponent.can-attack .portrait-ring { border-width: 7px; border-color: #66ff7a; }
 .minion.opponent.taunt .portrait-ring { border-color: #d8d8d8; }
 .minion.opponent.divine-shield .portrait-ring { border-color: var(--gold-bright); }
 
@@ -2223,3 +2224,122 @@ input:focus { border-color: var(--gold); }
   width: 360px;
   height: 520px;
 }
+
+
+/* Lote 28: tela de carregamento de imagens */
+.asset-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60000;
+  background: radial-gradient(circle at 50% 45%, rgba(60, 38, 18, 0.96), rgba(6, 4, 3, 0.98) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.22s ease;
+}
+.asset-loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.asset-loading-box {
+  width: min(520px, calc(100vw - 2rem));
+  border: 1px solid var(--gold-dim);
+  background: rgba(12, 8, 6, 0.94);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.8), inset 0 0 20px rgba(245,201,105,0.08);
+  padding: 1.4rem 1.6rem;
+  text-align: center;
+}
+.asset-loading-box h2 {
+  margin: 0 0 0.5rem;
+  color: var(--gold-bright);
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.14em;
+}
+.asset-loading-text, .asset-loading-count {
+  color: var(--ink-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+}
+.asset-progress {
+  height: 14px;
+  margin: 1rem 0 0.6rem;
+  border: 1px solid var(--gold-dim);
+  background: rgba(0,0,0,0.45);
+  overflow: hidden;
+}
+.asset-progress > div {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+  transition: width 0.12s ease;
+}
+
+/* Lote 28: nova animação de compra com duração variável */
+.draw-fly-v2 {
+  position: fixed;
+  z-index: 25000;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.28) rotate(-16deg);
+  opacity: 0;
+  transition:
+    left calc(var(--draw-duration, 1000ms) * 0.28) cubic-bezier(0.2, 0.75, 0.2, 1),
+    top calc(var(--draw-duration, 1000ms) * 0.28) cubic-bezier(0.2, 0.75, 0.2, 1),
+    transform calc(var(--draw-duration, 1000ms) * 0.28) cubic-bezier(0.2, 0.75, 0.2, 1),
+    opacity 0.18s ease;
+  filter: drop-shadow(0 22px 45px rgba(0,0,0,0.92));
+}
+.draw-fly-v2.showcase { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(0deg); }
+.draw-fly-v2.to-hand { opacity: 1; transform: translate(-50%, -50%) scale(0.32) rotate(10deg); }
+.draw-fly-v2.quick.to-hand { transform: translate(-50%, -50%) scale(0.46) rotate(8deg); }
+.draw-fly-v2.opponent-draw.to-hand { transform: translate(-50%, -50%) scale(0.22) rotate(12deg); }
+.draw-fly-v2.land { opacity: 0; transform: translate(-50%, -50%) scale(0.18) rotate(16deg); }
+.draw-fly-v2 .animated-card-wrap .card {
+  width: 215px;
+  height: 310px;
+  margin: 0;
+  box-shadow: 0 0 28px rgba(245,201,105,0.5), 0 0 70px rgba(0,0,0,0.95);
+}
+.draw-fly-v2 .card-back-large {
+  width: 215px;
+  height: 310px;
+  border-radius: 14px;
+  border: 4px solid var(--gold);
+  background:
+    radial-gradient(circle at 50% 50%, var(--gold-dim) 8%, transparent 9%),
+    radial-gradient(circle at 0% 0%, rgba(212,166,74,0.3), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(181,62,44,0.2), transparent 50%),
+    linear-gradient(135deg, #2a1812, #0c0806);
+  box-shadow: 0 0 28px rgba(245,201,105,0.5), 0 0 70px rgba(0,0,0,0.95);
+}
+.draw-fly-v2.opponent-draw .card-back-large {
+  width: 112px;
+  height: 162px;
+}
+
+.opp-play-announce .card-anim.burned {
+  animation-name: announceBurnedCard;
+  border-color: #ff6a3d;
+  box-shadow: 0 0 28px rgba(255,80,40,0.85), 0 0 70px rgba(0,0,0,0.95);
+}
+.opp-play-announce .card-anim.burned::after {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  background:
+    radial-gradient(circle at 50% 80%, rgba(255,220,80,0.9), transparent 18%),
+    radial-gradient(circle at 40% 65%, rgba(255,80,20,0.75), transparent 28%),
+    radial-gradient(circle at 60% 65%, rgba(255,120,20,0.75), transparent 30%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: flameFlicker 0.22s infinite alternate;
+}
+@keyframes announceBurnedCard {
+  0%   { transform: translateX(-80px) scale(0.4) rotate(-12deg); opacity: 0; filter: brightness(1); }
+  15%  { transform: translateX(0) scale(1.05) rotate(2deg); opacity: 1; }
+  70%  { transform: translateX(0) scale(1) rotate(0); opacity: 1; filter: brightness(1.1); }
+  100% { transform: translateX(0) scale(0.8) rotate(8deg); opacity: 0; filter: brightness(0.25) grayscale(0.9); }
+}
+@keyframes flameFlicker {
+  from { opacity: 0.65; transform: scale(0.97) translateY(2px); }
+  to   { opacity: 1; transform: scale(1.04) translateY(-2px); }
+}
+
+#hover-card-preview { z-index: 50000; }
+#hover-card-preview .card { width: 360px; height: 520px; }

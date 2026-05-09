@@ -92,6 +92,8 @@ class Minion:
         """RUSH não pode atacar herói no turno que entra. CHARGE pode."""
         if not self.can_attack():
             return False
+        if self.has_tag("CANT_ATTACK_HERO_THIS_TURN"):
+            return False
         if self.summoning_sick and self.has_tag("RUSH") and not self.has_tag("CHARGE"):
             return False
         return True

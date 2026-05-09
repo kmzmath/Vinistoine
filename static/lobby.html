@@ -7,6 +7,15 @@
   <link rel="stylesheet" href="/static/css/main.css" />
 </head>
 <body>
+  <div id="asset-loading-overlay" class="asset-loading-overlay lobby-loader">
+    <div class="asset-loading-box">
+      <h2>Carregando arquivos</h2>
+      <div class="asset-loading-text" id="asset-loading-text">Preparando imagens das cartas...</div>
+      <div class="asset-progress"><div id="asset-progress-fill"></div></div>
+      <div class="asset-loading-count" id="asset-loading-count">0%</div>
+    </div>
+  </div>
+
   <header class="topbar">
     <div class="logo">Carta &amp; Lâmina</div>
     <nav class="nav">
@@ -72,6 +81,46 @@ async function api(path, opts = {}) {
   const r = await fetch(path, opts);
   if (r.status === 401) { localStorage.clear(); window.location.href = "/"; return; }
   return r;
+}
+
+function updateAssetProgress(done, total) {
+  const pct = total ? Math.round((done / total) * 100) : 100;
+  const fill = document.getElementById("asset-progress-fill");
+  const count = document.getElementById("asset-loading-count");
+  const text = document.getElementById("asset-loading-text");
+  if (fill) fill.style.width = `${pct}%`;
+  if (count) count.textContent = `${pct}%`;
+  if (text) text.textContent = total ? `Carregando ${done}/${total} imagens...` : "Nenhuma imagem para carregar.";
+}
+function preloadImage(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+async function preloadCardAssets() {
+  try {
+    const r = await fetch("/api/card-images");
+    const data = await r.json();
+    const urls = [...Object.values(data.cards || {}), ...Object.values(data.heroes || {})];
+    let done = 0;
+    updateAssetProgress(0, urls.length);
+    for (const url of urls) {
+      await preloadImage(url);
+      done++;
+      updateAssetProgress(done, urls.length);
+    }
+  } catch (e) {
+    console.warn("Falha ao pré-carregar imagens:", e);
+  } finally {
+    const overlay = document.getElementById("asset-loading-overlay");
+    if (overlay) {
+      overlay.classList.add("hidden");
+      setTimeout(() => overlay.remove(), 250);
+    }
+  }
 }
 
 async function loadDecks() {
