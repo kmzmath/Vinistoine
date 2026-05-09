@@ -156,6 +156,45 @@ def test_freeze_dura_apenas_um_turno_do_dono():
     )
 
 
+def test_freeze_until_source_dies_persiste_apos_caster_end_turn():
+    """Regressão Tier 1: a passada extra de freeze no caster's end_turn não
+    pode quebrar Viní Geladinho (FREEZE_UNTIL_SELF_DIES). Enquanto a fonte
+    estiver viva, o congelamento permanece."""
+    state = _new_match()
+    caster = state.current_player
+    owner = 1 - caster
+
+    geladinho = _force_minion(state, caster, attack=1, health=3, ready=True)
+    geladinho.card_id = "vini_geladinho"
+    geladinho.name = "Vini Geladinho"
+    target = _force_minion(state, owner, attack=4, health=4, ready=True)
+
+    target.frozen = True
+    target.freeze_pending = True
+    state.pending_modifiers.append({
+        "kind": "freeze_until_source_dies",
+        "source_minion_id": geladinho.instance_id,
+        "target_id": target.instance_id,
+    })
+
+    # Vários ciclos de turno - alvo deve continuar congelado.
+    for _ in range(3):
+        engine.end_turn(state, state.current_player)
+        engine.end_turn(state, state.current_player)
+        assert target.frozen is True, (
+            "Geladinho está vivo, alvo deveria continuar congelado"
+        )
+
+    # Mata o Geladinho: o sustentado deve liberar.
+    geladinho.health = 0
+    engine.cleanup(state)
+    # _has_active_freeze_until_source é chamado por cleanup (linha final),
+    # libera o alvo imediatamente.
+    assert target.frozen is False, (
+        "Após morte do Geladinho, alvo deveria descongelar"
+    )
+
+
 # ===== engine.py: provocar imune não trava ataques =====
 
 def test_provocar_imune_nao_trava_ataque():

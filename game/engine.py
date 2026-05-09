@@ -347,9 +347,13 @@ def end_turn(state: GameState, player_id: int):
     # freeze_pending=True. No fim do nosso turno marcamos esses como
     # "amadurecidos" (pending=False) para que descongelem no fim do
     # próximo turno do dono - assim o lacaio perde apenas UM ataque.
+    # IMPORTANTE: não tocar em alvos sustentados por FREEZE_UNTIL_SELF_DIES
+    # (Viní Geladinho), que dependem de freeze_pending continuar True
+    # enquanto a fonte está viva.
     foe_state = state.opponent_of(player_id)
     for m in foe_state.board:
-        if m.frozen and m.freeze_pending:
+        if (m.frozen and m.freeze_pending
+                and not _has_active_freeze_until_source(state, m.instance_id)):
             m.freeze_pending = False
     if foe_state.hero_frozen and getattr(foe_state, "hero_freeze_pending", False):
         foe_state.hero_freeze_pending = False
