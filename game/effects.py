@@ -1560,3 +1560,6 @@ effects_lote26_requested_fixes.register_lote26_requested_fixes_handlers(handler)
 
 from . import effects_lote27_requested_fixes
 effects_lote27_requested_fixes.register_lote27_requested_fixes_handlers(handler)
+
+from . import effects_lote29_features
+effects_lote29_features.register_lote29_features_handlers(handler)

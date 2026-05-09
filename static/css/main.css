@@ -2343,3 +2343,70 @@ input:focus { border-color: var(--gold); }
 
 #hover-card-preview { z-index: 50000; }
 #hover-card-preview .card { width: 360px; height: 520px; }
+
+/* Lote 29: herói incendiado por Viní Flamejante */
+.hero.burning .portrait-wrap {
+  box-shadow:
+    0 0 0 3px rgba(255, 116, 35, 0.75),
+    0 0 18px rgba(255, 85, 20, 0.95),
+    0 0 38px rgba(255, 165, 48, 0.55);
+  animation: heroBurningPulse 0.8s infinite alternate;
+}
+.hero.burning .portrait-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 86%, rgba(255, 220, 80, 0.9), transparent 15%),
+    radial-gradient(circle at 36% 70%, rgba(255, 84, 20, 0.72), transparent 30%),
+    radial-gradient(circle at 64% 68%, rgba(255, 130, 20, 0.72), transparent 32%);
+  mix-blend-mode: screen;
+  animation: heroFlameFlicker 0.22s infinite alternate;
+  z-index: 5;
+}
+@keyframes heroBurningPulse {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.18); }
+}
+@keyframes heroFlameFlicker {
+  from { opacity: 0.62; transform: scale(0.96) translateY(2px); }
+  to { opacity: 1; transform: scale(1.05) translateY(-3px); }
+}
+
+/* Lote 29: anúncio de duas cartas reveladas */
+.opp-play-announce.pair {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.reveal-pair-cards {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  justify-content: center;
+}
+.reveal-pair-card {
+  position: relative;
+  text-align: center;
+}
+.reveal-pair-card .card-anim {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  animation: announceCard 4s ease-out forwards;
+}
+.pair-owner-label {
+  margin-top: 0.35rem;
+  font-family: 'Cinzel', serif;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.85);
+  font-size: 0.85rem;
+}
+.pair-label {
+  position: static;
+  transform: none;
+}

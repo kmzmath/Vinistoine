@@ -555,9 +555,13 @@ function renderDeckPile(player, isOpponent) {
   return wrap;
 }
 
+function isHeroBurning(playerId) {
+  return (state?.public_statuses || []).some(s => s.kind === "hero_burning" && s.player_id === playerId);
+}
+
 function renderHero(player, isActive, isOpponent) {
   const div = document.createElement("div");
-  div.className = "hero" + (isActive ? " active" : "") + (isOpponent ? " opponent" : "");
+  div.className = "hero" + (isActive ? " active" : "") + (isOpponent ? " opponent" : "") + (isHeroBurning(player.player_id) ? " burning" : "");
   div.dataset.targetId = `hero:${player.player_id}`;
   div.dataset.heroOwner = player.player_id;
 
@@ -2335,6 +2339,33 @@ function animateFromDelta(oldS, newS) {
     if (ev.type === "play_card" && ev.player !== myPid) {
       enqueueOpponentPlay(ev);
     }
+    // === Revelação de topo de ambos os decks: Stonks / Abridor de Caixa ===
+    if (ev.type === "reveal_top_each_deck" && ev.cards && ev.cards.length) {
+      enqueueOpponentPlay({
+        type: "reveal_pair",
+        cards: ev.cards,
+        reveal_label: "Cartas reveladas",
+      });
+    }
+    if (ev.type === "discard_lowest_revealed" && ev.card_id) {
+      enqueueOpponentPlay({
+        type: "burn",
+        player: ev.player ?? ev.owner,
+        card_id: ev.card_id,
+        card_name: (allCards[ev.card_id] || {}).name || ev.card_id,
+        reveal_label: "Carta descartada",
+        burned: true,
+      });
+    }
+    if (ev.type === "draw_highest_revealed" && ev.card_id) {
+      enqueueOpponentPlay({
+        type: "draw_revealed",
+        player: ev.player ?? ev.winner,
+        card_id: ev.card_id,
+        card_name: (allCards[ev.card_id] || {}).name || ev.card_id,
+        reveal_label: "Carta comprada",
+      });
+    }
     // === Queima de carta por mão cheia ===
     if (ev.type === "burn" && ev.card_id) {
       enqueueOpponentPlay({
@@ -2466,18 +2497,11 @@ function processOpponentPlayQueue() {
   setTimeout(() => processOpponentPlayQueue(), OPPONENT_PLAY_ANNOUNCE_MS);
 }
 
-function showOpponentPlayCard(ev) {
-  const cardId = ev.card_id;
-  const cardName = ev.card_name || "Carta";
+function buildAnnouncementCard(cardId, extraClass = "") {
   const card = allCards[cardId] || {};
-  console.log("[anim] anúncio de carta jogada pelo oponente:", cardId, cardName);
-
-  const wrap = document.createElement("div");
-  wrap.className = "opp-play-announce";
-
+  const cardName = card.name || cardId || "Carta";
   const inner = document.createElement("div");
-  inner.className = "card-anim" + (ev.burned ? " burned" : "");
-
+  inner.className = `card-anim ${extraClass}`.trim();
   const hasImg = !!cardImages[cardId];
   if (hasImg) {
     inner.style.backgroundImage = `url('${cardImages[cardId]}')`;
@@ -2488,14 +2512,44 @@ function showOpponentPlayCard(ev) {
       ${card.text ? `<div class="text-fallback">${card.text}</div>` : ""}
     `;
   }
+  return inner;
+}
+
+function showOpponentPlayCard(ev) {
+  const wrap = document.createElement("div");
+  wrap.className = "opp-play-announce" + (ev.type === "reveal_pair" ? " pair" : "");
+
+  if (ev.type === "reveal_pair") {
+    const pair = document.createElement("div");
+    pair.className = "reveal-pair-cards";
+    (ev.cards || []).forEach(item => {
+      const box = document.createElement("div");
+      box.className = "reveal-pair-card";
+      box.appendChild(buildAnnouncementCard(item.card_id));
+      const owner = document.createElement("div");
+      owner.className = "pair-owner-label";
+      owner.textContent = item.owner === myPid ? "Seu deck" : "Deck do oponente";
+      box.appendChild(owner);
+      pair.appendChild(box);
+    });
+    const label = document.createElement("div");
+    label.className = "label pair-label";
+    label.textContent = ev.reveal_label || "Cartas reveladas";
+    wrap.appendChild(pair);
+    wrap.appendChild(label);
+    document.body.appendChild(wrap);
+    setTimeout(() => wrap.remove(), OPPONENT_PLAY_ANNOUNCE_MS + 150);
+    return;
+  }
+
+  const cardId = ev.card_id;
+  const inner = buildAnnouncementCard(cardId, ev.burned ? "burned" : "");
   const label = document.createElement("div");
   label.className = "label";
   label.textContent = ev.reveal_label || "Oponente jogou";
   inner.appendChild(label);
-
   wrap.appendChild(inner);
   document.body.appendChild(wrap);
-
   setTimeout(() => wrap.remove(), OPPONENT_PLAY_ANNOUNCE_MS + 150);
 }
 

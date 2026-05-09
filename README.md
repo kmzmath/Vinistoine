@@ -415,7 +415,7 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 
@@ -452,7 +452,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 ### Lote 5 — descarte/compra/revelação e cartas recém-compradas
@@ -474,7 +474,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 
@@ -502,7 +502,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 
@@ -525,7 +525,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 
@@ -549,7 +549,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 
@@ -572,7 +572,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-261 passed, 1 skipped
+268 passed, 1 skipped
 ```
 
 
@@ -639,7 +639,7 @@ Adicionado:
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `261 passed, 1 skipped`
+- `268 passed, 1 skipped`
 
 
 ## Lote 24 — segunda auditoria de cartas
@@ -744,3 +744,18 @@ Correção:
 
 Teste adicionado:
 - `tests/test_lote28_1_loader_fix.py`
+
+
+## Lote 29 — animações e correções Caverna/Dorminhoco
+
+Correções e features:
+- Viní Flamejante agora marca o herói incendiado como status público; a UI exibe moldura de fogo animada no herói afetado.
+- Viní 3 Anos Abridor de Caixa e Stonks agora revelam as duas cartas do topo dos decks na UI antes de descartar/comprar.
+- A carta descartada nas revelações aparece como animação de carta queimando.
+- A carta comprada nas revelações aparece como carta comprada/revelada.
+- Caverna agora concede Eco também aos lacaios aliados na mão, não apenas aos lacaios no campo.
+- Eco concedido por Caverna é removido da mão quando a aura sai do campo.
+- Viní Dorminhoco agora acorda corretamente quando lacaios aliados são jogados da mão, além de lacaios evocados por efeitos.
+
+Teste adicionado:
+- `tests/test_lote29_features_and_bugfixes.py`

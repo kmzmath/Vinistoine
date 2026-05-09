@@ -569,6 +569,20 @@ def apply_continuous_effects(state: GameState):
             tag = eff.get("tag")
             for t in targets:
                 _mark_tag(t, source, tag)
+            # Auras como Caverna: "Seus lacaios possuem Eco" também devem
+            # afetar lacaios aliados enquanto estão na mão.
+            target_mode = (target_desc or {}).get("mode")
+            if target_mode == "FRIENDLY_MINIONS" and tag:
+                marker = f"_AURA_HAND_TAG:{source.instance_id}:{tag}"
+                for ch in state.players[source.owner].hand:
+                    card = effects.get_card(ch.card_id) if hasattr(effects, "get_card") else None
+                    if card is None:
+                        from .cards import get_card as _get_card
+                        card = _get_card(ch.card_id) or {}
+                    if card.get("type") == "MINION" and marker not in ch.extra_tags:
+                        ch.extra_tags.append(marker)
+                        if tag not in ch.extra_tags:
+                            ch.extra_tags.append(tag)
         elif action == "REMOVE_TAG":
             tag = eff.get("tag")
             for t in targets:
@@ -579,6 +593,20 @@ def apply_continuous_effects(state: GameState):
                 _mark_tribe(t, source, tribe)
 
     _remove_aura_markers()
+
+    # Remove marcadores de aura da mão antes de recalcular, inclusive a tag concedida.
+    for p in state.players:
+        for ch in p.hand:
+            aura_tags_to_remove = []
+            for t in list(ch.extra_tags or []):
+                if str(t).startswith("_AURA_HAND_TAG:"):
+                    parts = str(t).split(":", 2)
+                    if len(parts) == 3:
+                        aura_tags_to_remove.append(parts[2])
+            ch.extra_tags = [
+                t for t in (ch.extra_tags or [])
+                if not str(t).startswith("_AURA_HAND_TAG:") and t not in aura_tags_to_remove
+            ]
 
     # Recalcula todas as auras declaradas no JSON.
     for source in list(state.all_minions()):
@@ -642,6 +670,44 @@ def apply_continuous_effects(state: GameState):
                 elif "IMMUNE_WHILE_STEALTH" in m.tags:
                     m.immune = False
                     m.tags.remove("IMMUNE_WHILE_STEALTH")
+
+
+def _advance_friendly_summon_awaken_counters(state: GameState, owner: int, summoned_minion_id: str):
+    """Atualiza contadores de Viní Dorminhoco quando um lacaio aliado é evocado/jogado."""
+    keep_modifiers = []
+    for pm in state.pending_modifiers:
+        if pm.get("kind") != "friendly_summons_awaken_counter":
+            keep_modifiers.append(pm)
+            continue
+        if pm.get("owner") != owner:
+            keep_modifiers.append(pm)
+            continue
+        target_id = pm.get("target_id")
+        if target_id == summoned_minion_id:
+            keep_modifiers.append(pm)
+            continue
+        found = state.find_minion(target_id)
+        if not found:
+            continue
+        target = found[0]
+        if "DORMANT" not in target.tags:
+            continue
+        pm["count"] = int(pm.get("count", 0) or 0) + 1
+        required = int(pm.get("required", 2) or 2)
+        if pm["count"] >= required:
+            try:
+                from .effects_lote25_requested_fixes import wake_dormant_minion
+                wake_dormant_minion(state, target)
+            except Exception:
+                target.tags = [t for t in target.tags if t != "DORMANT"]
+                target.cant_attack = False
+                target.immune = False
+                target.summoning_sick = True
+            state.log_event({"type": "awaken", "minion": target.instance_id,
+                             "reason": "friendly_minions_summoned", "count": pm["count"]})
+            continue
+        keep_modifiers.append(pm)
+    state.pending_modifiers = keep_modifiers
 
 
 def compute_dynamic_cost(state: GameState, p: PlayerState, card_in_hand: CardInHand,
@@ -962,6 +1028,8 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
         p.board.insert(board_position, new_minion)
         state.log_event({"type": "summon", "owner": player_id, "minion": new_minion.to_dict()})
 
+        _advance_friendly_summon_awaken_counters(state, player_id, new_minion.instance_id)
+
         # Dispara ON_FRIENDLY_SUMMON em outros lacaios aliados.
         try:
             from .effects_lote19 import fire_friendly_summon_triggers
@@ -1037,7 +1105,7 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
     # Cada vez que uma carta com ECHO é jogada, uma cópia temporária volta
     # para a mão. A cópia temporária também pode ser jogada novamente enquanto
     # houver mana; todas somem no fim do turno.
-    has_echo = "ECHO" in (card.get("tags") or [])
+    has_echo = "ECHO" in (list(card.get("tags") or []) + list(card_in_hand.extra_tags or []))
     if has_echo:
         if len(p.hand) < MAX_HAND_SIZE:
             new_hand = CardInHand(

@@ -184,6 +184,7 @@ class CardInHand:
             "stats_modified": stats_modified,
             "cost_modified": eff_cost != base_cost,
             "echo_temporary": self.echo_temporary,
+            "extra_tags": list(self.extra_tags or []),
             "hidden": False,
         }
 
@@ -307,6 +308,25 @@ class GameState:
             "waiting": True,
         }
 
+    def _public_statuses(self) -> list[dict]:
+        statuses: list[dict] = []
+        for pm in self.pending_modifiers:
+            if pm.get("kind") == "hero_sot_damage":
+                statuses.append({
+                    "kind": "hero_burning",
+                    "player_id": pm.get("player_id"),
+                    "amount": pm.get("amount", 0),
+                    "timing": pm.get("timing"),
+                })
+            elif pm.get("kind") == "minion_sot_damage":
+                statuses.append({
+                    "kind": "minion_burning",
+                    "minion_id": pm.get("minion_id"),
+                    "amount": pm.get("amount", 0),
+                    "timing": pm.get("timing"),
+                })
+        return statuses
+
     def to_dict(self, viewer_id: int) -> dict:
         """Serializa o estado pra um jogador específico, escondendo info privada."""
         return {
@@ -316,6 +336,7 @@ class GameState:
             "winner": self.winner,
             "phase": self.phase,
             "viewer_id": viewer_id,
+            "public_statuses": self._public_statuses(),
             "mulligan_done": list(self.mulligan_done),
             "pending_choice": self._pending_choice_for_viewer(viewer_id),
             "you": self.players[viewer_id].to_dict(hide_hand=False),
