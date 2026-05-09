@@ -213,7 +213,10 @@ def validate_deck(card_ids: list[str]) -> Optional[str]:
     if len(card_ids) != DECK_SIZE:
         return f"O deck deve ter exatamente {DECK_SIZE} cartas (você tem {len(card_ids)})"
     counts = Counter(card_ids)
-    for cid, cnt in counts.items():
+    # Primeiro varre identidade/tipo (não-coletáveis, IDs inválidos, tipo errado).
+    # Só depois verifica limite de cópias, para que mensagens mais específicas
+    # apareçam antes do simples "Máximo N cópias".
+    for cid in counts:
         if cid in NON_COLLECTIBLE_CARD_IDS:
             return f"Carta não permitida no deck: {cid}"
         card = get_card(cid)
@@ -221,8 +224,10 @@ def validate_deck(card_ids: list[str]) -> Optional[str]:
             return f"Carta inválida: {cid}"
         if card.get("type") not in {"MINION", "SPELL"}:
             return f"Tipo de carta não permitido no deck: {card.get('name', cid)}"
+    for cid, cnt in counts.items():
         max_c = card_max_copies(cid)
         if cnt > max_c:
+            card = get_card(cid)
             return f"Máximo {max_c} cópias de '{card.get('name')}'"
     return None
 
