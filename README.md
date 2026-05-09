@@ -415,7 +415,7 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 
@@ -452,7 +452,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 ### Lote 5 - descarte/compra/revelação e cartas recém-compradas
@@ -474,7 +474,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 
@@ -502,7 +502,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 
@@ -525,7 +525,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 
@@ -549,7 +549,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 
@@ -572,7 +572,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-271 passed, 1 skipped
+272 passed, 1 skipped
 ```
 
 
@@ -639,7 +639,7 @@ Adicionado:
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `271 passed, 1 skipped`
+- `272 passed, 1 skipped`
 
 
 ## Lote 24 - segunda auditoria de cartas
@@ -779,3 +779,14 @@ Correção:
 
 Teste adicionado:
 - `tests/test_lote31_vini_em_chamas.py`
+
+
+## Lote 32 - branding visível
+
+Correções:
+- Login e título da aba agora usam Vinístone.
+- Logo no topo do saguão e deckbuilder agora usa Vinístone.
+- Removido o subtítulo "- um jogo entre amigos -" da tela de login.
+
+Teste adicionado:
+- `tests/test_lote32_branding_cleanup.py`
