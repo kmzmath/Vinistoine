@@ -156,6 +156,45 @@ def test_freeze_dura_apenas_um_turno_do_dono():
     )
 
 
+def test_freeze_until_source_dies_persiste_apos_caster_end_turn():
+    """Regressão Tier 1: a passada extra de freeze no caster's end_turn não
+    pode quebrar Viní Geladinho (FREEZE_UNTIL_SELF_DIES). Enquanto a fonte
+    estiver viva, o congelamento permanece."""
+    state = _new_match()
+    caster = state.current_player
+    owner = 1 - caster
+
+    geladinho = _force_minion(state, caster, attack=1, health=3, ready=True)
+    geladinho.card_id = "vini_geladinho"
+    geladinho.name = "Vini Geladinho"
+    target = _force_minion(state, owner, attack=4, health=4, ready=True)
+
+    target.frozen = True
+    target.freeze_pending = True
+    state.pending_modifiers.append({
+        "kind": "freeze_until_source_dies",
+        "source_minion_id": geladinho.instance_id,
+        "target_id": target.instance_id,
+    })
+
+    # Vários ciclos de turno - alvo deve continuar congelado.
+    for _ in range(3):
+        engine.end_turn(state, state.current_player)
+        engine.end_turn(state, state.current_player)
+        assert target.frozen is True, (
+            "Geladinho está vivo, alvo deveria continuar congelado"
+        )
+
+    # Mata o Geladinho: o sustentado deve liberar.
+    geladinho.health = 0
+    engine.cleanup(state)
+    # _has_active_freeze_until_source é chamado por cleanup (linha final),
+    # libera o alvo imediatamente.
+    assert target.frozen is False, (
+        "Após morte do Geladinho, alvo deveria descongelar"
+    )
+
+
 # ===== engine.py: provocar imune não trava ataques =====
 
 def test_provocar_imune_nao_trava_ataque():
@@ -257,3 +296,41 @@ def test_handler_registrations_guardam_historico():
     assert history is not None and len(history) >= 2, (
         "Esperava ver overrides registrados para auditoria"
     )
+
+
+# ===== server: WS aceita mesma-origem em qualquer host =====
+
+def test_ws_origin_aceita_mesma_origem():
+    """Regressão: a checagem de Origin não pode bloquear deploy quando o
+    domínio não está em ALLOWED_CORS_ORIGINS - basta Origin == Host."""
+    pytest.importorskip("sqlalchemy")
+    from server.main import _is_origin_allowed
+
+    class _FakeWS:
+        def __init__(self, headers):
+            self.headers = headers
+
+    # Render-like: domínio fora de ALLOWED_CORS_ORIGINS, mas Origin == Host.
+    ws = _FakeWS({
+        "origin": "https://vinistoine.onrender.com",
+        "host": "vinistoine.onrender.com",
+    })
+    assert _is_origin_allowed(ws) is True
+
+    # Sem Origin (curl/teste): aceita.
+    ws = _FakeWS({"host": "vinistoine.onrender.com"})
+    assert _is_origin_allowed(ws) is True
+
+    # Cross-origin com host diferente do listado: nega.
+    ws = _FakeWS({
+        "origin": "https://attacker.com",
+        "host": "vinistoine.onrender.com",
+    })
+    assert _is_origin_allowed(ws) is False
+
+    # localhost dev: porta padrão coincide com Host.
+    ws = _FakeWS({
+        "origin": "http://localhost:8000",
+        "host": "localhost:8000",
+    })
+    assert _is_origin_allowed(ws) is True
