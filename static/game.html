@@ -72,25 +72,39 @@ function updateAssetProgress(done, total) {
 function preloadImage(url) {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), 7000);
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
     img.src = url;
   });
 }
 
 async function preloadAllAssets() {
-  const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
-  let done = 0;
-  updateAssetProgress(0, urls.length);
-  for (const url of urls) {
-    await preloadImage(url);
-    done++;
-    updateAssetProgress(done, urls.length);
-  }
-  const overlay = document.getElementById("asset-loading-overlay");
-  if (overlay) {
-    overlay.classList.add("hidden");
-    setTimeout(() => overlay.remove(), 250);
+  try {
+    const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
+    let done = 0;
+    updateAssetProgress(0, urls.length);
+    await Promise.all(urls.map(async (url) => {
+      await preloadImage(url);
+      done++;
+      updateAssetProgress(done, urls.length);
+    }));
+  } catch (e) {
+    console.warn("Falha ao pré-carregar imagens:", e);
+  } finally {
+    updateAssetProgress(1, 1);
+    const overlay = document.getElementById("asset-loading-overlay");
+    if (overlay) {
+      overlay.classList.add("hidden");
+      setTimeout(() => overlay.remove(), 250);
+    }
   }
 }
 
@@ -2651,7 +2665,13 @@ function renderEndOverlay() {
 // ============ Init ============
 Promise.all([loadCards(), loadCardImages()])
   .then(preloadAllAssets)
-  .then(connect);
+  .then(connect)
+  .catch((err) => {
+    console.error("Erro ao inicializar partida:", err);
+    const overlay = document.getElementById("asset-loading-overlay");
+    if (overlay) overlay.remove();
+    toast("Erro ao carregar a partida. Recarregue a página.");
+  });
 </script>
 </body>
 </html>

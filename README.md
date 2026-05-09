@@ -415,7 +415,7 @@ pytest -q
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 
@@ -452,7 +452,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 ### Lote 5 — descarte/compra/revelação e cartas recém-compradas
@@ -474,7 +474,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 
@@ -502,7 +502,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 
@@ -525,7 +525,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 
@@ -549,7 +549,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 
@@ -572,7 +572,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 
@@ -604,7 +604,7 @@ Testes adicionados:
 Resultado local deste lote:
 
 ```text
-259 passed, 1 skipped
+261 passed, 1 skipped
 ```
 
 
@@ -639,7 +639,7 @@ Adicionado:
 - `docs/CARD_AUDIT_LOTE23.md`
 
 Resultado local:
-- `259 passed, 1 skipped`
+- `261 passed, 1 skipped`
 
 
 ## Lote 24 — segunda auditoria de cartas
@@ -733,3 +733,14 @@ Correções:
 
 Teste adicionado:
 - `tests/test_lote28_preload_draw_coin_and_cards.py`
+
+
+## Lote 28.1 — correção do loader de imagens
+
+Correção:
+- O lobby agora chama `preloadCardAssets()` ao iniciar.
+- O preload tem timeout por imagem, então a tela não fica presa em 0% se algum arquivo não responder.
+- A tela de carregamento é removida em `finally`, mesmo se houver erro no preload.
+
+Teste adicionado:
+- `tests/test_lote28_1_loader_fix.py`

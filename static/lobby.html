@@ -95,8 +95,16 @@ function updateAssetProgress(done, total) {
 function preloadImage(url) {
   return new Promise(resolve => {
     const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), 7000);
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
     img.src = url;
   });
 }
@@ -107,14 +115,15 @@ async function preloadCardAssets() {
     const urls = [...Object.values(data.cards || {}), ...Object.values(data.heroes || {})];
     let done = 0;
     updateAssetProgress(0, urls.length);
-    for (const url of urls) {
+    await Promise.all(urls.map(async (url) => {
       await preloadImage(url);
       done++;
       updateAssetProgress(done, urls.length);
-    }
+    }));
   } catch (e) {
     console.warn("Falha ao pré-carregar imagens:", e);
   } finally {
+    updateAssetProgress(1, 1);
     const overlay = document.getElementById("asset-loading-overlay");
     if (overlay) {
       overlay.classList.add("hidden");
@@ -243,9 +252,14 @@ document.getElementById("join-match-btn").onclick = async () => {
 document.getElementById("refresh-btn").onclick = loadMatches;
 document.getElementById("mode-select").onchange = updateModeControls;
 
-loadDecks();
-loadMatches();
-setInterval(loadMatches, 5000);
+(async function initLobby() {
+  await Promise.allSettled([
+    preloadCardAssets(),
+    loadDecks(),
+    loadMatches(),
+  ]);
+  setInterval(loadMatches, 5000);
+})();
 </script>
 </body>
 </html>
