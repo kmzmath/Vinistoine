@@ -247,17 +247,28 @@ def register_lote22_bugfix_handlers(handler):
         from .effects import summon_minion_from_card
         n = int(eff.get("amount", 1) or 1)
         modifications = eff.get("copy_modifications", eff.get("modifications"))
+        # use_base_stats: a cópia ignora buffs/nerfs aplicados ao source_minion
+        # e usa stats/tags/tribos/effects da definição original da carta. Usado
+        # por cartas como Kiwi: "ao morrer evoque um 2/2" - o token deve ser
+        # 2/2 mesmo se o Kiwi original morreu como 4/4.
+        use_base_stats = bool(eff.get("use_base_stats", False))
         for _ in range(n):
-            new_m = summon_minion_from_card(
-                state, source_owner, source_minion.card_id,
-                stat_override=(source_minion.attack, max(0, source_minion.max_health)),
-            )
+            if use_base_stats:
+                new_m = summon_minion_from_card(
+                    state, source_owner, source_minion.card_id,
+                )
+            else:
+                new_m = summon_minion_from_card(
+                    state, source_owner, source_minion.card_id,
+                    stat_override=(source_minion.attack, max(0, source_minion.max_health)),
+                )
             if not new_m:
                 continue
-            new_m.tags = list(source_minion.tags)
-            new_m.tribes = list(source_minion.tribes)
-            new_m.effects = [dict(e) for e in (source_minion.effects or [])]
-            new_m.divine_shield = source_minion.divine_shield or ("DIVINE_SHIELD" in new_m.tags)
+            if not use_base_stats:
+                new_m.tags = list(source_minion.tags)
+                new_m.tribes = list(source_minion.tribes)
+                new_m.effects = [dict(e) for e in (source_minion.effects or [])]
+                new_m.divine_shield = source_minion.divine_shield or ("DIVINE_SHIELD" in new_m.tags)
             _apply_minion_modifications(new_m, modifications)
             try:
                 from .effects_lote17 import register_copy_relationship_for_summon
@@ -461,8 +472,12 @@ def register_lote22_bugfix_handlers(handler):
         for t in targets:
             if isinstance(t, Minion):
                 t.attack = max(0, t.attack - atk)
+                # max_health não pode ir abaixo de 1 (lacaios precisam ter slot
+                # válido para morrer corretamente), mas HEALTH atual pode chegar
+                # a 0/negativo - isso é o que mata um lacaio com 1 hp ao roubar
+                # 1 hp dele (Igão Chave). cleanup() depois remove via health<=0.
                 t.max_health = max(1, t.max_health - hp)
-                t.health = max(1, min(t.health - hp, t.max_health))
+                t.health = min(t.health - hp, t.max_health)
                 if source_minion:
                     source_minion.attack += atk
                     source_minion.max_health += hp

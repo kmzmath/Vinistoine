@@ -41,6 +41,10 @@ let abilityMode = null;    // { minion_id, effect, ability_index }
 let mousePos = { x: 0, y: 0 };
 let hoverPreviewTimer = null;
 let hoverPreviewLastEvent = null;
+// Drag & drop de lacaios da mão para o campo. Quando o jogador segura um
+// minion-card, dragState fica populado e o board mostra um indicador de
+// posição entre os lacaios.
+let dragState = null;
 
 // =========== Network ===========
 async function loadCards() {
@@ -487,10 +491,11 @@ function renderBoard() {
   myStrip.appendChild(myRight);
   arena.appendChild(myStrip);
 
-  // 6) Mão do jogador (cartas reais)
+  // 6) Mão do jogador (cartas reais) - layout em arco leve.
   const myHand = document.createElement("div");
   myHand.className = "zone zone-my-hand hand-row";
   myHand.dataset.zone = "my-hand";
+  const handCards = [];
   for (const c of me.hand) {
     const card = allCards[c.card_id];
     if (!card) continue;
@@ -503,10 +508,36 @@ function renderBoard() {
       show_hand_stats: true,
     });
     const cost = c.effective_cost ?? c.cost_override ?? card.cost ?? 0;
-    if (!isMyTurn || me.mana < cost) el.classList.add("unaffordable");
+    // Tomo Amaldiçoado: o próximo feitiço pode pagar com vida em vez de mana,
+    // então não fica "unaffordable" só por falta de mana.
+    const spellPaysHealth = card.type === "SPELL" && me.next_spell_costs_health === true;
+    const canAfford = me.mana >= cost || (spellPaysHealth && me.hero_health > 0);
+    if (!isMyTurn || !canAfford) el.classList.add("unaffordable");
     else el.classList.add("playable");
+    if (spellPaysHealth) el.classList.add("pays-with-health");
+    el.dataset.handId = c.instance_id;
+    attachHandHoverPreview(el, c);
+    // Drag-and-drop só faz sentido para lacaios jogáveis. Spells e weapons
+    // continuam usando o fluxo de clique.
+    if (isMyTurn && canAfford && card.type === "MINION") {
+      el.classList.add("draggable-minion");
+      el.addEventListener("mousedown", (ev) => onHandCardMouseDown(ev, c, card, el));
+    }
     el.onclick = () => onHandCardClick(c, card);
+    handCards.push({ el, c, card });
     myHand.appendChild(el);
+  }
+  // Curvatura: espalha cartas em um arco leve. Cada carta recebe rotação
+  // proporcional à distância do centro e um pequeno offset vertical.
+  const total = handCards.length;
+  if (total > 1) {
+    handCards.forEach(({ el }, i) => {
+      const t = (i - (total - 1) / 2) / Math.max(1, (total - 1) / 2); // -1..1
+      const rot = t * 7;             // até ±7° nas pontas
+      const dy = Math.abs(t) * 10;   // até 10px abaixando nas pontas
+      el.style.transformOrigin = "50% 110%";
+      el.style.transform = `translateY(${dy}px) rotate(${rot}deg)`;
+    });
   }
   arena.appendChild(myHand);
 
@@ -883,6 +914,191 @@ function showMinionCardPreview(m, ev) {
   moveMinionCardPreview(ev);
 }
 
+// Preview de carta da mão (após hover de 1.5s). Reusa o mesmo overlay do
+// preview de lacaio, mas mostra os stats corretos da CardInHand (com buffs
+// de stat_modifier já aplicados).
+function showHandCardPreview(handCard, ev) {
+  const card = allCards[handCard.card_id] || {};
+  if (!card || !card.id) return;
+  const root = ensureHoverCardRoot();
+  root.innerHTML = "";
+  const previewCard = renderCard(card, handCard.effective_cost ?? handCard.cost_override ?? card.cost ?? 0, {
+    show_hand_stats: true,
+    effective_attack: handCard.effective_attack,
+    effective_health: handCard.effective_health,
+    stats_modified: handCard.stats_modified,
+    cost_modified: handCard.cost_modified,
+  });
+  root.appendChild(previewCard);
+  root.classList.add("visible");
+  moveMinionCardPreview(ev);
+}
+
+function attachHandHoverPreview(el, handCard) {
+  el.addEventListener("mouseenter", (ev) => {
+    hoverPreviewLastEvent = ev;
+    clearTimeout(hoverPreviewTimer);
+    hoverPreviewTimer = setTimeout(() => {
+      // Não mostra preview enquanto arrastando.
+      if (dragState) return;
+      showHandCardPreview(handCard, hoverPreviewLastEvent || ev);
+    }, 1500);
+  });
+  el.addEventListener("mousemove", (ev) => {
+    hoverPreviewLastEvent = ev;
+    moveMinionCardPreview(ev);
+  });
+  el.addEventListener("mouseleave", () => {
+    clearTimeout(hoverPreviewTimer);
+    hoverPreviewTimer = null;
+    hideMinionCardPreview();
+  });
+}
+
+// === Drag-and-drop de lacaios da mão ===
+//
+// Posição escolhida pelo último drop. Injetada em todo `send("play_card", ...)`
+// via sendPlayCard() para que o backend coloque o lacaio onde o jogador
+// soltou a carta. É consumida em qualquer envio de play_card e zerada
+// depois para não vazar para a próxima jogada.
+let pendingPlayPosition = null;
+// Flag curto após mouseup do drag para suprimir o click subsequente que
+// o browser dispara automaticamente.
+let dragJustEnded = false;
+
+function sendPlayCard(payload) {
+  if (pendingPlayPosition !== null && pendingPlayPosition !== undefined) {
+    payload = Object.assign({}, payload, { position: pendingPlayPosition });
+  }
+  pendingPlayPosition = null;
+  send("play_card", payload);
+}
+
+function onHandCardMouseDown(ev, handCard, card, sourceEl) {
+  if (ev.button !== 0) return;                  // só botão esquerdo
+  if (state.current_player !== myPid) return;
+  if (targetingMode || abilityMode || attackingMode) return;
+  ev.preventDefault();
+
+  // Esconde preview imediatamente.
+  clearTimeout(hoverPreviewTimer);
+  hideMinionCardPreview();
+
+  // Cria ghost que segue o cursor.
+  const ghost = sourceEl.cloneNode(true);
+  ghost.classList.add("drag-ghost");
+  ghost.style.transform = "";
+  ghost.style.position = "fixed";
+  ghost.style.pointerEvents = "none";
+  ghost.style.zIndex = "9999";
+  ghost.style.opacity = "0.92";
+  ghost.style.left = "-9999px";
+  document.body.appendChild(ghost);
+  sourceEl.classList.add("dragging-source");
+
+  dragState = {
+    handCard, card, sourceEl, ghost,
+    dropPosition: null,
+  };
+
+  positionDragGhost(ev);
+  updateBoardDropIndicator(ev);
+
+  document.addEventListener("mousemove", onDragMove);
+  document.addEventListener("mouseup", onDragUp);
+  document.addEventListener("keydown", onDragKeydown);
+}
+
+function positionDragGhost(ev) {
+  if (!dragState) return;
+  const g = dragState.ghost;
+  // Centraliza ghost no cursor.
+  const w = g.offsetWidth || 130;
+  const h = g.offsetHeight || 180;
+  g.style.left = `${ev.clientX - w / 2}px`;
+  g.style.top = `${ev.clientY - h / 2}px`;
+}
+
+function clearBoardDropIndicators() {
+  document.querySelectorAll(".drop-indicator").forEach(n => n.remove());
+}
+
+function updateBoardDropIndicator(ev) {
+  const board = document.querySelector('[data-zone="my-field"]');
+  clearBoardDropIndicators();
+  if (!board || !dragState) return;
+  const rect = board.getBoundingClientRect();
+  // Margem vertical generosa: o jogador pode soltar um pouco acima/abaixo.
+  const inside =
+    ev.clientX >= rect.left - 24 && ev.clientX <= rect.right + 24
+    && ev.clientY >= rect.top - 60 && ev.clientY <= rect.bottom + 60;
+  if (!inside) {
+    dragState.dropPosition = null;
+    return;
+  }
+  const minions = Array.from(board.querySelectorAll(".minion"));
+  let pos = minions.length;
+  for (let i = 0; i < minions.length; i++) {
+    const r = minions[i].getBoundingClientRect();
+    if (ev.clientX < r.left + r.width / 2) {
+      pos = i;
+      break;
+    }
+  }
+  dragState.dropPosition = pos;
+  const ind = document.createElement("div");
+  ind.className = "drop-indicator";
+  if (pos < minions.length) {
+    board.insertBefore(ind, minions[pos]);
+  } else {
+    board.appendChild(ind);
+  }
+}
+
+function onDragMove(ev) {
+  if (!dragState) return;
+  positionDragGhost(ev);
+  updateBoardDropIndicator(ev);
+}
+
+function onDragKeydown(ev) {
+  if (ev.key === "Escape") {
+    cancelDrag();
+  }
+}
+
+function cancelDrag() {
+  if (!dragState) return;
+  dragState.ghost.remove();
+  dragState.sourceEl.classList.remove("dragging-source");
+  clearBoardDropIndicators();
+  dragState = null;
+  document.removeEventListener("mousemove", onDragMove);
+  document.removeEventListener("mouseup", onDragUp);
+  document.removeEventListener("keydown", onDragKeydown);
+}
+
+function onDragUp(ev) {
+  if (!dragState) return;
+  const pos = dragState.dropPosition;
+  const { handCard, card } = dragState;
+  cancelDrag();
+  if (pos === null || pos === undefined) {
+    // soltou fora do campo: cancela sem jogar. O browser ainda dispara
+    // um click sintético na carta-fonte; precisa suprimir.
+    dragJustEnded = true;
+    setTimeout(() => { dragJustEnded = false; }, 50);
+    return;
+  }
+  // Marca a posição e segue o fluxo normal de play (que pode abrir
+  // targeting/empower/choose-one antes de enviar play_card). Só depois
+  // ativa o supressor de click - assim a chamada abaixo não é bloqueada.
+  pendingPlayPosition = pos;
+  onHandCardClick(handCard, card);
+  dragJustEnded = true;
+  setTimeout(() => { dragJustEnded = false; }, 50);
+}
+
 function moveMinionCardPreview(ev) {
   const root = document.getElementById("hover-card-preview");
   if (!root || !root.classList.contains("visible")) return;
@@ -1192,7 +1408,7 @@ function playHandCardWithMode(handCard, card, opts = {}) {
     render();
     return;
   }
-  send("play_card", { hand_id: handCard.instance_id, empowered: !!opts.empowered });
+  sendPlayCard({ hand_id: handCard.instance_id, empowered: !!opts.empowered });
 }
 
 function showEmpowerModal(handCard, card) {
@@ -1242,9 +1458,14 @@ function showEmpowerModal(handCard, card) {
 
 
 function onHandCardClick(handCard, card) {
+  // Ignora o click sintético que vem logo depois de um drag.
+  if (dragJustEnded) return;
   if (state.current_player !== myPid) { toast("Não é seu turno"); return; }
   const cost = handCard.effective_cost ?? handCard.cost_override ?? card.cost ?? 0;
-  if (state.you.mana < cost) { toast("Mana insuficiente"); return; }
+  // Tomo Amaldiçoado libera clique mesmo sem mana, pagando vida.
+  const spellPaysHealth = card.type === "SPELL" && state.you.next_spell_costs_health === true;
+  if (state.you.mana < cost && !spellPaysHealth) { toast("Mana insuficiente"); return; }
+  if (spellPaysHealth && state.you.hero_health <= cost) { toast("Vida insuficiente para pagar este feitiço"); return; }
   if (card.type === "MINION" && state.you.board.length >= 7) { toast("Campo cheio"); return; }
 
   // === CHOOSE_ONE ===
@@ -1991,7 +2212,7 @@ function showChooseOneModal(handCard, card, chooseEffect) {
         toast("Escolha um alvo (ESC para cancelar)");
         render();
       } else {
-        send("play_card", { hand_id: handCard.instance_id, chose_index: idx });
+        sendPlayCard({ hand_id: handCard.instance_id, chose_index: idx });
       }
     };
     optsBox.appendChild(btn);
@@ -2144,7 +2365,7 @@ function showAdjacentDirectionModal(payload) {
   left.textContent = "Esquerda";
   left.onclick = () => {
     payload.direction = "LEFT";
-    send("play_card", payload);
+    sendPlayCard(payload);
     clearPendingChoiceOverlay();
   };
   row.appendChild(left);
@@ -2154,7 +2375,7 @@ function showAdjacentDirectionModal(payload) {
   right.textContent = "Direita";
   right.onclick = () => {
     payload.direction = "RIGHT";
-    send("play_card", payload);
+    sendPlayCard(payload);
     clearPendingChoiceOverlay();
   };
   row.appendChild(right);
@@ -2197,7 +2418,7 @@ function onTargetClick(targetId) {
       showAdjacentDirectionModal(payload);
       return;
     }
-    send("play_card", payload);
+    sendPlayCard(payload);
     targetingMode = null;
     return;
   }
@@ -2222,6 +2443,10 @@ function cancelModes() {
   targetingMode = null;
   attackingMode = null;
   abilityMode = null;
+  // Cancela qualquer posição de drop pendente para que ela não vaze para
+  // a próxima jogada (caso o jogador tenha começado um drag de minion com
+  // battlecry e cancelou no meio do targeting via ESC).
+  pendingPlayPosition = null;
   removeAimLine();
 }
 
