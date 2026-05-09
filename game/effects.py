@@ -365,22 +365,23 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
         minion.cant_attack = True
         minion.immune = True
         minion.summoning_sick = True
-        awaken_by_summon = next(
+        # Aceita qualquer effect com trigger FRIENDLY_MINIONS_SUMMONED, não só
+        # AWAKEN. O próprio dispatch do trigger respeita conditions/targets.
+        fms_threshold = next(
             (
                 int(e.get("amount", 2) or 2)
                 for e in (minion.effects or [])
                 if e.get("trigger") == "FRIENDLY_MINIONS_SUMMONED"
-                and e.get("action") == "AWAKEN"
             ),
             None,
         )
-        if awaken_by_summon is not None:
+        if fms_threshold is not None:
             state.pending_modifiers.append({
                 "kind": "friendly_summons_awaken_counter",
                 "target_id": minion.instance_id,
                 "owner": owner,
                 "count": 0,
-                "required": awaken_by_summon,
+                "required": fms_threshold,
             })
 
     p.board.insert(position, minion)
@@ -407,18 +408,27 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
             continue
         target = found[0]
         if "DORMANT" not in target.tags:
+            # Alvo não está mais dormente (acordou por outra rota): descarta o
+            # contador, em vez de mantê-lo flutuando para sempre.
             continue
         pm["count"] = int(pm.get("count", 0) or 0) + 1
         required = int(pm.get("required", 2) or 2)
         if pm["count"] >= required:
-            if "DORMANT" in target.tags:
-                target.tags.remove("DORMANT")
-            target.cant_attack = False
-            target.immune = False
-            target.summoning_sick = True
-            state.log_event({"type": "awaken", "minion": target.instance_id,
-                             "reason": "friendly_minions_summoned",
-                             "count": pm["count"]})
+            # Threshold batido: dispara FRIENDLY_MINIONS_SUMMONED como trigger
+            # real para que o handler de AWAKEN (com conditions/target/etc do
+            # JSON) decida o que fazer. Antes, o desperto era inline e ignorava
+            # tudo isso.
+            fire_minion_trigger(
+                state, target, "FRIENDLY_MINIONS_SUMMONED",
+                extra_ctx={
+                    "summoned_minion": minion.instance_id,
+                    "summoned_card_id": minion.card_id,
+                    "fms_count": pm["count"],
+                    "fms_required": required,
+                },
+            )
+            state.log_event({"type": "friendly_minions_summoned_threshold",
+                             "minion": target.instance_id, "count": pm["count"]})
             continue
         keep_modifiers.append(pm)
     state.pending_modifiers = keep_modifiers
@@ -430,6 +440,44 @@ def summon_minion_from_card(state: GameState, owner: int, card_id: str,
         pass
 
     return minion
+
+
+def grant_temporary_stat_buff(state: GameState, minion: Minion, attack: int = 0,
+                              health: int = 0,
+                              owner_for_revert: Optional[int] = None) -> None:
+    """Aplica +ataque/+vida que se reverte no fim do turno do dono indicado.
+
+    Diferente das tags _AURA_STAT (recalculadas a cada apply_continuous_effects),
+    este buff é stat bruto: somamos no momento e registramos um pending_modifier
+    `temporary_stat_buff` consumido em `engine._remove_temporary_tags_at_end_of_turn`.
+    Use isto para "ganhe +X de ataque até o fim do turno" e similares.
+    """
+    atk = int(attack or 0)
+    hp = int(health or 0)
+    if atk == 0 and hp == 0:
+        return
+    if owner_for_revert is None:
+        owner_for_revert = minion.owner
+    if atk:
+        minion.attack = max(0, minion.attack + atk)
+    if hp > 0:
+        minion.max_health += hp
+        minion.health += hp
+    elif hp < 0:
+        minion.max_health = max(1, minion.max_health + hp)
+        minion.health = min(minion.health, minion.max_health)
+    state.pending_modifiers.append({
+        "kind": "temporary_stat_buff",
+        "owner": owner_for_revert,
+        "minion_id": minion.instance_id,
+        "attack": atk,
+        "health": hp,
+    })
+    state.log_event({
+        "type": "temporary_stat_buff",
+        "minion": minion.instance_id,
+        "attack": atk, "health": hp,
+    })
 
 
 # ======================= HANDLERS DE AÇÃO =======================

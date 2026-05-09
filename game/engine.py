@@ -417,6 +417,33 @@ def _remove_temporary_tags_at_end_of_turn(state: GameState, player_id: int):
                                      "minion": minion.instance_id, "tag": tag})
             continue
 
+        # Buff de stats temporário: "+X ataque/vida este turno". Reverte stat
+        # bruto registrando exatamente o quanto foi adicionado, evitando que
+        # buffs efêmeros virem permanentes.
+        if kind == "temporary_stat_buff" and pm.get("owner") == player_id:
+            found = state.find_minion(pm.get("minion_id"))
+            if found:
+                minion, _ = found
+                atk = int(pm.get("attack", 0) or 0)
+                hp = int(pm.get("health", 0) or 0)
+                if atk:
+                    minion.attack = max(0, minion.attack - atk)
+                if hp > 0:
+                    new_max = max(1, minion.max_health - hp)
+                    minion.health = min(minion.health, new_max)
+                    minion.max_health = new_max
+                elif hp < 0:
+                    minion.max_health = max(1, minion.max_health - hp)
+                    minion.health = minion.health - hp
+                    if minion.health > minion.max_health:
+                        minion.health = minion.max_health
+                state.log_event({
+                    "type": "temporary_stat_buff_reverted",
+                    "minion": minion.instance_id,
+                    "attack": atk, "health": hp,
+                })
+            continue
+
         # Efeito de Zé Droguinha: dura até o fim do próximo turno do oponente
         # (ou do turno definido em remove_on_turn_owner).
         if kind == "temporary_spell_target_immunity" and pm.get("remove_on_turn_owner") == player_id:
@@ -1963,6 +1990,13 @@ def cleanup(state: GameState):
             except Exception:
                 pass
 
+            # Captura posição original ANTES de remover, para que deathrattles
+            # possam reposicionar tokens (ex: "evoque um lacaio onde eu morri").
+            try:
+                death_index = owner_p.board.index(minion)
+            except ValueError:
+                death_index = None
+
             if minion in owner_p.board:
                 # Lamboia Religioso: substitui morte por embaralhar no deck.
                 try:
@@ -1993,9 +2027,13 @@ def cleanup(state: GameState):
                 "owner": owner,
                 "name": minion.name,
             })
-            state.log_event({"type": "death", "minion": minion.instance_id, "owner": owner})
-            # ON_DEATH
-            effects.fire_minion_trigger(state, minion, "ON_DEATH")
+            state.log_event({"type": "death", "minion": minion.instance_id,
+                             "owner": owner, "death_index": death_index})
+            # ON_DEATH com death_index disponível em ctx.
+            effects.fire_minion_trigger(
+                state, minion, "ON_DEATH",
+                extra_ctx={"death_index": death_index, "death_owner": owner},
+            )
 
     # Atualiza efeitos sustentados por lacaios que podem ter morrido/sumido.
     for m in list(state.all_minions()):
