@@ -133,6 +133,75 @@ input:focus { border-color: var(--gold); }
   margin: 0 auto;
   padding: 2rem 1.5rem;
 }
+
+/* ====== Shell SPA: Saguão ↔ Decks ======
+   As duas views moram simultaneamente no DOM. Em qualquer momento só uma
+   tem `.active` (display: block); a outra fica oculta. Trocar de view é só
+   uma troca de classe + animação CSS — o áudio global não sofre nenhuma
+   pausa porque a página nunca é recarregada. */
+.view-stack {
+  position: relative;
+  overflow-x: hidden;
+}
+.view {
+  display: none;
+  width: 100%;
+}
+.view.active {
+  display: block;
+  animation: vooshIn 320ms cubic-bezier(0.16, 0.84, 0.32, 1.02);
+}
+/* View saindo: fica absoluta sobre a stack pra não empurrar o conteúdo da
+   nova view durante a animação. */
+.view.exiting {
+  display: block;
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  pointer-events: none;
+  animation: vooshOut 300ms cubic-bezier(0.64, 0.04, 0.86, 0.36) forwards;
+}
+.view.from-right.active { animation-name: vooshInFromRight; }
+.view.from-left.active  { animation-name: vooshInFromLeft; }
+.view.enter-center.active { animation-name: vooshIn; }
+.view.exiting.exit-left  { animation-name: vooshOutToLeft; }
+.view.exiting.exit-right { animation-name: vooshOutToRight; }
+
+@keyframes vooshIn {
+  from { transform: translateY(8px) scale(0.985); opacity: 0; filter: blur(2px); }
+  to   { transform: translateY(0)   scale(1);     opacity: 1; filter: blur(0); }
+}
+@keyframes vooshInFromRight {
+  0%   { transform: translateX(80px) scale(0.97); opacity: 0; filter: blur(3px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { transform: translateX(0)    scale(1);    opacity: 1; }
+}
+@keyframes vooshInFromLeft {
+  0%   { transform: translateX(-80px) scale(0.97); opacity: 0; filter: blur(3px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { transform: translateX(0)     scale(1);    opacity: 1; }
+}
+@keyframes vooshOutToLeft {
+  from { transform: translateX(0)    scale(1);    opacity: 1; filter: blur(0); }
+  to   { transform: translateX(-90px) scale(0.97); opacity: 0; filter: blur(3px); }
+}
+@keyframes vooshOutToRight {
+  from { transform: translateX(0)    scale(1);    opacity: 1; filter: blur(0); }
+  to   { transform: translateX(90px) scale(0.97); opacity: 0; filter: blur(3px); }
+}
+@keyframes vooshOut {
+  from { transform: translateY(0) scale(1); opacity: 1; }
+  to   { transform: translateY(-6px) scale(0.99); opacity: 0; }
+}
+/* Item da navegação no header também ganha um brilho rápido pra reforçar
+   a sensação de mudança. */
+.topbar .nav a.active {
+  animation: navTabPulse 320ms ease-out;
+}
+@keyframes navTabPulse {
+  0%   { text-shadow: 0 0 0 transparent; }
+  40%  { text-shadow: 0 0 12px rgba(245, 201, 105, 0.85); }
+  100% { text-shadow: 0 0 0 transparent; }
+}
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);

@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vinístone</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <script src="/static/js/audio.js" defer></script>
+</head>
+<body>
+  <!-- Loader inicial: cobre tudo enquanto buscamos cartas + imagens + decks. Some
+       depois do primeiro init. Como ambas as views já estão no DOM, a partir daí
+       a troca Saguão ↔ Decks é só uma classe (zero requisição, zero pausa de áudio). -->
+  <div id="asset-loading-overlay" class="asset-loading-overlay lobby-loader">
+    <div class="asset-loading-box">
+      <h2>Carregando arquivos</h2>
+      <div class="asset-loading-text" id="asset-loading-text">Preparando imagens das cartas...</div>
+      <div class="asset-progress"><div id="asset-progress-fill"></div></div>
+      <div class="asset-loading-count" id="asset-loading-count">0%</div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="logo">Vinístone</div>
+    <nav class="nav" id="main-nav">
+      <a href="/lobby" data-route="lobby">Saguão</a>
+      <a href="/deckbuilder" data-route="decks">Decks</a>
+    </nav>
+    <span class="muted" id="user-label"></span>
+    <button class="btn small" id="logout-btn">Sair</button>
+  </header>
+
+  <main class="view-stack" id="view-stack">
+    <!-- ================== SAGUÃO ================== -->
+    <section class="view" data-view="lobby">
+      <div class="container">
+        <h2>Iniciar uma Partida</h2>
+        <div class="panel" style="margin-bottom: 1.5rem;">
+          <div class="row">
+            <label>Modo:</label>
+            <select id="mode-select">
+              <option value="constructed">Deck construído</option>
+              <option value="random">Decks aleatórios</option>
+            </select>
+            <label id="deck-label">Deck:</label>
+            <select id="deck-select"></select>
+            <button class="btn primary" id="create-match-btn">Criar Sala</button>
+            <span class="spacer"></span>
+            <input type="text" id="join-code" placeholder="Código da sala" style="width: 140px; text-transform:uppercase;" />
+            <button class="btn" id="join-match-btn">Entrar</button>
+          </div>
+          <div class="sep"></div>
+          <div class="muted" id="status"></div>
+        </div>
+
+        <h2>Salas Abertas</h2>
+        <div class="panel">
+          <div id="match-list"></div>
+          <div class="sep"></div>
+          <button class="btn small" id="refresh-btn">Atualizar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================== DECKS ================== -->
+    <section class="view" data-view="decks">
+      <div class="container">
+        <div class="row" style="margin-bottom: 1rem;">
+          <h2 style="margin: 0;">Construtor de Decks</h2>
+          <span class="spacer"></span>
+          <input type="text" id="deck-name" placeholder="Nome do deck" maxlength="60" />
+          <button class="btn primary" id="save-btn">Salvar Deck</button>
+          <button class="btn small" id="new-btn">Novo</button>
+        </div>
+
+        <div class="panel" style="margin-bottom: 1rem;">
+          <h3 style="margin-top: 0;">Decks Salvos</h3>
+          <div id="saved-decks"></div>
+        </div>
+
+        <div class="deckbuilder">
+          <div>
+            <div class="filters" id="filters"></div>
+            <input type="text" id="search-input" placeholder="Buscar por nome ou texto..." style="width: 100%; margin-bottom: 0.8rem;" />
+            <div class="card-grid" id="card-grid"></div>
+          </div>
+
+          <div class="deck-side">
+            <div class="row">
+              <h3 style="margin: 0;">Deck Atual</h3>
+              <span class="spacer"></span>
+              <span id="deck-counter" style="font-family: 'Cinzel'; color: var(--gold);">0/30</span>
+            </div>
+            <div class="sep" style="margin: 0.5rem 0;"></div>
+            <div class="deck-list" id="deck-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+// =========================================================================
+// Shell unificado Saguão ↔ Decks (mesmo HTML p/ /lobby e /deckbuilder).
+// Sem reload: trocar de aba é uma classe CSS + history.pushState. Por isso
+// a música do <audio> global (gerenciado por /static/js/audio.js) não para
+// nem reseta entre as duas - some "engasgada".
+// =========================================================================
+
+const token = localStorage.getItem("auth_token");
+const nickname = localStorage.getItem("nickname");
+if (!token) window.location.href = "/";
+
+document.getElementById("user-label").textContent = nickname || "?";
+document.getElementById("logout-btn").onclick = () => {
+  localStorage.clear();
+  window.location.href = "/";
+};
+
+// ---------- helpers compartilhados ----------
+async function api(path, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), "X-Auth-Token": token, "Content-Type": "application/json" };
+  const r = await fetch(path, opts);
+  if (r.status === 401) { localStorage.clear(); window.location.href = "/"; return; }
+  return r;
+}
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
+// ---------- estado global ----------
+let allCards = [];      // catálogo completo (decks view filtra/lista)
+let cardImages = {};    // card_id -> url
+let heroImages = {};    // username -> url
+let savedDecks = [];    // decks do usuário (compartilhado)
+
+// estado do construtor
+let currentDeck = [];
+let currentDeckId = null;
+let currentFilter = "ALL";
+let currentSearch = "";
+
+// ---------- loader de assets ----------
+function updateAssetProgress(done, total) {
+  const pct = total ? Math.round((done / total) * 100) : 100;
+  const fill = document.getElementById("asset-progress-fill");
+  const count = document.getElementById("asset-loading-count");
+  const text = document.getElementById("asset-loading-text");
+  if (fill) fill.style.width = `${pct}%`;
+  if (count) count.textContent = `${pct}%`;
+  if (text) text.textContent = total ? `Carregando ${done}/${total} imagens...` : "Nenhuma imagem para carregar.";
+}
+function preloadImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let done = false;
+    const finish = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
+    const timer = setTimeout(finish, 7000);
+    img.onload = finish;
+    img.onerror = finish;
+    img.src = url;
+  });
+}
+async function preloadCardAssets() {
+  const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
+  if (!urls.length) { updateAssetProgress(1, 1); return; }
+  let done = 0;
+  updateAssetProgress(0, urls.length);
+  await Promise.all(urls.map(async (u) => {
+    await preloadImage(u);
+    done++;
+    updateAssetProgress(done, urls.length);
+  }));
+}
+function hideLoader() {
+  updateAssetProgress(1, 1);
+  const overlay = document.getElementById("asset-loading-overlay");
+  if (overlay) {
+    overlay.classList.add("hidden");
+    setTimeout(() => overlay.remove(), 250);
+  }
+}
+
+// ---------- fetchers compartilhados ----------
+async function fetchCards() {
+  const r = await fetch("/api/cards");
+  allCards = await r.json();
+}
+async function fetchCardImages() {
+  try {
+    const r = await fetch("/api/card-images");
+    if (!r.ok) return;
+    const data = await r.json();
+    cardImages = data.cards || {};
+    heroImages = data.heroes || {};
+  } catch (e) { /* segue sem imagens */ }
+}
+async function fetchDecks() {
+  const r = await api("/api/decks");
+  savedDecks = await r.json();
+}
+// Atualiza ambas as views quando a lista de decks muda (salvar/excluir).
+async function refreshDecksEverywhere() {
+  await fetchDecks();
+  renderLobbyDeckSelect();
+  renderDecksSavedList();
+}
+
+// ===============================================================
+// VIEW: SAGUÃO
+// ===============================================================
+function currentMode() {
+  return document.getElementById("mode-select").value || "constructed";
+}
+function updateLobbyModeControls() {
+  const mode = currentMode();
+  const hasDeck = savedDecks.length > 0;
+  const deckSelect = document.getElementById("deck-select");
+  const deckLabel = document.getElementById("deck-label");
+  const createBtn = document.getElementById("create-match-btn");
+  const joinBtn = document.getElementById("join-match-btn");
+  const status = document.getElementById("status");
+
+  if (mode === "random") {
+    deckSelect.disabled = true;
+    deckLabel.style.opacity = "0.45";
+    createBtn.disabled = false;
+    joinBtn.disabled = false;
+    status.innerHTML = "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";
+    return;
+  }
+  deckSelect.disabled = false;
+  deckLabel.style.opacity = "1";
+  createBtn.disabled = !hasDeck;
+  joinBtn.disabled = !hasDeck;
+  if (!hasDeck) {
+    status.textContent = "Você precisa montar um deck para jogar no modo construído. ";
+    const a = document.createElement("a");
+    a.href = "/deckbuilder";
+    a.dataset.route = "decks";
+    a.textContent = "Ir para o Deck Builder →";
+    a.addEventListener("click", (e) => { e.preventDefault(); navigate("decks"); });
+    status.appendChild(a);
+  } else {
+    status.textContent = "Modo Deck construído: escolha seu deck salvo para criar ou entrar em uma sala.";
+  }
+}
+function renderLobbyDeckSelect() {
+  const sel = document.getElementById("deck-select");
+  sel.innerHTML = "";
+  if (savedDecks.length === 0) {
+    sel.innerHTML = '<option value="">- Nenhum deck salvo -</option>';
+  } else {
+    for (const d of savedDecks) {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = `${d.name} (${d.cards.length} cartas)`;
+      sel.appendChild(opt);
+    }
+  }
+  updateLobbyModeControls();
+}
+async function loadMatches() {
+  const r = await api("/api/match/list");
+  if (!r) return;
+  const matches = await r.json();
+  const box = document.getElementById("match-list");
+  if (!box) return;
+  if (matches.length === 0) {
+    box.innerHTML = '<div class="faint">Nenhuma sala aberta. Crie a sua e compartilhe o código com um amigo.</div>';
+    return;
+  }
+  box.innerHTML = "";
+  for (const m of matches) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.padding = "0.5em 0";
+    row.style.borderBottom = "1px solid var(--line)";
+    row.innerHTML = `<span style="font-family: 'Cinzel'; color: var(--gold-bright);">${escapeHtml(m.host)}</span>
+                     <span class="muted" style="margin-left: 0.75rem;">${escapeHtml(m.mode_label || "Deck construído")}</span>
+                     <span class="spacer"></span>
+                     <span style="font-family: 'JetBrains Mono'">${escapeHtml(m.code)}</span>`;
+    box.appendChild(row);
+  }
+}
+function setupLobbyHandlers() {
+  document.getElementById("create-match-btn").onclick = async () => {
+    const mode = currentMode();
+    const deckId = parseInt(document.getElementById("deck-select").value);
+    const payload = { mode };
+    if (mode === "constructed") {
+      if (!deckId) return;
+      payload.deck_id = deckId;
+    }
+    const r = await api("/api/match/create", { method: "POST", body: JSON.stringify(payload) });
+    if (!r) return;
+    const data = await r.json();
+    if (!r.ok) { alert(data.detail || "Erro"); return; }
+    localStorage.setItem("current_match", data.match_id);
+    localStorage.setItem("current_code", data.code);
+    alert(`Sala criada! Compartilhe este código com seu oponente: ${data.code}`);
+    window.location.href = `/play?match=${data.match_id}`;
+  };
+  document.getElementById("join-match-btn").onclick = async () => {
+    const code = document.getElementById("join-code").value.trim().toUpperCase();
+    const mode = currentMode();
+    const deckId = parseInt(document.getElementById("deck-select").value);
+    if (!code) return;
+    const payload = { code };
+    if (mode === "constructed" && deckId) payload.deck_id = deckId;
+    const r = await api("/api/match/join", { method: "POST", body: JSON.stringify(payload) });
+    if (!r) return;
+    const data = await r.json();
+    if (!r.ok) { alert(data.detail || "Erro"); return; }
+    localStorage.setItem("current_match", data.match_id);
+    window.location.href = `/play?match=${data.match_id}`;
+  };
+  document.getElementById("refresh-btn").onclick = loadMatches;
+  document.getElementById("mode-select").onchange = updateLobbyModeControls;
+}
+
+// ===============================================================
+// VIEW: DECKS
+// ===============================================================
+const TYPES = [
+  { id: "ALL", label: "Todas" },
+  { id: "MINION", label: "Lacaios" },
+  { id: "SPELL", label: "Feitiços" },
+  { id: "C0", label: "0" }, { id: "C1", label: "1" }, { id: "C2", label: "2" },
+  { id: "C3", label: "3" }, { id: "C4", label: "4" }, { id: "C5", label: "5" },
+  { id: "C6", label: "6" }, { id: "C7+", label: "7+" },
+];
+const TAG_SHORT = {
+  TAUNT: "PROVOCAR", CHARGE: "INVESTIDA", RUSH: "AVANÇO",
+  DIVINE_SHIELD: "ESCUDO", LIFESTEAL: "VAMPIR.", POISONOUS: "VENENO",
+  STEALTH: "FURTIVO", WINDFURY: "FÚRIA", BATTLECRY: "GRITO",
+  DEATHRATTLE: "MORTE", CHOOSE_ONE: "ESCOLHA", COMBO: "COMBO",
+  ECHO: "ECO", FREEZE: "CONGELAR",
+};
+function tagShort(t) { return TAG_SHORT[t] || t.slice(0, 8); }
+function renderFilters() {
+  const f = document.getElementById("filters");
+  f.innerHTML = "";
+  for (const t of TYPES) {
+    const btn = document.createElement("div");
+    btn.className = "filter-chip" + (currentFilter === t.id ? " active" : "");
+    btn.textContent = t.label;
+    btn.onclick = () => { currentFilter = t.id; renderFilters(); renderCardGrid(); };
+    f.appendChild(btn);
+  }
+}
+function passesFilter(c) {
+  if (currentFilter === "ALL") return true;
+  if (currentFilter === "MINION") return c.type === "MINION";
+  if (currentFilter === "SPELL") return c.type === "SPELL";
+  if (currentFilter.startsWith("C")) {
+    if (currentFilter === "C7+") return (c.cost || 0) >= 7;
+    const n = parseInt(currentFilter.slice(1));
+    return (c.cost || 0) === n;
+  }
+  return true;
+}
+function passesSearch(c) {
+  if (!currentSearch) return true;
+  const s = currentSearch.toLowerCase();
+  return (c.name || "").toLowerCase().includes(s) || (c.text || "").toLowerCase().includes(s);
+}
+function cardElement(c) {
+  const div = document.createElement("div");
+  div.dataset.cardId = c.id;
+  const hasImg = !!cardImages[c.id];
+  if (hasImg) {
+    div.className = "card full-art " + (c.type === "SPELL" ? "spell" : "minion");
+    div.style.backgroundImage = `url('${cardImages[c.id]}')`;
+    div.title = `${c.name}\n${c.text || ""}`;
+    return div;
+  }
+  div.className = "card " + (c.type === "SPELL" ? "spell" : "minion");
+  div.innerHTML = `
+    <div class="cost">${c.cost ?? 0}</div>
+    <div class="name">${escapeHtml(c.name)}</div>
+    <div class="text">${escapeHtml(c.text || "")}</div>
+    <div class="tags">${(c.tags || []).slice(0, 4).map(t => `<span class="tag">${tagShort(t)}</span>`).join("")}</div>
+    ${c.type === "MINION"
+      ? `<div class="footer"><div class="atk">${c.attack ?? 0}</div><div class="hp">${c.health ?? 0}</div></div>`
+      : `<div class="footer" style="height:32px;"></div>`}
+  `;
+  return div;
+}
+function renderCardGrid() {
+  const grid = document.getElementById("card-grid");
+  grid.innerHTML = "";
+  const filtered = allCards.filter(c => passesFilter(c) && passesSearch(c));
+  filtered.sort((a, b) => (a.cost || 0) - (b.cost || 0) || (a.name || "").localeCompare(b.name || ""));
+  for (const c of filtered) {
+    const el = cardElement(c);
+    el.addEventListener("click", () => addToDeck(c.id));
+    grid.appendChild(el);
+  }
+}
+function addToDeck(cardId) {
+  if (currentDeck.length >= 30) { toast("Deck cheio (30 cartas)"); return; }
+  const count = currentDeck.filter(x => x === cardId).length;
+  if (count >= 2) { toast("Máximo 2 cópias de cada carta"); return; }
+  currentDeck.push(cardId);
+  renderDeck();
+}
+function removeFromDeck(cardId) {
+  const idx = currentDeck.lastIndexOf(cardId);
+  if (idx >= 0) currentDeck.splice(idx, 1);
+  renderDeck();
+}
+function renderDeck() {
+  document.getElementById("deck-counter").textContent = `${currentDeck.length}/30`;
+  const list = document.getElementById("deck-list");
+  list.innerHTML = "";
+  const counts = {};
+  for (const cid of currentDeck) counts[cid] = (counts[cid] || 0) + 1;
+  const entries = Object.entries(counts).map(([cid, q]) => ({
+    cid, qty: q, card: allCards.find(x => x.id === cid),
+  })).filter(e => e.card);
+  entries.sort((a, b) => (a.card.cost || 0) - (b.card.cost || 0) || a.card.name.localeCompare(b.card.name));
+  for (const e of entries) {
+    const row = document.createElement("div");
+    row.className = "deck-row";
+    row.innerHTML = `
+      <div class="cost-badge">${e.card.cost ?? 0}</div>
+      <div class="nm">${escapeHtml(e.card.name)}</div>
+      <div class="qty">×${e.qty}</div>
+    `;
+    row.title = e.card.text || "";
+    row.onclick = () => removeFromDeck(e.cid);
+    list.appendChild(row);
+  }
+}
+function renderDecksSavedList() {
+  const box = document.getElementById("saved-decks");
+  if (!box) return;
+  if (savedDecks.length === 0) {
+    box.innerHTML = '<div class="faint">Nenhum deck salvo ainda.</div>';
+    return;
+  }
+  box.innerHTML = "";
+  for (const d of savedDecks) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.padding = "0.4em 0";
+    row.style.borderBottom = "1px solid var(--line)";
+    row.innerHTML = `
+      <span style="font-family: 'Cinzel'; color: var(--gold-bright); flex: 1;">${escapeHtml(d.name)}</span>
+      <span class="muted">${d.cards.length} cartas</span>
+    `;
+    const editBtn = document.createElement("button");
+    editBtn.className = "btn small";
+    editBtn.textContent = "Editar";
+    editBtn.onclick = () => loadDeckIntoEditor(d);
+    row.appendChild(editBtn);
+    const delBtn = document.createElement("button");
+    delBtn.className = "btn small danger";
+    delBtn.textContent = "Excluir";
+    delBtn.onclick = async () => {
+      if (!confirm(`Excluir o deck "${d.name}"?`)) return;
+      await api(`/api/decks/${d.id}`, { method: "DELETE" });
+      await refreshDecksEverywhere();
+    };
+    row.appendChild(delBtn);
+    box.appendChild(row);
+  }
+}
+function loadDeckIntoEditor(d) {
+  currentDeck = [...d.cards];
+  currentDeckId = d.id;
+  document.getElementById("deck-name").value = d.name;
+  renderDeck();
+  window.scrollTo(0, 0);
+}
+function setupDecksHandlers() {
+  document.getElementById("save-btn").onclick = async () => {
+    if (currentDeck.length !== 30) { toast(`Deck precisa de 30 cartas (tem ${currentDeck.length})`); return; }
+    const name = document.getElementById("deck-name").value.trim() || "Deck Sem Nome";
+    const r = await api("/api/decks", { method: "POST", body: JSON.stringify({ name, cards: currentDeck }) });
+    if (!r) return;
+    const data = await r.json();
+    if (!r.ok) { toast(data.detail || "Erro ao salvar"); return; }
+    toast("Deck salvo!");
+    await refreshDecksEverywhere();
+  };
+  document.getElementById("new-btn").onclick = () => {
+    currentDeck = [];
+    currentDeckId = null;
+    document.getElementById("deck-name").value = "";
+    renderDeck();
+  };
+  document.getElementById("search-input").addEventListener("input", (e) => {
+    currentSearch = e.target.value;
+    renderCardGrid();
+  });
+}
+
+// ===============================================================
+// ROUTER + animação "voosh"
+// ===============================================================
+// Ordem visual: Saguão à esquerda, Decks à direita. Direção do voosh é
+// inferida pela posição relativa.
+const VIEW_ORDER = ["lobby", "decks"];
+const ANIM_MS = 320;
+
+function viewFromPath(path) {
+  return path === "/deckbuilder" ? "decks" : "lobby";
+}
+
+function showView(name, opts = {}) {
+  const target = document.querySelector(`.view[data-view="${name}"]`);
+  if (!target) return;
+  const current = document.querySelector(`.view.active`);
+  if (current === target && !opts.force) return;
+
+  const targetIdx = VIEW_ORDER.indexOf(name);
+  const currentIdx = current ? VIEW_ORDER.indexOf(current.dataset.view) : -1;
+  // Quando carrega direto (sem view atual): entra suave do centro, sem direção.
+  const goingRight = currentIdx === -1 ? null : targetIdx > currentIdx;
+
+  // Limpa estado anterior.
+  document.querySelectorAll(".view").forEach(v => {
+    v.classList.remove("active", "exiting", "from-right", "from-left", "exit-left", "exit-right", "enter-center");
+  });
+
+  if (current && current !== target) {
+    current.classList.add("exiting", goingRight ? "exit-left" : "exit-right");
+    // Remove o "exiting" após terminar a animação. Como o display: none não
+    // anima, mantemos a view exiting absoluta sobre a stack até cair.
+    setTimeout(() => {
+      current.classList.remove("exiting", "exit-left", "exit-right");
+    }, ANIM_MS);
+  }
+
+  target.classList.add("active");
+  if (goingRight === null) {
+    target.classList.add("enter-center");
+  } else if (goingRight) {
+    target.classList.add("from-right");
+  } else {
+    target.classList.add("from-left");
+  }
+
+  // Atualiza highlight da navegação.
+  document.querySelectorAll(".nav a[data-route]").forEach(a => {
+    a.classList.toggle("active", a.dataset.route === name);
+  });
+
+  // Atualiza título da aba do navegador.
+  document.title = name === "decks" ? "Construtor de Decks - Vinístone" : "Saguão - Vinístone";
+}
+
+function navigate(name) {
+  const path = name === "decks" ? "/deckbuilder" : "/lobby";
+  if (window.location.pathname !== path) {
+    history.pushState({ view: name }, "", path);
+  }
+  showView(name);
+}
+
+function setupRouter() {
+  document.querySelectorAll(".nav a[data-route]").forEach(a => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigate(a.dataset.route);
+    });
+  });
+  window.addEventListener("popstate", () => {
+    showView(viewFromPath(window.location.pathname));
+  });
+}
+
+// ===============================================================
+// INIT
+// ===============================================================
+async function init() {
+  // 1) Busca dados em paralelo (cartas, imagens, decks).
+  await Promise.all([
+    fetchCards().catch(() => {}),
+    fetchCardImages().catch(() => {}),
+    fetchDecks().catch(() => {}),
+  ]);
+
+  // 2) Renderiza ambas as views ao mesmo tempo - elas já moram no DOM.
+  renderLobbyDeckSelect();
+  setupLobbyHandlers();
+  loadMatches();
+  setInterval(loadMatches, 5000);
+
+  renderFilters();
+  renderCardGrid();
+  renderDeck();
+  renderDecksSavedList();
+  setupDecksHandlers();
+
+  // 3) Router: mostra a view correta para a URL atual e intercepta cliques.
+  setupRouter();
+  showView(viewFromPath(window.location.pathname), { force: true });
+
+  // 4) Pré-carrega imagens em background (só atualiza o loader).
+  await preloadCardAssets();
+  hideLoader();
+}
+
+init();
+</script>
+</body>
+</html>
