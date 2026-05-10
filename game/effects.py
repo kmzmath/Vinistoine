@@ -886,18 +886,32 @@ def _add_tag(state, eff, source_owner, source_minion, ctx):
     targets = targeting.resolve_targets(state, eff.get("target") or {}, source_owner,
                                         source_minion, ctx.get("chosen_target"))
     duration = eff.get("duration")
-    for t in targets:
-        if isinstance(t, Minion):
-            added_now = False
-            if tag not in t.tags:
-                t.tags.append(tag)
-                added_now = True
-            if tag == "DIVINE_SHIELD":
-                t.divine_shield = True
-            if duration in ("UNTIL_END_OF_TURN", "THIS_TURN"):
+    # owner_for_revert determina QUEM termina o turno para a tag ser removida.
+    #
+    # - UNTIL_END_OF_TURN / THIS_TURN: revert no fim do turno do CASTER (mesmo
+    #   turno em que a tag foi aplicada). Útil para "+X de ataque até o fim
+    #   deste turno".
+    # - UNTIL_OPPONENT_TURN_END / UNTIL_NEXT_TURN_END: revert no fim do turno
+    #   do OPONENTE seguinte. Útil para "Furtividade por 1 turno" - a Furtividade
+    #   precisa sobreviver ao turno inteiro do oponente para ter efeito
+    #   defensivo.
+    if duration in ("UNTIL_END_OF_TURN", "THIS_TURN",
+                    "UNTIL_OPPONENT_TURN_END", "UNTIL_NEXT_TURN_END"):
+        if duration in ("UNTIL_OPPONENT_TURN_END", "UNTIL_NEXT_TURN_END"):
+            owner_for_revert = 1 - source_owner
+        else:
+            owner_for_revert = source_owner
+        for t in targets:
+            if isinstance(t, Minion):
+                added_now = False
+                if tag not in t.tags:
+                    t.tags.append(tag)
+                    added_now = True
+                if tag == "DIVINE_SHIELD":
+                    t.divine_shield = True
                 state.pending_modifiers.append({
                     "kind": "temporary_tag",
-                    "owner": source_owner,
+                    "owner": owner_for_revert,
                     "minion_id": t.instance_id,
                     "tag": tag,
                     "remove_at": "end_of_turn",
@@ -905,6 +919,13 @@ def _add_tag(state, eff, source_owner, source_minion, ctx):
                 })
                 state.log_event({"type": "temporary_tag", "minion": t.instance_id,
                                  "tag": tag, "duration": duration})
+    else:
+        for t in targets:
+            if isinstance(t, Minion):
+                if tag not in t.tags:
+                    t.tags.append(tag)
+                if tag == "DIVINE_SHIELD":
+                    t.divine_shield = True
 
 
 @handler("ADD_TAGS")

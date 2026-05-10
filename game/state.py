@@ -83,7 +83,12 @@ class Minion:
             return False
         if self.cant_attack or self.frozen or self.skip_next_attack or self.attack <= 0:
             return False
-        if self.has_tag("ATTACK_LOCKED") or self.has_tag("CANT_ATTACK_ONLY_FRIENDLY"):
+        # CANT_ATTACK: tag intrínseca permanente (Baiano). ATTACK_LOCKED é a
+        # versão temporária aplicada por Blitz. CANT_ATTACK_ONLY_FRIENDLY:
+        # aura situacional.
+        if (self.has_tag("CANT_ATTACK")
+                or self.has_tag("ATTACK_LOCKED")
+                or self.has_tag("CANT_ATTACK_ONLY_FRIENDLY")):
             return False
         max_attacks = 2 if self.has_tag("WINDFURY") else 1
         if self.attacks_this_turn >= max_attacks:

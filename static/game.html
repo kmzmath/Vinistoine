@@ -184,6 +184,36 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2400);
 }
 
+// === Fit da arena no viewport ===
+//
+// A arena tem tamanho lógico fixo (ARENA_W x ARENA_H) e é escalada
+// uniformemente para caber em qualquer tela / nível de zoom do navegador.
+// Isso elimina a sensação de "layout muda dependendo do meu setup":
+// jogadores em monitores diferentes, com zoom diferente, veem exatamente
+// a mesma proporção. O scale é aplicado via transform na .arena-layout.
+const ARENA_W = 1800;
+const ARENA_H = 1000;
+let arenaScale = 1;
+
+function fitArenaToViewport() {
+  const arena = document.querySelector(".arena-layout");
+  if (!arena) return;
+  // Margem para não encostar nos cantos (deixa um respiro decorativo).
+  const padX = 12;
+  const padY = 12;
+  const sx = (window.innerWidth - padX * 2) / ARENA_W;
+  const sy = (window.innerHeight - padY * 2) / ARENA_H;
+  arenaScale = Math.min(sx, sy, 1.6); // não passa de 1.6 em telas gigantes
+  arena.style.transform = `scale(${arenaScale})`;
+  document.body.style.setProperty("--arena-scale", String(arenaScale));
+}
+
+window.addEventListener("resize", fitArenaToViewport);
+// Mantém o scale correto também ao mudar zoom/devicePixelRatio.
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", fitArenaToViewport);
+}
+
 // =========== Render principal ===========
 function render() {
   const root = document.getElementById("board-root");
@@ -194,11 +224,12 @@ function render() {
     </div>`;
     return;
   }
-  if (state.phase === "MULLIGAN") { renderMulligan(); return; }
+  if (state.phase === "MULLIGAN") { renderMulligan(); fitArenaToViewport(); return; }
   renderBoard();
   renderLog();
   renderPendingChoiceOverlay();
   if (state.phase === "ENDED") renderEndOverlay();
+  fitArenaToViewport();
 }
 
 // Snapshot da mão usado pra detectar cartas novas chegando após confirmar
@@ -984,10 +1015,13 @@ function onHandCardMouseDown(ev, handCard, card, sourceEl) {
   clearTimeout(hoverPreviewTimer);
   hideMinionCardPreview();
 
-  // Cria ghost que segue o cursor.
+  // Cria ghost que segue o cursor. O ghost mora fora da arena (no body),
+  // então precisa replicar a escala da arena para casar com o tamanho
+  // visual do que está sendo arrastado.
   const ghost = sourceEl.cloneNode(true);
   ghost.classList.add("drag-ghost");
-  ghost.style.transform = "";
+  ghost.style.transform = `scale(${arenaScale})`;
+  ghost.style.transformOrigin = "center center";
   ghost.style.position = "fixed";
   ghost.style.pointerEvents = "none";
   ghost.style.zIndex = "9999";
@@ -1012,9 +1046,11 @@ function onHandCardMouseDown(ev, handCard, card, sourceEl) {
 function positionDragGhost(ev) {
   if (!dragState) return;
   const g = dragState.ghost;
-  // Centraliza ghost no cursor.
-  const w = g.offsetWidth || 130;
-  const h = g.offsetHeight || 180;
+  // Centraliza visualmente no cursor. Como transform-origin é center, a
+  // posição (left,top) define o canto da box NÃO-escalada e o centro
+  // visual fica em (left + w/2, top + h/2) - independente do scale.
+  const w = g.offsetWidth || 210;
+  const h = g.offsetHeight || 304;
   g.style.left = `${ev.clientX - w / 2}px`;
   g.style.top = `${ev.clientY - h / 2}px`;
 }
@@ -2647,19 +2683,40 @@ function animateFromDelta(oldS, newS) {
       });
     }
     // === Queima de carta por mão cheia ===
+    // O dono vê a carta grande no centro com animação de queima (igual ao
+    // showcase de compra). O oponente vê a revelação no anunciador.
     if (ev.type === "burn" && ev.card_id) {
-      enqueueOpponentPlay({
-        type: "burn",
-        player: ev.player,
-        card_id: ev.card_id,
-        card_name: (allCards[ev.card_id] || {}).name || ev.card_id,
-        reveal_label: "Carta queimada",
-        burned: true,
-      });
+      if (ev.player === myPid) {
+        flyBurnCard(ev.card_id);
+      } else {
+        enqueueOpponentPlay({
+          type: "burn",
+          player: ev.player,
+          card_id: ev.card_id,
+          card_name: (allCards[ev.card_id] || {}).name || ev.card_id,
+          reveal_label: "Carta queimada",
+          burned: true,
+        });
+      }
     }
     // === Carta revelada da mão / compra revelada ===
     if (ev.type === "reveal_hand_card" || ev.type === "reveal_drawn_card") {
       showRevealNotice(ev);
+    }
+    // === El Gusnabito: revela 1ª e última carta da mão do oponente ===
+    if (ev.type === "reveal_hand_edges" && (ev.cards || []).length) {
+      const cards = (ev.cards || []).map(c => ({
+        owner: ev.player,
+        card_id: c.card_id,
+      }));
+      enqueueOpponentPlay({
+        type: "reveal_pair",
+        player: ev.player,
+        cards,
+        reveal_label: ev.player === myPid
+          ? "Sua mão revelada"
+          : "Mão do oponente revelada",
+      });
     }
   }
 }
@@ -2754,6 +2811,30 @@ function flyDrawCard(playerId, cardIdRevealed, opts = {}) {
 
   setTimeout(() => fly.classList.add("land"), Math.max(250, duration - 180));
   setTimeout(() => fly.remove(), duration + 80);
+}
+
+// === Animação de queima própria ===
+//
+// Quando minha carta é queimada por mão cheia, mostra a carta grande no
+// centro da tela com efeito de chamas e desaparece. O oponente vê pela
+// fila de "anuncia jogada" (com o reveal). Reusa buildAnimatedCard para
+// renderizar a carta full-art.
+function flyBurnCard(cardId) {
+  if (!cardId) return;
+  const fly = document.createElement("div");
+  fly.className = "burn-showcase";
+  fly.style.left = (window.innerWidth / 2) + "px";
+  fly.style.top = (window.innerHeight / 2) + "px";
+  fly.appendChild(buildAnimatedCard(cardId, false));
+
+  // Camada de chamas sobreposta para reforçar o "queimou".
+  const flame = document.createElement("div");
+  flame.className = "burn-showcase-flames";
+  fly.appendChild(flame);
+
+  document.body.appendChild(fly);
+  setTimeout(() => fly.classList.add("burning"), 350);
+  setTimeout(() => fly.remove(), 1900);
 }
 
 // =================== ANUNCIADOR DE CARTA JOGADA ===================

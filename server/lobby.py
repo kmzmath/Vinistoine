@@ -143,7 +143,7 @@ async def broadcast_state(match: Match):
     """Envia o estado serializado pra cada jogador."""
     if match.state is None:
         return
-    from game.engine import compute_dynamic_cost
+    from game.engine import compute_displayed_cost
     from game.cards import get_card
     state = match.state
     for user_id, ws in list(match.sockets.items()):
@@ -151,14 +151,16 @@ async def broadcast_state(match: Match):
         if pid is None:
             continue
         snapshot = state.to_dict(viewer_id=pid)
-        # Recalcula custo dinâmico (IN_HAND cost reductions) para o viewer
+        # Recalcula custo dinâmico (IN_HAND cost reductions + pending
+        # next_card_cost_reduction) para o viewer. compute_displayed_cost
+        # cobre Spiid 3 Anos / outras pendências que reduzem o próximo CARD.
         viewer = state.players[pid]
         for hand_dict, hand_obj in zip(snapshot["you"]["hand"], viewer.hand):
             if hand_dict.get("hidden"):
                 continue
             card = get_card(hand_obj.card_id)
             if card:
-                effective = compute_dynamic_cost(state, viewer, hand_obj, card)
+                effective = compute_displayed_cost(state, viewer, hand_obj, card)
                 hand_dict["effective_cost"] = effective
                 base = hand_obj.cost_override if hand_obj.cost_override is not None else card.get("cost", 0)
                 hand_dict["cost_modified"] = effective != base
