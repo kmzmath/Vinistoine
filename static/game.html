@@ -224,6 +224,13 @@ if (window.visualViewport) {
 
 // =========== Render principal ===========
 function render() {
+  // Fecha qualquer preview de hover ativo: o DOM que dispararia o mouseleave
+  // será destruído neste render, e sem o mouseleave o preview ficaria órfão
+  // (lacaio morto, troca de tela, etc.). Cancela também o timer de delay.
+  clearTimeout(hoverPreviewTimer);
+  hoverPreviewTimer = null;
+  hideMinionCardPreview();
+
   const root = document.getElementById("board-root");
   if (!state) {
     root.innerHTML = `<div style="margin: auto; text-align: center;">
@@ -2505,7 +2512,27 @@ function cancelModes() {
   // battlecry e cancelou no meio do targeting via ESC).
   pendingPlayPosition = null;
   removeAimLine();
+  // Também fecha o preview de hover - cancelar modo via ESC normalmente
+  // dispara um render(), mas em alguns fluxos (clique em área vazia, p.ex.)
+  // chamamos só cancelModes sem rerender.
+  clearTimeout(hoverPreviewTimer);
+  hoverPreviewTimer = null;
+  hideMinionCardPreview();
 }
+
+// Rede de segurança global: se o cursor sair da janela (ex: usuário trocou
+// de aba do navegador) o preview deve sumir, já que nenhum mouseleave de
+// elemento individual vai disparar.
+document.addEventListener("mouseleave", () => {
+  clearTimeout(hoverPreviewTimer);
+  hoverPreviewTimer = null;
+  hideMinionCardPreview();
+});
+window.addEventListener("blur", () => {
+  clearTimeout(hoverPreviewTimer);
+  hoverPreviewTimer = null;
+  hideMinionCardPreview();
+});
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
