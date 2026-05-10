@@ -573,47 +573,64 @@ function navigate(name) {
 }
 
 function setupRouter() {
-  document.querySelectorAll(".nav a[data-route]").forEach(a => {
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      navigate(a.dataset.route);
-    });
-  });
+  // Delegação no document inteiro — captura também links criados depois
+  // (ex: o "Ir para o Deck Builder →" injetado no status do saguão) e é
+  // resiliente a uma view ser recriada. Roda na fase de captura pra ficar
+  // antes de qualquer outro handler que possa parar a propagação.
+  document.addEventListener("click", (e) => {
+    const a = e.target && e.target.closest && e.target.closest("a[data-route]");
+    if (!a) return;
+    // Modificadores abrem em nova aba; respeita comportamento do navegador.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    navigate(a.dataset.route);
+  }, true);
   window.addEventListener("popstate", () => {
     showView(viewFromPath(window.location.pathname));
   });
 }
 
+// Bind do roteador roda IMEDIATAMENTE (não espera fetches) pra garantir que
+// o primeiro clique do usuário em "Saguão"/"Decks" já é interceptado mesmo
+// se a internet estiver lenta carregando cartas. As views já existem no
+// DOM nesse ponto (script inline roda depois do parse).
+setupRouter();
+showView(viewFromPath(window.location.pathname), { force: true });
+// Sinaliza no <body> que estamos no shell SPA - útil pra debug visual e
+// para o CSS aplicar regras específicas se precisarmos no futuro.
+document.body.classList.add("spa-shell");
+
 // ===============================================================
 // INIT
 // ===============================================================
 async function init() {
-  // 1) Busca dados em paralelo (cartas, imagens, decks).
-  await Promise.all([
-    fetchCards().catch(() => {}),
-    fetchCardImages().catch(() => {}),
-    fetchDecks().catch(() => {}),
-  ]);
+  try {
+    // 1) Busca dados em paralelo (cartas, imagens, decks).
+    await Promise.all([
+      fetchCards().catch((e) => console.warn("fetchCards falhou:", e)),
+      fetchCardImages().catch((e) => console.warn("fetchCardImages falhou:", e)),
+      fetchDecks().catch((e) => console.warn("fetchDecks falhou:", e)),
+    ]);
 
-  // 2) Renderiza ambas as views ao mesmo tempo - elas já moram no DOM.
-  renderLobbyDeckSelect();
-  setupLobbyHandlers();
-  loadMatches();
-  setInterval(loadMatches, 5000);
+    // 2) Renderiza ambas as views ao mesmo tempo - elas já moram no DOM.
+    renderLobbyDeckSelect();
+    setupLobbyHandlers();
+    loadMatches();
+    setInterval(loadMatches, 5000);
 
-  renderFilters();
-  renderCardGrid();
-  renderDeck();
-  renderDecksSavedList();
-  setupDecksHandlers();
+    renderFilters();
+    renderCardGrid();
+    renderDeck();
+    renderDecksSavedList();
+    setupDecksHandlers();
 
-  // 3) Router: mostra a view correta para a URL atual e intercepta cliques.
-  setupRouter();
-  showView(viewFromPath(window.location.pathname), { force: true });
-
-  // 4) Pré-carrega imagens em background (só atualiza o loader).
-  await preloadCardAssets();
-  hideLoader();
+    // 3) Pré-carrega imagens em background.
+    await preloadCardAssets();
+  } catch (err) {
+    console.error("Falha em init():", err);
+  } finally {
+    hideLoader();
+  }
 }
 
 init();
