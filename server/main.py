@@ -130,12 +130,15 @@ def index():
 
 @app.get("/lobby")
 def lobby_page():
-    return FileResponse(STATIC_DIR / "lobby.html")
+    # /lobby e /deckbuilder servem a MESMA shell (SPA) - o roteamento entre
+    # as duas é client-side via history.pushState. Isso evita o reload de
+    # página que cortava o áudio global ao alternar entre as abas.
+    return FileResponse(STATIC_DIR / "shell.html")
 
 
 @app.get("/deckbuilder")
 def deckbuilder_page():
-    return FileResponse(STATIC_DIR / "deckbuilder.html")
+    return FileResponse(STATIC_DIR / "shell.html")
 
 
 @app.get("/play")
@@ -219,13 +222,16 @@ def list_card_images():
 def list_music():
     """Lista faixas de música em /static/audio/. Cliente embaralha e toca em
     looping com regra de "drain queue" (sem repetir até todas tocarem).
-    Aceita .mp4 (que é o que o usuário usa), além de outros formatos web.
+
+    Formato canônico: .m4a (AAC em container MP4 audio-only - mime correto
+    `audio/mp4`, melhor compatibilidade com Safari/iOS). Também aceita .mp4
+    (mesmo conteúdo, mime `video/mp4`) e demais formatos web comuns.
     """
     audio_dir = STATIC_DIR / "audio"
     tracks: list[str] = []
     if audio_dir.exists():
         for f in sorted(audio_dir.iterdir()):
-            if f.is_file() and f.suffix.lower() in (".mp4", ".m4a", ".mp3", ".ogg", ".webm", ".wav"):
+            if f.is_file() and f.suffix.lower() in (".m4a", ".mp4", ".mp3", ".ogg", ".webm", ".wav"):
                 tracks.append(f"/static/audio/{f.name}")
     return {"tracks": tracks}
 
