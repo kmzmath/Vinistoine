@@ -215,6 +215,21 @@ def list_card_images():
     return {"cards": available, "heroes": hero_avatars}
 
 
+@app.get("/api/music")
+def list_music():
+    """Lista faixas de música em /static/audio/. Cliente embaralha e toca em
+    looping com regra de "drain queue" (sem repetir até todas tocarem).
+    Aceita .mp4 (que é o que o usuário usa), além de outros formatos web.
+    """
+    audio_dir = STATIC_DIR / "audio"
+    tracks: list[str] = []
+    if audio_dir.exists():
+        for f in sorted(audio_dir.iterdir()):
+            if f.is_file() and f.suffix.lower() in (".mp4", ".m4a", ".mp3", ".ogg", ".webm", ".wav"):
+                tracks.append(f"/static/audio/{f.name}")
+    return {"tracks": tracks}
+
+
 # ============================ Decks ============================
 def validate_deck(card_ids: list[str]) -> Optional[str]:
     """Retorna mensagem de erro ou None se OK."""
