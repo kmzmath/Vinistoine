@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Partida - Vinístone</title>
   <link rel="stylesheet" href="/static/css/main.css" />
+  <script src="/static/js/audio.js" defer></script>
 </head>
 <body>
   <div class="board-wrap" id="board-root"></div>
@@ -166,6 +167,13 @@ function send(action, data = {}) {
     toast("Conexão indisponível");
   }
 }
+
+// Exposto para o painel de configurações flutuante (audio.js) chamar
+// quando o jogador clicar em "Render-se" lá. Mesmo fluxo do botão antigo.
+window.requestSurrender = function () {
+  if (confirm("Tem certeza que deseja se render?")) send("concede");
+};
+window.addEventListener("audio-surrender-request", () => window.requestSurrender());
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -582,6 +590,8 @@ function renderBoard() {
   arena.appendChild(sidebar);
 
   // === Medalhão de Encerrar Turno (estilo Hearthstone, à direita do meio) ===
+  // O botão de "Render-se" foi movido pro painel de configurações flutuante
+  // (canto inferior direito da tela, gerenciado por /static/js/audio.js).
   const ctrl = document.createElement("div");
   ctrl.className = "controls-bar";
   const endBtn = document.createElement("button");
@@ -592,12 +602,6 @@ function renderBoard() {
     : `<div>Vez do<br/>Oponente</div>`;
   endBtn.onclick = () => { if (isMyTurn) { cancelModes(); send("end_turn"); } };
   ctrl.appendChild(endBtn);
-
-  const concBtn = document.createElement("button");
-  concBtn.className = "surrender-btn";
-  concBtn.textContent = "Render-se";
-  concBtn.onclick = () => { if (confirm("Tem certeza que deseja se render?")) send("concede"); };
-  ctrl.appendChild(concBtn);
   arena.appendChild(ctrl);
 
   layout.appendChild(arena);

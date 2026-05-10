@@ -2846,3 +2846,197 @@ input:focus { border-color: var(--gold); }
   position: static;
   transform: none;
 }
+
+/* ====== Painel de configurações de áudio (canto inferior direito) ======
+   Botão flutuante sempre visível em qualquer página. Ao clicar abre um
+   pequeno painel acima dele com slider de volume, mute e "próxima". Em
+   /play o botão de "Render-se" também aparece nesse painel. */
+.audio-settings {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 150;
+  font-family: 'Cinzel', serif;
+}
+.audio-settings-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 220, 150, 0.4), transparent 55%),
+    radial-gradient(circle at 50% 50%, #5a3e10, #2a1808 70%);
+  border: 2px solid var(--gold-bright);
+  color: var(--gold-bright);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.75),
+    inset 0 0 8px rgba(255, 220, 150, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  padding: 0;
+}
+.audio-settings-btn:hover {
+  transform: scale(1.06) rotate(18deg);
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.8),
+    0 0 14px rgba(245, 201, 105, 0.6);
+}
+.audio-settings-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+.audio-settings-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  min-width: 240px;
+  max-width: 280px;
+  background: linear-gradient(180deg, rgba(34, 22, 12, 0.97), rgba(20, 12, 6, 0.97));
+  border: 1px solid var(--gold-dim);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.85),
+    0 0 14px rgba(0, 0, 0, 0.4);
+  animation: audPanelOpen 0.18s ease-out;
+}
+.audio-settings-panel.hidden { display: none; }
+@keyframes audPanelOpen {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.audio-settings-panel .aud-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  border-bottom: 1px solid rgba(180, 140, 80, 0.35);
+  padding-bottom: 6px;
+}
+.audio-settings-panel .aud-track {
+  font-family: 'EB Garamond', 'Cinzel', serif;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.audio-settings-panel .aud-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.audio-settings-panel .aud-volume-row { gap: 8px; }
+.audio-settings-panel input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: linear-gradient(90deg, #b88d35, #5a3e10);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.audio-settings-panel input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe070, #b88d35);
+  border: 1px solid #2a1808;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.audio-settings-panel input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe070, #b88d35);
+  border: 1px solid #2a1808;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.audio-settings-panel input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+.audio-settings-panel .aud-vol-value {
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  width: 26px;
+  text-align: right;
+}
+.audio-settings-panel .aud-icon-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  background: rgba(60, 40, 20, 0.7);
+  color: var(--ink);
+  border: 1px solid var(--gold-dim);
+  padding: 6px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.audio-settings-panel .aud-icon-btn:hover:not(:disabled) {
+  background: rgba(120, 80, 30, 0.7);
+  color: var(--gold-bright);
+  border-color: var(--gold-bright);
+}
+.audio-settings-panel .aud-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.audio-settings-panel .aud-icon-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+.audio-settings-panel .aud-mute-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+}
+.audio-settings-panel .aud-mute-btn svg { width: 18px; height: 18px; }
+.audio-settings-panel .aud-mute-btn.muted {
+  color: var(--crimson-bright);
+  border-color: var(--crimson);
+}
+.audio-settings-panel .aud-controls-row .aud-icon-btn {
+  flex: 1;
+  justify-content: center;
+}
+.audio-settings-panel .aud-game-only {
+  border-top: 1px solid rgba(180, 140, 80, 0.35);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+.audio-settings-panel .aud-danger-btn {
+  flex: 1;
+  width: 100%;
+  font-family: 'Cinzel', serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  background: linear-gradient(180deg, rgba(140, 30, 30, 0.85), rgba(80, 20, 20, 0.85));
+  color: #ffd4c0;
+  border: 1px solid rgba(200, 70, 70, 0.7);
+  padding: 8px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  transition: background 0.2s, color 0.2s;
+}
+.audio-settings-panel .aud-danger-btn:hover {
+  background: linear-gradient(180deg, rgba(180, 40, 40, 0.95), rgba(120, 30, 30, 0.95));
+  color: #ffeede;
+}
