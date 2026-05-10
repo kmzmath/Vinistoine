@@ -826,6 +826,26 @@ def compute_dynamic_cost(state: GameState, p: PlayerState, card_in_hand: CardInH
     return max(0, base - discount)
 
 
+def compute_displayed_cost(state: "GameState", p: "PlayerState",
+                            card_in_hand: "CardInHand", card: dict) -> int:
+    """Custo final mostrado na UI: inclui IN_HAND (compute_dynamic_cost) +
+    descontos pendentes que reduzem o próximo CARD jogado (ex: Spiid 3 Anos).
+
+    NÃO usar em play_card - a engine consome os pending_modifiers ao pagar
+    e somar de novo aqui causaria desconto duplo."""
+    base = compute_dynamic_cost(state, p, card_in_hand, card)
+    extra = 0
+    for pm in state.pending_modifiers:
+        if pm.get("consumed") or pm.get("owner") != p.player_id:
+            continue
+        if pm.get("kind") != "next_card_cost_reduction":
+            continue
+        if not _card_matches_pending_filter(card, pm.get("valid") or []):
+            continue
+        extra += int(pm.get("amount", 0) or 0)
+    return max(0, base - extra)
+
+
 
 
 def _card_matches_pending_filter(card: dict, valid: list[str]) -> bool:

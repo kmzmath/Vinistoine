@@ -198,11 +198,16 @@ def resolve_targets(state: GameState, target_desc: dict, source_owner: int,
     if mode == "ALL_MINIONS_EXCEPT_TRIBE":
         tribe = target_desc.get("tribe") or target_desc.get("excluded_tribe")
         pool = [m for m in state.all_minions() if tribe and not m.has_tribe(tribe)]
-        return _filter_minions(target_desc, pool, source_owner, source_minion)
+        # Para os modos "EXCEPT_TRIBE", o campo `tribe` significa "exclua esta
+        # tribo" - NÃO um required_tribe. Removemos do desc para que
+        # _passes_extra_filters não filtre adicionalmente exigindo a tribo.
+        clean_desc = {k: v for k, v in target_desc.items() if k not in ("tribe", "required_tribe")}
+        return _filter_minions(clean_desc, pool, source_owner, source_minion)
     if mode == "ENEMY_MINIONS_EXCEPT_TRIBE":
         tribe = target_desc.get("tribe") or target_desc.get("excluded_tribe")
         pool = [m for m in foe.board if tribe and not m.has_tribe(tribe)]
-        return _filter_minions(target_desc, pool, source_owner, source_minion)
+        clean_desc = {k: v for k, v in target_desc.items() if k not in ("tribe", "required_tribe")}
+        return _filter_minions(clean_desc, pool, source_owner, source_minion)
     if mode == "PLAYED_MINION":
         played_id = target_desc.get("id") or chosen_target_id
         return _target_by_id(state, played_id, source_owner, target_desc, source_minion, is_spell=is_spell) if played_id else []
@@ -299,6 +304,14 @@ def _chosen_targets_in_effect(eff: dict, chose_index: Optional[int] = None) -> l
     src = eff.get("source") or {}
     if isinstance(src, dict) and src.get("mode") == "CHOSEN":
         out.append(src)
+
+    # `excluded_target`: usado por cartas como Blitz, onde o jogador escolhe
+    # um lacaio para POUPAR (ele é o alvo escolhido, mas não recebe o efeito;
+    # os demais sim). Sem este registro, a UI não pediria alvo e a carta
+    # afetaria todos os lacaios indiscriminadamente.
+    excluded = eff.get("excluded_target") or {}
+    if isinstance(excluded, dict) and excluded.get("mode") == "CHOSEN":
+        out.append(excluded)
 
     tgt = eff.get("target") or {}
     if isinstance(tgt, dict):

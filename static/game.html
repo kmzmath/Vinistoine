@@ -2683,19 +2683,40 @@ function animateFromDelta(oldS, newS) {
       });
     }
     // === Queima de carta por mão cheia ===
+    // O dono vê a carta grande no centro com animação de queima (igual ao
+    // showcase de compra). O oponente vê a revelação no anunciador.
     if (ev.type === "burn" && ev.card_id) {
-      enqueueOpponentPlay({
-        type: "burn",
-        player: ev.player,
-        card_id: ev.card_id,
-        card_name: (allCards[ev.card_id] || {}).name || ev.card_id,
-        reveal_label: "Carta queimada",
-        burned: true,
-      });
+      if (ev.player === myPid) {
+        flyBurnCard(ev.card_id);
+      } else {
+        enqueueOpponentPlay({
+          type: "burn",
+          player: ev.player,
+          card_id: ev.card_id,
+          card_name: (allCards[ev.card_id] || {}).name || ev.card_id,
+          reveal_label: "Carta queimada",
+          burned: true,
+        });
+      }
     }
     // === Carta revelada da mão / compra revelada ===
     if (ev.type === "reveal_hand_card" || ev.type === "reveal_drawn_card") {
       showRevealNotice(ev);
+    }
+    // === El Gusnabito: revela 1ª e última carta da mão do oponente ===
+    if (ev.type === "reveal_hand_edges" && (ev.cards || []).length) {
+      const cards = (ev.cards || []).map(c => ({
+        owner: ev.player,
+        card_id: c.card_id,
+      }));
+      enqueueOpponentPlay({
+        type: "reveal_pair",
+        player: ev.player,
+        cards,
+        reveal_label: ev.player === myPid
+          ? "Sua mão revelada"
+          : "Mão do oponente revelada",
+      });
     }
   }
 }
@@ -2790,6 +2811,30 @@ function flyDrawCard(playerId, cardIdRevealed, opts = {}) {
 
   setTimeout(() => fly.classList.add("land"), Math.max(250, duration - 180));
   setTimeout(() => fly.remove(), duration + 80);
+}
+
+// === Animação de queima própria ===
+//
+// Quando minha carta é queimada por mão cheia, mostra a carta grande no
+// centro da tela com efeito de chamas e desaparece. O oponente vê pela
+// fila de "anuncia jogada" (com o reveal). Reusa buildAnimatedCard para
+// renderizar a carta full-art.
+function flyBurnCard(cardId) {
+  if (!cardId) return;
+  const fly = document.createElement("div");
+  fly.className = "burn-showcase";
+  fly.style.left = (window.innerWidth / 2) + "px";
+  fly.style.top = (window.innerHeight / 2) + "px";
+  fly.appendChild(buildAnimatedCard(cardId, false));
+
+  // Camada de chamas sobreposta para reforçar o "queimou".
+  const flame = document.createElement("div");
+  flame.className = "burn-showcase-flames";
+  fly.appendChild(flame);
+
+  document.body.appendChild(fly);
+  setTimeout(() => fly.classList.add("burning"), 350);
+  setTimeout(() => fly.remove(), 1900);
 }
 
 // =================== ANUNCIADOR DE CARTA JOGADA ===================

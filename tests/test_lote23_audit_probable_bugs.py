@@ -83,7 +83,9 @@ def test_estrategista_returned_card_costs_one_only_this_turn():
     assert returned.cost_override is None
 
 
-def test_rica_gets_health_for_each_friendly_minion_including_self():
+def test_rica_gets_health_for_each_OTHER_friendly_minion():
+    """Rica conta apenas OUTROS lacaios aliados (não inclui a si mesma).
+    Texto: '+1 de vida para cada outro lacaio aliado.'"""
     state = _new_blank_match()
     pid = state.current_player
     p = state.players[pid]
@@ -96,8 +98,8 @@ def test_rica_gets_health_for_each_friendly_minion_including_self():
     assert ok, msg
 
     rica = p.board[-1]
-    # Pizza + a própria Rica = +2 de vida.
-    assert rica.max_health == (get_card("rica")["health"] + 2)
+    # Apenas a Pizza conta (Rica não conta a si mesma) = +1 de vida.
+    assert rica.max_health == (get_card("rica")["health"] + 1)
     assert rica.health == rica.max_health
 
 

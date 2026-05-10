@@ -575,7 +575,7 @@
         "trigger": "ON_PLAY",
         "action": "ADD_TAG",
         "tag": "STEALTH",
-        "duration": "UNTIL_END_OF_TURN",
+        "duration": "UNTIL_OPPONENT_TURN_END",
         "target": {
           "mode": "CHOSEN",
           "valid": [
@@ -3724,7 +3724,7 @@
     "attack": 3,
     "health": 5,
     "durability": null,
-    "text": "Ao ser jogado, recebe +1 de vida para cada lacaio aliado.",
+    "text": "Ao ser jogado, recebe +1 de vida para cada outro lacaio aliado.",
     "tags": [
       "BATTLECRY"
     ],
@@ -3734,7 +3734,7 @@
         "trigger": "ON_PLAY",
         "action": "BUFF_HEALTH",
         "amount_source": "FRIENDLY_MINION_COUNT",
-        "include_self": true,
+        "include_self": false,
         "target": {
           "mode": "SELF"
         }

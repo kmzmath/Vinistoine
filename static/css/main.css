@@ -1438,6 +1438,13 @@ input:focus { border-color: var(--gold); }
   border-style: dashed;
   border-color: #6e6e6e;
 }
+/* Silenciado mas pode atacar: o anel verde de "pronto pra atacar" deve
+   continuar visível (a borda dashed cinza não pode mascarar o sinal). */
+.minion.silenced.can-attack .portrait-ring {
+  border-style: solid;
+  border-color: #66ff7a;
+  filter: grayscale(0.6) brightness(0.78);
+}
 .minion.silenced .silence-mark {
   position: absolute;
   top: 14px; left: 50%; transform: translateX(-50%);
@@ -2636,6 +2643,51 @@ input:focus { border-color: var(--gold); }
 
 #hover-card-preview { z-index: 50000; }
 #hover-card-preview .card { width: 360px; height: 520px; }
+
+/* Queima da PRÓPRIA carta: pop no centro da tela e some em chamas. */
+.burn-showcase {
+  position: fixed;
+  transform: translate(-50%, -50%) scale(0.4);
+  z-index: 12000;
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.32s ease-out, opacity 0.25s ease-out, filter 0.6s ease-out;
+}
+.burn-showcase .animated-card-wrap {
+  width: 320px; height: 460px;
+  filter: drop-shadow(0 12px 24px rgba(0,0,0,0.85));
+}
+.burn-showcase.burning {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  animation: burnShowcase 1.55s ease-in forwards 0.05s;
+}
+@keyframes burnShowcase {
+  0%   { filter: brightness(1) saturate(1) hue-rotate(0deg); transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  18%  { filter: brightness(1.15) saturate(1.4) hue-rotate(-12deg); }
+  55%  { filter: brightness(0.85) saturate(1.7) hue-rotate(-30deg) blur(0.5px); transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
+  100% { filter: brightness(0.15) saturate(0.4) blur(2px); transform: translate(-50%, -50%) scale(0.85) rotate(8deg); opacity: 0; }
+}
+.burn-showcase-flames {
+  position: absolute;
+  inset: -15px -10px -10px -10px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 35% 80%, rgba(255,150,30,0.9) 0%, rgba(255,80,15,0.4) 18%, transparent 45%),
+    radial-gradient(ellipse at 65% 70%, rgba(255,170,40,0.85) 0%, rgba(255,90,15,0.35) 16%, transparent 42%),
+    radial-gradient(ellipse at 50% 95%, rgba(255,200,60,0.95) 0%, rgba(220,80,15,0.5) 22%, transparent 55%);
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+.burn-showcase.burning .burn-showcase-flames {
+  animation: burnFlamesShowcase 1.55s ease-out forwards 0.15s;
+}
+@keyframes burnFlamesShowcase {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.7); }
+  35%  { opacity: 1; transform: translateY(0) scale(1.02); }
+  70%  { opacity: 0.95; transform: translateY(-30px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-100px) scale(1.5); }
+}
 
 /* Lote 29: herói incendiado por Viní Flamejante */
 .hero.burning .portrait-wrap {
