@@ -128,17 +128,23 @@ def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+# /lobby e /deckbuilder servem a MESMA shell (SPA) - o roteamento entre
+# as duas é client-side via history.pushState. Isso evita o reload de
+# página que cortava o áudio global ao alternar entre as abas.
+# Cache-Control: no-cache força o navegador a revalidar a resposta
+# (ETag/304 ainda funcionam mas evita servir HTML stale em caso de
+# rollback do roteamento).
+_SHELL_HEADERS = {"Cache-Control": "no-cache, must-revalidate"}
+
+
 @app.get("/lobby")
 def lobby_page():
-    # /lobby e /deckbuilder servem a MESMA shell (SPA) - o roteamento entre
-    # as duas é client-side via history.pushState. Isso evita o reload de
-    # página que cortava o áudio global ao alternar entre as abas.
-    return FileResponse(STATIC_DIR / "shell.html")
+    return FileResponse(STATIC_DIR / "shell.html", headers=_SHELL_HEADERS)
 
 
 @app.get("/deckbuilder")
 def deckbuilder_page():
-    return FileResponse(STATIC_DIR / "shell.html")
+    return FileResponse(STATIC_DIR / "shell.html", headers=_SHELL_HEADERS)
 
 
 @app.get("/play")
