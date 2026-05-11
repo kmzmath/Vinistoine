@@ -385,6 +385,7 @@ function cardElement(c) {
     div.className = "card full-art " + (c.type === "SPELL" ? "spell" : "minion");
     div.style.backgroundImage = `url('${cardImages[c.id]}')`;
     div.title = `${c.name}\n${c.text || ""}`;
+    applyDeckCountBadge(div, c.id);
     return div;
   }
   div.className = "card " + (c.type === "SPELL" ? "spell" : "minion");
@@ -397,7 +398,26 @@ function cardElement(c) {
       ? `<div class="footer"><div class="atk">${c.attack ?? 0}</div><div class="hp">${c.health ?? 0}</div></div>`
       : `<div class="footer" style="height:32px;"></div>`}
   `;
+  applyDeckCountBadge(div, c.id);
   return div;
+}
+function deckCardCount(cardId) {
+  return currentDeck.filter(x => x === cardId).length;
+}
+function applyDeckCountBadge(cardEl, cardId) {
+  const count = deckCardCount(cardId);
+  cardEl.classList.toggle("in-deck", count > 0);
+  cardEl.removeAttribute("data-deck-count");
+  cardEl.removeAttribute("aria-label");
+  if (count <= 0) return;
+
+  cardEl.dataset.deckCount = `x${count}`;
+  cardEl.setAttribute("aria-label", `${count} ${count === 1 ? "cópia selecionada" : "cópias selecionadas"} no deck`);
+}
+function updateCardGridDeckBadges() {
+  document.querySelectorAll("#card-grid .card[data-card-id]").forEach(cardEl => {
+    applyDeckCountBadge(cardEl, cardEl.dataset.cardId);
+  });
 }
 function renderCardGrid() {
   const grid = document.getElementById("card-grid");
@@ -444,6 +464,7 @@ function renderDeck() {
     row.onclick = () => removeFromDeck(e.cid);
     list.appendChild(row);
   }
+  updateCardGridDeckBadges();
 }
 function renderDecksSavedList() {
   const box = document.getElementById("saved-decks");
