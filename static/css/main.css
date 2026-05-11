@@ -1290,10 +1290,11 @@ input:focus { border-color: var(--gold); }
   border-width: 4px;
 }
 /* Camada extra: anel decorativo dourado-marrom mais largo simulando o escudo
-   medieval do Hearthstone (com pontos cardeais marcados como ornamentos). */
+   medieval do Hearthstone (com pontos cardeais marcados como ornamentos).
+   Centralizado no retrato (y=76, centro de 120x120 que começa em y=16). */
 .minion.taunt .taunt-shield {
   position: absolute;
-  top: 2px; left: 50%; transform: translateX(-50%);
+  top: 76px; left: 50%; transform: translate(-50%, -50%);
   width: 116px; height: 116px;
   pointer-events: none;
   z-index: 1;
@@ -1317,7 +1318,7 @@ input:focus { border-color: var(--gold); }
 }
 .minion.divine-shield .divine-bubble {
   position: absolute;
-  top: 6px; left: 50%; transform: translateX(-50%);
+  top: 76px; left: 50%; transform: translate(-50%, -50%);
   width: 108px; height: 108px;
   border-radius: 50%;
   pointer-events: none;
@@ -1339,8 +1340,8 @@ input:focus { border-color: var(--gold); }
   filter: blur(1px);
 }
 @keyframes divineBubble {
-  0%, 100% { box-shadow: 0 0 14px rgba(255,210,100,0.55), inset 0 0 12px rgba(255,240,180,0.4); transform: translateX(-50%) scale(1); }
-  50%      { box-shadow: 0 0 24px rgba(255,225,140,0.95), inset 0 0 18px rgba(255,250,200,0.6); transform: translateX(-50%) scale(1.04); }
+  0%, 100% { box-shadow: 0 0 14px rgba(255,210,100,0.55), inset 0 0 12px rgba(255,240,180,0.4); transform: translate(-50%, -50%) scale(1); }
+  50%      { box-shadow: 0 0 24px rgba(255,225,140,0.95), inset 0 0 18px rgba(255,250,200,0.6); transform: translate(-50%, -50%) scale(1.04); }
 }
 
 /* === FURTIVIDADE: névoa cinza cobrindo o lacaio === */
@@ -1351,7 +1352,7 @@ input:focus { border-color: var(--gold); }
 }
 .minion.stealth .stealth-mist {
   position: absolute;
-  top: 8px; left: 50%; transform: translateX(-50%);
+  top: 76px; left: 50%; transform: translate(-50%, -50%);
   width: 104px; height: 104px;
   border-radius: 50%;
   pointer-events: none;
@@ -1378,7 +1379,7 @@ input:focus { border-color: var(--gold); }
 }
 .minion.frozen .freeze-ice {
   position: absolute;
-  top: 4px; left: 50%; transform: translateX(-50%);
+  top: 76px; left: 50%; transform: translate(-50%, -50%);
   width: 112px; height: 112px;
   border-radius: 50%;
   pointer-events: none;
@@ -1401,7 +1402,7 @@ input:focus { border-color: var(--gold); }
 /* === FÚRIA DOS VENTOS: linhas de vento girando ao redor === */
 .minion.windfury .wind-around {
   position: absolute;
-  top: 0; left: 50%; transform: translateX(-50%);
+  top: 76px; left: 50%; transform: translate(-50%, -50%);
   width: 116px; height: 116px;
   pointer-events: none;
   z-index: 1;
@@ -1411,7 +1412,10 @@ input:focus { border-color: var(--gold); }
   width: 100%; height: 100%;
   opacity: 0.85;
 }
-@keyframes windSpin { to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes windSpin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
 .minion.windfury .portrait-ring {
   border-color: #aac8e6;
 }
@@ -1566,7 +1570,7 @@ input:focus { border-color: var(--gold); }
 }
 .minion.silenced .silence-mark {
   position: absolute;
-  top: 14px; left: 50%; transform: translateX(-50%);
+  top: 76px; left: 50%; transform: translate(-50%, -50%);
   width: 100px; height: 100px;
   border-radius: 50%;
   pointer-events: none;
