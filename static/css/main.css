@@ -559,7 +559,7 @@ input:focus { border-color: var(--gold); }
 
 /* DeckBuilder específico */
 .deckbuilder-container { max-width: 1360px; }
-.deckbuilder { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 2rem; }
+.deckbuilder { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 2rem; align-items: start; }
 @media (max-width: 1050px) { .deckbuilder { grid-template-columns: 1fr; } }
 
 .card-grid {
@@ -573,6 +573,7 @@ input:focus { border-color: var(--gold); }
 .deck-side {
   --deck-row-height: 58px;
   position: relative;
+  align-self: start;
   background: var(--panel); border: 1px solid var(--line);
   padding: 1.2rem;
 }
