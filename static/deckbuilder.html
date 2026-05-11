@@ -18,7 +18,7 @@
     <button class="btn small" id="logout-btn">Sair</button>
   </header>
 
-  <div class="container">
+  <div class="container deckbuilder-container">
     <div class="row" style="margin-bottom: 1rem;">
       <h2 style="margin: 0;">Construtor de Decks</h2>
       <span class="spacer"></span>
@@ -41,7 +41,7 @@
 
       <div class="deck-side">
         <div class="row">
-          <h3 style="margin: 0;">Deck Atual</h3>
+          <h3 id="deck-title" class="deck-title" contenteditable="true" spellcheck="false" title="Clique para editar o nome do deck">Deck Sem Nome</h3>
           <span class="spacer"></span>
           <span id="deck-counter" style="font-family: 'Cinzel'; color: var(--gold);">0/30</span>
         </div>
@@ -71,6 +71,45 @@ let currentDeck = []; // lista de card_ids
 let currentDeckId = null;
 let currentFilter = "ALL";
 let currentSearch = "";
+
+const DECK_ROW_ART_DEFAULTS = {
+  MINION: { x: "50%", y: "22%", size: "136% auto" },
+  SPELL: { x: "50%", y: "24%", size: "128% auto" },
+};
+
+// Ajustes finos por carta: cada imagem tem o foco em um ponto diferente.
+// x/y definem qual parte do retrato fica no strip; size controla o zoom.
+const DECK_ROW_ART_FOCUS = {
+  troca_justa: { x: "44%", y: "22%", size: "132% auto" },
+  camarao: { x: "50%", y: "24%", size: "142% auto" },
+  fallen_duoluo: { x: "50%", y: "20%", size: "140% auto" },
+  fusca_de_brinquedo: { x: "53%", y: "21%", size: "136% auto" },
+  josney_tequila: { x: "44%", y: "22%", size: "146% auto" },
+  lamboia_3_anos: { x: "50%", y: "21%", size: "138% auto" },
+  mamma_mia: { x: "50%", y: "23%", size: "136% auto" },
+  mundo_dos_negocios: { x: "50%", y: "21%", size: "134% auto" },
+  nando_3_anos: { x: "48%", y: "22%", size: "140% auto" },
+  niurau_irritado: { x: "50%", y: "20%", size: "150% auto" },
+  peixe: { x: "50%", y: "22%", size: "146% auto" },
+  pequeno_gusnabo: { x: "52%", y: "22%", size: "142% auto" },
+  sas: { x: "50%", y: "25%", size: "142% auto" },
+  soldado_romano: { x: "47%", y: "23%", size: "140% auto" },
+  spiid_3_anos: { x: "50%", y: "22%", size: "140% auto" },
+};
+
+function applyDeckRowArt(row, card) {
+  const artUrl = cardImages[card.id];
+  if (!artUrl) return;
+  const focus = {
+    ...(DECK_ROW_ART_DEFAULTS[card.type] || DECK_ROW_ART_DEFAULTS.MINION),
+    ...(DECK_ROW_ART_FOCUS[card.id] || {}),
+  };
+  row.classList.add("has-art");
+  row.style.setProperty("--deck-row-art", `url('${artUrl}')`);
+  row.style.setProperty("--deck-row-art-x", focus.x);
+  row.style.setProperty("--deck-row-art-y", focus.y);
+  row.style.setProperty("--deck-row-art-size", focus.size);
+}
 
 const TYPES = [
   { id: "ALL", label: "Todas" },
@@ -173,6 +212,54 @@ const TAG_SHORT = {
 };
 function tagShort(t) { return TAG_SHORT[t] || t.slice(0, 8); }
 
+
+function deckNameInput() {
+  return document.getElementById("deck-name");
+}
+
+function deckTitleEl() {
+  return document.getElementById("deck-title");
+}
+
+function displayedDeckName() {
+  return deckNameInput().value.trim() || "Deck Sem Nome";
+}
+
+function syncDeckTitleFromInput() {
+  const title = deckTitleEl();
+  if (!title || document.activeElement === title) return;
+  title.textContent = displayedDeckName();
+}
+
+function commitDeckTitleEdit() {
+  const input = deckNameInput();
+  const title = deckTitleEl();
+  if (!input || !title) return;
+  const value = title.textContent.trim().slice(0, 60);
+  input.value = value;
+  title.textContent = value || "Deck Sem Nome";
+}
+
+function setupDeckNameEditing() {
+  const input = deckNameInput();
+  const title = deckTitleEl();
+  if (!input || !title) return;
+
+  input.addEventListener("input", syncDeckTitleFromInput);
+  title.addEventListener("blur", commitDeckTitleEdit);
+  title.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      title.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      syncDeckTitleFromInput();
+      title.blur();
+    }
+  });
+  syncDeckTitleFromInput();
+}
+
 function renderCardGrid() {
   const grid = document.getElementById("card-grid");
   grid.innerHTML = "";
@@ -200,6 +287,7 @@ function removeFromDeck(cardId) {
 }
 
 function renderDeck() {
+  syncDeckTitleFromInput();
   document.getElementById("deck-counter").textContent = `${currentDeck.length}/30`;
   const list = document.getElementById("deck-list");
   list.innerHTML = "";
@@ -215,6 +303,7 @@ function renderDeck() {
   for (const e of entries) {
     const row = document.createElement("div");
     row.className = "deck-row";
+    applyDeckRowArt(row, e.card);
     row.innerHTML = `
       <div class="cost-badge">${e.card.cost ?? 0}</div>
       <div class="nm">${escapeHtml(e.card.name)}</div>
@@ -320,6 +409,7 @@ async function init() {
     const data = await imgsRes.json();
     cardImages = data.cards || {};
   }
+  setupDeckNameEditing();
   renderFilters();
   renderCardGrid();
   renderDeck();
