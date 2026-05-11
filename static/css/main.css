@@ -651,9 +651,15 @@ input:focus { border-color: var(--gold); }
     #8a7050 50%,
     #5a4530 100%
   ) 1;
+  /* Vinheta inset reduzida no eixo Y para não engolir a mão na borda
+     inferior. Antes era inset 0 0 100px que escurecia os 100px de baixo —
+     justo onde as cartas ficam. Agora a vinheta pesa mais nas laterais
+     (via segundo inset) e só um leve top/bottom para profundidade. */
   box-shadow:
-    inset 0 0 100px rgba(60, 35, 15, 0.75),
-    inset 0 12px 26px rgba(40, 22, 8, 0.55),
+    inset 0 0 60px rgba(60, 35, 15, 0.45),
+    inset 80px 0 90px -40px rgba(40, 22, 8, 0.45),
+    inset -80px 0 90px -40px rgba(40, 22, 8, 0.45),
+    inset 0 12px 26px rgba(40, 22, 8, 0.45),
     0 0 40px rgba(0, 0, 0, 0.75);
   overflow: hidden;
 }
@@ -682,15 +688,18 @@ input:focus { border-color: var(--gold); }
   mix-blend-mode: multiply;
   z-index: 0;
 }
-/* Vinheta escura nos cantos para profundidade. */
+/* Vinheta escura nos cantos para profundidade. Reduzida a opacidade
+   (0.5 → 0.32) e ajustada para não engolir a faixa da mão na borda
+   inferior — antes a vinheta fechava a 100% da altura, agora vai até 92%
+   pra deixar a mão respirar. */
 .arena-layout::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(ellipse 95% 100% at 50% 50%,
-    transparent 55%,
-    rgba(20, 10, 4, 0.5) 100%);
+  background: radial-gradient(ellipse 95% 92% at 50% 48%,
+    transparent 58%,
+    rgba(20, 10, 4, 0.32) 100%);
   z-index: 0;
 }
 
@@ -702,8 +711,9 @@ input:focus { border-color: var(--gold); }
   flex-direction: column;
   /* padding direito reservado para a coluna de decks + botão de turno
      (decks 96px + botão 100px empilhados na mesma coluna).
-     padding inferior pequeno: a mão precisa caber dentro da arena. */
-  padding: 1.6% 150px 0.6% 4%;
+     padding inferior maior (2.4%/~24px) afasta a mão da borda escura da
+     arena — antes ficava colada e a vinheta engolia metade da carta. */
+  padding: 1.4% 150px 2.4% 4%;
   box-sizing: border-box;
   z-index: 1;
 }
@@ -812,7 +822,24 @@ input:focus { border-color: var(--gold); }
      visível fique acima e dentro da arena. */
   align-items: flex-end;
   overflow: visible;
+  position: relative;
 }
+/* Prateleira luminosa atrás da mão. Funciona como uma "luz dirigida" no
+   pergaminho - contrabalança a vinheta da arena pra que as cartas
+   apareçam com contraste, sem precisar tirá-las do tabuleiro. */
+.zone-my-hand::before {
+  content: "";
+  position: absolute;
+  inset: -8px 4% -12px 4%;
+  background: radial-gradient(ellipse 70% 90% at 50% 65%,
+    rgba(255, 230, 170, 0.32) 0%,
+    rgba(255, 220, 150, 0.18) 35%,
+    transparent 80%);
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50% / 30%;
+}
+.zone-my-hand > .card { position: relative; z-index: 1; }
 .zone-my-hand .card {
   transition: transform 140ms ease-out, filter 140ms ease-out;
 }
