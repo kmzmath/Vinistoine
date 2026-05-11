@@ -1299,7 +1299,7 @@ input:focus { border-color: var(--gold); }
 .minion.taunt .taunt-shield {
   position: absolute;
   top: 76px; left: 50%; transform: translate(-50%, -50%);
-  width: 116px; height: 116px;
+  width: 160px; height: 160px;
   pointer-events: none;
   z-index: 1;
 }
