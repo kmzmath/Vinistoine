@@ -558,8 +558,9 @@ input:focus { border-color: var(--gold); }
 }
 
 /* DeckBuilder específico */
-.deckbuilder { display: grid; grid-template-columns: 1fr 360px; gap: 2rem; }
-@media (max-width: 900px) { .deckbuilder { grid-template-columns: 1fr; } }
+.deckbuilder-container { max-width: 1360px; }
+.deckbuilder { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 2rem; }
+@media (max-width: 1050px) { .deckbuilder { grid-template-columns: 1fr; } }
 
 .card-grid {
   display: grid;
@@ -579,12 +580,50 @@ input:focus { border-color: var(--gold); }
   flex: 1; overflow-y: auto; margin: 0.5rem 0;
 }
 .deck-row {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.3em 0.4em; border-bottom: 1px solid var(--line);
+  min-height: 34px;
+  padding: 0.32em 0.4em; border-bottom: 1px solid var(--line);
   font-size: 0.9rem;
   cursor: pointer;
+  background: linear-gradient(90deg, rgba(22,17,13,0.96), rgba(22,17,13,0.82));
 }
-.deck-row:hover { background: rgba(212,166,74,0.06); }
+.deck-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(12,9,7,0.92) 0%, rgba(12,9,7,0.42) 35%, rgba(12,9,7,0.74) 100%),
+    linear-gradient(180deg, rgba(255,235,170,0.08), rgba(0,0,0,0.24));
+}
+.deck-row.has-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image: var(--deck-row-art);
+  background-size: var(--deck-row-art-size, 136% auto);
+  background-position: var(--deck-row-art-x, 50%) var(--deck-row-art-y, 22%);
+  filter: saturate(1.18) contrast(1.1) brightness(0.98);
+  transform: scale(1.08);
+}
+.deck-row.has-art {
+  border-color: rgba(212, 166, 74, 0.28);
+}
+.deck-row:hover::after {
+  background:
+    linear-gradient(90deg, rgba(12,9,7,0.78) 0%, rgba(12,9,7,0.24) 38%, rgba(12,9,7,0.62) 100%),
+    linear-gradient(180deg, rgba(245,201,105,0.16), rgba(0,0,0,0.18));
+}
+.deck-row > * {
+  position: relative;
+  z-index: 1;
+}
 .deck-row .cost-badge {
   width: 24px; height: 24px; border-radius: 50%;
   background: radial-gradient(circle, #4a7fa8, #1a3a58);
