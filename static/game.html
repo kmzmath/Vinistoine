@@ -562,6 +562,9 @@ function renderBoard() {
     else el.classList.add("playable");
     if (spellPaysHealth) el.classList.add("pays-with-health");
     el.dataset.handId = c.instance_id;
+    if (arrivingDrawHandIds.has(String(c.instance_id))) {
+      el.classList.add("draw-arriving");
+    }
     attachHandHoverPreview(el, c);
     // Drag-and-drop só faz sentido para lacaios jogáveis. Spells e weapons
     // continuam usando o fluxo de clique.
@@ -2682,7 +2685,7 @@ function animateFromDelta(oldS, newS) {
         const handCard = (newS.you.hand || []).find(c => c.instance_id === inst);
         if (handCard) cardIdRevealed = handCard.card_id;
       }
-      scheduleDrawAnimation(player, cardIdRevealed, ev.reason || "effect");
+      scheduleDrawAnimation(player, cardIdRevealed, ev.reason || "effect", inst || null);
     }
     // === Anúncio de carta jogada pelo oponente ===
     if (ev.type === "play_card" && ev.player !== myPid) {
@@ -2764,18 +2767,24 @@ function animateFromDelta(oldS, newS) {
 // uma compra de 3s podia ser disparada com delay 1000ms, ou uma de 1s com
 // delay 6000ms. Usar um cursor evita sobreposição e gaps grandes.
 let nextDrawAnimAt = 0;
+const arrivingDrawHandIds = new Set();
 const TURN_START_DRAW_MS = 3000;
 const EFFECT_DRAW_MS = 1000;
 const OPPONENT_DRAW_MS = 700;
-function scheduleDrawAnimation(playerId, cardIdRevealed, reason = "effect") {
+function scheduleDrawAnimation(playerId, cardIdRevealed, reason = "effect", targetHandId = null) {
   const isMine = playerId === myPid;
   const duration = !isMine ? OPPONENT_DRAW_MS : (reason === "turn_start" ? TURN_START_DRAW_MS : EFFECT_DRAW_MS);
   const now = Date.now();
   const startAt = Math.max(now, nextDrawAnimAt);
   const delay = startAt - now;
   nextDrawAnimAt = startAt + duration;
+  if (isMine && targetHandId) arrivingDrawHandIds.add(String(targetHandId));
   setTimeout(() => {
-    flyDrawCard(playerId, cardIdRevealed, { duration, showcase: isMine && reason === "turn_start" });
+    flyDrawCard(playerId, cardIdRevealed, {
+      duration,
+      showcase: isMine && reason === "turn_start",
+      targetHandId,
+    });
   }, delay);
 }
 
@@ -2792,23 +2801,50 @@ function buildAnimatedCard(cardId, faceDown = false) {
   return wrap;
 }
 
-function flyDrawCard(playerId, cardIdRevealed, opts = {}) {
-  const duration = opts.duration || EFFECT_DRAW_MS;
-  const showcase = !!opts.showcase;
-  const pileEl = document.querySelector(`.deck-pile[data-pile-owner='${playerId}']`);
+function getDrawTargetRect(playerId, targetHandId = null) {
+  if (playerId === myPid && targetHandId) {
+    for (const el of document.querySelectorAll(".zone-my-hand .card[data-hand-id]")) {
+      if (el.dataset.handId === String(targetHandId)) return el.getBoundingClientRect();
+    }
+  }
+
+  if (playerId !== myPid) {
+    const backs = document.querySelectorAll(".zone-opp-hand .card-back");
+    if (backs.length) return backs[backs.length - 1].getBoundingClientRect();
+  }
+
   const handEl = playerId === myPid
     ? document.querySelector(".zone-my-hand")
     : document.querySelector(".zone-opp-hand");
-  if (!pileEl || !handEl) return;
+  return handEl ? handEl.getBoundingClientRect() : null;
+}
+
+function clearArrivingDrawCard(targetHandId) {
+  if (!targetHandId) return;
+  arrivingDrawHandIds.delete(String(targetHandId));
+  for (const el of document.querySelectorAll(".zone-my-hand .card[data-hand-id]")) {
+    if (el.dataset.handId === String(targetHandId)) el.classList.remove("draw-arriving");
+  }
+}
+
+function flyDrawCard(playerId, cardIdRevealed, opts = {}) {
+  const duration = opts.duration || EFFECT_DRAW_MS;
+  const showcase = !!opts.showcase;
+  const targetHandId = opts.targetHandId || null;
+  const pileEl = document.querySelector(`.deck-pile[data-pile-owner='${playerId}']`);
+  const targetRect = getDrawTargetRect(playerId, targetHandId);
+  if (!pileEl || !targetRect) {
+    clearArrivingDrawCard(targetHandId);
+    return;
+  }
 
   const pr = pileEl.getBoundingClientRect();
-  const hr = handEl.getBoundingClientRect();
   const startX = pr.left + pr.width / 2;
   const startY = pr.top + pr.height / 2;
   const centerX = window.innerWidth / 2;
   const centerY = window.innerHeight / 2;
-  const endX = hr.left + hr.width * 0.6;
-  const endY = hr.top + hr.height / 2;
+  const endX = targetRect.left + targetRect.width / 2;
+  const endY = targetRect.top + targetRect.height / 2;
 
   const fly = document.createElement("div");
   fly.className = "draw-fly-v2 start" + (showcase ? " slow" : " quick") + (playerId !== myPid ? " opponent-draw" : "");
@@ -2842,8 +2878,14 @@ function flyDrawCard(playerId, cardIdRevealed, opts = {}) {
     }));
   }
 
-  setTimeout(() => fly.classList.add("land"), Math.max(250, duration - 180));
-  setTimeout(() => fly.remove(), duration + 80);
+  setTimeout(() => {
+    fly.classList.add("land");
+    clearArrivingDrawCard(targetHandId);
+  }, Math.max(250, duration - 180));
+  setTimeout(() => {
+    fly.remove();
+    clearArrivingDrawCard(targetHandId);
+  }, duration + 80);
 }
 
 // === Animação de queima própria ===
