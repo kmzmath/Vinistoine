@@ -558,8 +558,9 @@ input:focus { border-color: var(--gold); }
 }
 
 /* DeckBuilder específico */
-.deckbuilder { display: grid; grid-template-columns: 1fr 360px; gap: 2rem; }
-@media (max-width: 900px) { .deckbuilder { grid-template-columns: 1fr; } }
+.deckbuilder-container { max-width: 1360px; }
+.deckbuilder { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 2rem; }
+@media (max-width: 1050px) { .deckbuilder { grid-template-columns: 1fr; } }
 
 .card-grid {
   display: grid;
