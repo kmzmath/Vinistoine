@@ -214,7 +214,9 @@ function renderDeck() {
   entries.sort((a, b) => (a.card.cost || 0) - (b.card.cost || 0) || a.card.name.localeCompare(b.card.name));
   for (const e of entries) {
     const row = document.createElement("div");
-    row.className = "deck-row";
+    const artUrl = cardImages[e.cid];
+    row.className = "deck-row" + (artUrl ? " has-art" : "");
+    if (artUrl) row.style.setProperty("--deck-row-art", `url('${artUrl}')`);
     row.innerHTML = `
       <div class="cost-badge">${e.card.cost ?? 0}</div>
       <div class="nm">${escapeHtml(e.card.name)}</div>
