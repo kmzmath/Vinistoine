@@ -1125,23 +1125,27 @@ input:focus { border-color: var(--gold); }
   min-height: 188px;
   padding: 0.5rem 0.4rem;
   position: relative;
-  /* Largura calibrada para 7 lacaios "certinho":
-     7 cartas (132px) + 6 gaps (0.6rem) + padding (0.8rem)
-     ≈ 924 + 58 + 13 = ~995px de conteúdo. Damos uma folga
-     de respiro mas mantemos o campo VISUALMENTE fechado em 7. */
-  max-width: 1040px;
+  /* Largura calibrada para 7 lacaios "certinho" dentro do CHÃO visual:
+     7 cartas (132px) + 6 gaps (0.6rem) + padding (0.8rem) ≈ 994px.
+     O chão decorativo (::before) tem ~4% de margem por lado, então o
+     row-board precisa ser ~994 / 0.92 ≈ 1080px para o chão acomodar 7
+     com 14-16px de respiro em cada ponta. */
+  max-width: 1100px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Piso de cada zona: trapézio de pedra com leve perspectiva e textura. */
+/* Piso de cada zona: trapézio de pedra com leve perspectiva e textura.
+   Margens horizontais reduzidas de 6% para 4% para que 7 lacaios caibam
+   completamente dentro do chão visível (antes 6% deixava o chão com 88%
+   de largura, que só comportava ~5,7 lacaios). */
 .row-board.opp::before,
 .row-board.you::before {
   content: "";
   position: absolute;
-  left: 6%;
-  right: 6%;
+  left: 4%;
+  right: 4%;
   top: 6%;
   bottom: 6%;
   border-radius: 18px / 90px;
@@ -1169,8 +1173,8 @@ input:focus { border-color: var(--gold); }
 .row-board.you::after {
   content: "";
   position: absolute;
-  left: 12%;
-  right: 12%;
+  left: 8%;
+  right: 8%;
   top: 12%;
   bottom: 12%;
   border-radius: 50%;
