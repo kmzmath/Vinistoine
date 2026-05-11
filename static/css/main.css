@@ -606,9 +606,9 @@ input:focus { border-color: var(--gold); }
   z-index: -2;
   pointer-events: none;
   background-image: var(--deck-row-art);
-  background-size: 118% auto;
-  background-position: center 42%;
-  filter: saturate(1.16) contrast(1.08) brightness(0.96);
+  background-size: var(--deck-row-art-size, 136% auto);
+  background-position: var(--deck-row-art-x, 50%) var(--deck-row-art-y, 22%);
+  filter: saturate(1.18) contrast(1.1) brightness(0.98);
   transform: scale(1.08);
 }
 .deck-row.has-art {

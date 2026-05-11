@@ -72,6 +72,45 @@ let currentDeckId = null;
 let currentFilter = "ALL";
 let currentSearch = "";
 
+const DECK_ROW_ART_DEFAULTS = {
+  MINION: { x: "50%", y: "22%", size: "136% auto" },
+  SPELL: { x: "50%", y: "24%", size: "128% auto" },
+};
+
+// Ajustes finos por carta: cada imagem tem o foco em um ponto diferente.
+// x/y definem qual parte do retrato fica no strip; size controla o zoom.
+const DECK_ROW_ART_FOCUS = {
+  troca_justa: { x: "44%", y: "22%", size: "132% auto" },
+  camarao: { x: "50%", y: "24%", size: "142% auto" },
+  fallen_duoluo: { x: "50%", y: "20%", size: "140% auto" },
+  fusca_de_brinquedo: { x: "53%", y: "21%", size: "136% auto" },
+  josney_tequila: { x: "44%", y: "22%", size: "146% auto" },
+  lamboia_3_anos: { x: "50%", y: "21%", size: "138% auto" },
+  mamma_mia: { x: "50%", y: "23%", size: "136% auto" },
+  mundo_dos_negocios: { x: "50%", y: "21%", size: "134% auto" },
+  nando_3_anos: { x: "48%", y: "22%", size: "140% auto" },
+  niurau_irritado: { x: "50%", y: "20%", size: "150% auto" },
+  peixe: { x: "50%", y: "22%", size: "146% auto" },
+  pequeno_gusnabo: { x: "52%", y: "22%", size: "142% auto" },
+  sas: { x: "50%", y: "25%", size: "142% auto" },
+  soldado_romano: { x: "47%", y: "23%", size: "140% auto" },
+  spiid_3_anos: { x: "50%", y: "22%", size: "140% auto" },
+};
+
+function applyDeckRowArt(row, card) {
+  const artUrl = cardImages[card.id];
+  if (!artUrl) return;
+  const focus = {
+    ...(DECK_ROW_ART_DEFAULTS[card.type] || DECK_ROW_ART_DEFAULTS.MINION),
+    ...(DECK_ROW_ART_FOCUS[card.id] || {}),
+  };
+  row.classList.add("has-art");
+  row.style.setProperty("--deck-row-art", `url('${artUrl}')`);
+  row.style.setProperty("--deck-row-art-x", focus.x);
+  row.style.setProperty("--deck-row-art-y", focus.y);
+  row.style.setProperty("--deck-row-art-size", focus.size);
+}
+
 const TYPES = [
   { id: "ALL", label: "Todas" },
   { id: "MINION", label: "Lacaios" },
@@ -214,9 +253,8 @@ function renderDeck() {
   entries.sort((a, b) => (a.card.cost || 0) - (b.card.cost || 0) || a.card.name.localeCompare(b.card.name));
   for (const e of entries) {
     const row = document.createElement("div");
-    const artUrl = cardImages[e.cid];
-    row.className = "deck-row" + (artUrl ? " has-art" : "");
-    if (artUrl) row.style.setProperty("--deck-row-art", `url('${artUrl}')`);
+    row.className = "deck-row";
+    applyDeckRowArt(row, e.card);
     row.innerHTML = `
       <div class="cost-badge">${e.card.cost ?? 0}</div>
       <div class="nm">${escapeHtml(e.card.name)}</div>
