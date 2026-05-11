@@ -422,26 +422,33 @@ input:focus { border-color: var(--gold); }
 .card .deck-count-badge,
 .card.full-art > .deck-count-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  min-width: 40px;
-  height: 34px;
-  padding: 0 0.45rem;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  min-width: 44px;
+  height: 26px;
+  padding: 0 0.55rem;
   border-radius: 999px;
   display: flex !important;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 35% 30%, #fff0a8, #d4a64a 58%, #6f3d12);
-  border: 2px solid #fff1b8;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.75), 0 0 14px rgba(255,216,96,0.75);
-  color: #271306;
+  background: rgba(12, 8, 6, 0.88);
+  border: 2px solid var(--gold);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.75), 0 0 12px rgba(212,166,74,0.65);
+  color: var(--gold-bright);
   font-family: 'Cinzel', serif;
   font-size: 1rem;
   font-weight: 900;
+  letter-spacing: 0.04em;
   line-height: 1;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.45);
-  z-index: 8;
   pointer-events: none;
+  z-index: 5;
+}
+
+.card-grid .card.full-art > .deck-count-badge {
+  top: 44%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
 }
 
 /* Overlays de valores atuais para cartas full-art na mão.
