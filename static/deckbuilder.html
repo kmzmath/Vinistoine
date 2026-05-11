@@ -150,13 +150,12 @@ function deckCardCount(cardId) {
 function applyDeckCountBadge(cardEl, cardId) {
   const count = deckCardCount(cardId);
   cardEl.classList.toggle("in-deck", count > 0);
-  cardEl.querySelector(".deck-count-badge")?.remove();
+  cardEl.removeAttribute("data-deck-count");
+  cardEl.removeAttribute("aria-label");
   if (count <= 0) return;
 
-  const badge = document.createElement("div");
-  badge.className = "deck-count-badge";
-  badge.textContent = `×${count}`;
-  cardEl.appendChild(badge);
+  cardEl.dataset.deckCount = `x${count}`;
+  cardEl.setAttribute("aria-label", `${count} ${count === 1 ? "cópia selecionada" : "cópias selecionadas"} no deck`);
 }
 
 function updateCardGridDeckBadges() {
