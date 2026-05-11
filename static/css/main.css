@@ -419,22 +419,22 @@ input:focus { border-color: var(--gold); }
   border-color: var(--gold);
   box-shadow: 0 0 14px rgba(212,166,74,0.55);
 }
-.card .deck-count-badge,
-.card.full-art > .deck-count-badge {
+#card-grid .card[data-deck-count]::before {
+  content: attr(data-deck-count);
   position: absolute;
   left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%);
-  min-width: 44px;
-  height: 26px;
+  bottom: 0;
+  transform: translate(-50%, 50%);
+  min-width: 46px;
+  height: 28px;
   padding: 0 0.55rem;
-  border-radius: 999px;
-  display: flex !important;
+  border-radius: 6px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(12, 8, 6, 0.88);
+  background: linear-gradient(180deg, rgba(42, 34, 24, 0.97), rgba(12, 8, 6, 0.97));
   border: 2px solid var(--gold);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.75), 0 0 12px rgba(212,166,74,0.65);
+  box-shadow: inset 0 0 0 1px rgba(255,241,184,0.35), 0 2px 8px rgba(0,0,0,0.8), 0 0 12px rgba(212,166,74,0.65);
   color: var(--gold-bright);
   font-family: 'Cinzel', serif;
   font-size: 1rem;
@@ -442,14 +442,10 @@ input:focus { border-color: var(--gold); }
   letter-spacing: 0.04em;
   line-height: 1;
   pointer-events: none;
-  z-index: 5;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+  z-index: 20;
 }
 
-.card-grid .card.full-art > .deck-count-badge {
-  top: 44%;
-  bottom: auto;
-  transform: translate(-50%, -50%);
-}
 
 /* Overlays de valores atuais para cartas full-art na mão.
    Os valores usam os próprios ícones (mana/ataque/vida) como fundo,
@@ -561,9 +557,10 @@ input:focus { border-color: var(--gold); }
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.8rem;
+  column-gap: 0.8rem;
+  row-gap: 1.6rem;
 }
-.card-grid .card { width: 100%; height: 260px; }
+.card-grid .card { width: 100%; height: 260px; overflow: visible; }
 
 .deck-side {
   position: sticky; top: 1rem;
