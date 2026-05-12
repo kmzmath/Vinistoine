@@ -28,3 +28,10 @@ def test_tab_titles_use_vinistone():
     assert "<title>Saguão - Vinístone</title>" in (root / "static/lobby.html").read_text(encoding="utf-8")
     assert "<title>Construtor de Decks - Vinístone</title>" in (root / "static/deckbuilder.html").read_text(encoding="utf-8")
     assert "<title>Partida - Vinístone</title>" in (root / "static/game.html").read_text(encoding="utf-8")
+
+
+def test_audio_surrender_row_hidden_rule_overrides_flex_display():
+    root = Path(__file__).resolve().parents[1]
+    css = (root / "static/css/main.css").read_text(encoding="utf-8")
+
+    assert ".audio-settings-panel .aud-row[hidden] { display: none; }" in css
