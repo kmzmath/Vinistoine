@@ -133,6 +133,7 @@ function connect() {
     if (!msg || typeof msg !== "object") return;
     if (msg.type === "joined") {
       myPid = msg.your_player_id;
+      syncSurrenderAvailability();
       // Se o primeiro state chegou ANTES de joined, agora finalmente sabemos
       // quem somos - re-renderiza com a perspectiva certa
       if (state) render();
@@ -145,6 +146,7 @@ function connect() {
       if (state && myPid !== null) animateFromDelta(state, newState);
       prevState = state;
       state = newState;
+      syncSurrenderAvailability();
       if (newState.phase === "MULLIGAN") onMulliganStateUpdate(newState);
       // Só renderiza se já temos myPid (caso contrário esperamos joined chegar)
       if (myPid !== null) render();
@@ -168,9 +170,25 @@ function send(action, data = {}) {
   }
 }
 
+function isSurrenderAvailable() {
+  return Boolean(state && myPid !== null && state.phase !== "ENDED");
+}
+
+function syncSurrenderAvailability() {
+  const available = isSurrenderAvailable();
+  window.__vinistoneSurrenderAvailable = available;
+  if (typeof window.setAudioSurrenderAvailable === "function") {
+    window.setAudioSurrenderAvailable(available);
+  }
+  window.dispatchEvent(new CustomEvent("audio-surrender-availability", {
+    detail: { available },
+  }));
+}
+
 // Exposto para o painel de configurações flutuante (audio.js) chamar
 // quando o jogador clicar em "Render-se" lá. Mesmo fluxo do botão antigo.
 window.requestSurrender = function () {
+  if (!isSurrenderAvailable()) return;
   if (confirm("Tem certeza que deseja se render?")) send("concede");
 };
 window.addEventListener("audio-surrender-request", () => window.requestSurrender());

@@ -8,11 +8,14 @@
 //
 // Também monta um painel de configurações flutuante no canto inferior
 // direito (sempre visível) com slider de volume, mute, "próxima faixa" e,
-// quando dentro de uma partida, o botão de "Render-se".
+// quando a página informa que há uma partida ativa, o botão de "Render-se".
 //
-// O botão de render-se dispara um evento `audio-surrender-request` no
-// window e uma função window.requestSurrender() (se definida pela página).
-// game.html escuta esse evento.
+// O botão de render-se só é exibido quando a página chama
+// window.setAudioSurrenderAvailable(true) ou emite
+// `audio-surrender-availability` com `{ available: true }`. Ao clicar, ele
+// dispara `audio-surrender-request` no window ou chama
+// window.requestSurrender() (se definida pela página). game.html escuta esse
+// evento.
 // =========================================================================
 (function () {
   if (window.__vinistoneAudioInit) return;
@@ -98,6 +101,27 @@
   let currentTrack = null;
   let panelEl = null;
   let buttonEl = null;
+
+  function isSurrenderAvailable() {
+    return window.__vinistoneSurrenderAvailable === true;
+  }
+
+  function syncSurrenderVisibility() {
+    if (!panelEl) return;
+    const gameRow = panelEl.querySelector("#audio-game-row");
+    if (!gameRow) return;
+    gameRow.hidden = !(detectContext() === "match" && isSurrenderAvailable());
+  }
+
+  window.setAudioSurrenderAvailable = function (available) {
+    window.__vinistoneSurrenderAvailable = available === true;
+    syncSurrenderVisibility();
+  };
+
+  window.addEventListener("audio-surrender-availability", function (ev) {
+    const detail = ev && ev.detail ? ev.detail : {};
+    window.setAudioSurrenderAvailable(detail.available === true);
+  });
 
   // ---------- discover ----------
   async function fetchTracks() {
@@ -350,18 +374,17 @@
       });
     }
 
-    if (detectContext() === "match" && gameRow) {
-      gameRow.hidden = false;
-      if (surrenderBtn) {
-        surrenderBtn.addEventListener("click", function () {
-          panelEl.classList.add("hidden");
-          if (typeof window.requestSurrender === "function") {
-            window.requestSurrender();
-          } else {
-            window.dispatchEvent(new CustomEvent("audio-surrender-request"));
-          }
-        });
-      }
+    syncSurrenderVisibility();
+    if (surrenderBtn) {
+      surrenderBtn.addEventListener("click", function () {
+        if (!isSurrenderAvailable()) return;
+        panelEl.classList.add("hidden");
+        if (typeof window.requestSurrender === "function") {
+          window.requestSurrender();
+        } else {
+          window.dispatchEvent(new CustomEvent("audio-surrender-request"));
+        }
+      });
     }
   }
 
