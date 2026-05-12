@@ -46,6 +46,29 @@ let hoverPreviewLastEvent = null;
 // minion-card, dragState fica populado e o board mostra um indicador de
 // posição entre os lacaios.
 let dragState = null;
+let pendingStateRenderTimer = null;
+let stateRenderVersion = 0;
+
+const ATTACK_ANIMATION_MS = 760;
+const ATTACK_STATE_RENDER_DELAY_MS = 820;
+const ATTACK_IMPACT_MS = 500;
+
+function scheduleStateRender(delay = 0) {
+  if (myPid === null) return;
+  stateRenderVersion += 1;
+  const version = stateRenderVersion;
+  if (pendingStateRenderTimer) {
+    clearTimeout(pendingStateRenderTimer);
+    pendingStateRenderTimer = null;
+  }
+  const run = () => {
+    if (version !== stateRenderVersion) return;
+    pendingStateRenderTimer = null;
+    render();
+  };
+  if (delay > 0) pendingStateRenderTimer = setTimeout(run, delay);
+  else run();
+}
 
 // =========== Network ===========
 async function loadCards() {
@@ -143,13 +166,14 @@ function connect() {
       // Detecta mudanças e dispara animações ANTES de atualizar prevState.
       // Importante: só anima se já sabemos quem somos (myPid !== null).
       // Caso contrário guardamos como "primeira foto" do estado, sem animação.
-      if (state && myPid !== null) animateFromDelta(state, newState);
+      const renderDelay = (state && myPid !== null) ? animateFromDelta(state, newState) : 0;
       prevState = state;
       state = newState;
       syncSurrenderAvailability();
       if (newState.phase === "MULLIGAN") onMulliganStateUpdate(newState);
-      // Só renderiza se já temos myPid (caso contrário esperamos joined chegar)
-      if (myPid !== null) render();
+      // Só renderiza se já temos myPid (caso contrário esperamos joined chegar).
+      // Em ataques, renderizar só depois da corrida evita HP/morte antes da colisão.
+      if (myPid !== null) scheduleStateRender(renderDelay);
     }
     if (msg.type === "error") toast(msg.message || msg.msg);
     if (msg.type === "opponent_disconnected") toast("Oponente desconectou");
@@ -2961,41 +2985,41 @@ function animateFromDelta(oldS, newS) {
   // mesmo com eventos novos.
   const oldSeqs = new Set((oldS.log || []).map(ev => ev.seq).filter(v => v !== undefined));
   const newEvents = (newS.log || []).filter(ev => ev.seq === undefined || !oldSeqs.has(ev.seq));
+  const normalizeImpactId = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string" || typeof value === "number") return String(value);
+    return null;
+  };
   const attackImpactIds = new Set();
   const damageAmountByMinion = new Map();
+  let hasAttackAnimation = false;
   for (const ev of newEvents) {
     if (ev.type === "attack" || ev.type === "forced_attack") {
-      if (ev.attacker) attackImpactIds.add(String(ev.attacker));
-      if (ev.target) attackImpactIds.add(String(ev.target));
+      hasAttackAnimation = true;
+      const attackerId = normalizeImpactId(ev.attacker);
+      if (attackerId) attackImpactIds.add(attackerId);
+      const targetId = normalizeImpactId(ev.target);
+      if (targetId) attackImpactIds.add(targetId);
     }
     if (ev.type === "damage" && ev.target_kind === "minion" && ev.target_id) {
       const id = String(ev.target_id);
       damageAmountByMinion.set(id, (damageAmountByMinion.get(id) || 0) + (Number(ev.amount) || 0));
     }
   }
-  const impactDelayFor = (id) => attackImpactIds.has(String(id)) ? 500 : 0;
+  const renderDelay = hasAttackAnimation ? ATTACK_STATE_RENDER_DELAY_MS : 0;
+  const impactDelayFor = (id) => {
+    const impactId = normalizeImpactId(id);
+    return impactId && attackImpactIds.has(impactId) ? ATTACK_IMPACT_MS : 0;
+  };
 
-  // Para cada lacaio que sumiu (morreu), animar dying ANTES da rerenderização
+  // Para cada lacaio que sumiu (morreu), animar dying no último frame antes
+  // da renderização que remove o lacaio. Em ataques, isso segura a morte até
+  // o atacante terminar de ir ao alvo e voltar.
   const deadIds = Object.keys(oldByid).filter(id => !newByid[id]);
   for (const id of deadIds) {
-    const el = document.querySelector(`.minion[data-minion-id='${id}']`);
-    if (el) {
-      el.classList.add("dying");
-      // detacha do fluxo pra render() não removê-lo na hora
-      const clone = el.cloneNode(true);
-      clone.style.position = "fixed";
-      const r = el.getBoundingClientRect();
-      clone.style.left = r.left + "px";
-      clone.style.top = r.top + "px";
-      clone.style.zIndex = 30;
-      document.getElementById("fx-layer").appendChild(clone);
-      clone.classList.add("dying");
-      setTimeout(() => clone.remove(), 600);
-    }
     const lethalDamage = damageAmountByMinion.get(String(id));
-    if (lethalDamage) {
-      queueShake(`.minion[data-minion-id='${id}']`, "dmg", lethalDamage, impactDelayFor(id));
-    }
+    const dyingDelay = Math.max(renderDelay, impactDelayFor(id));
+    queueDyingMinion(id, lethalDamage, dyingDelay);
   }
 
   // Mudanças de HP / divine shield em lacaios que continuam
@@ -3047,7 +3071,7 @@ function animateFromDelta(oldS, newS) {
             el.classList.add("entering");
             setTimeout(() => el.classList.remove("entering"), 500);
           }
-        }, 30);
+        }, renderDelay + 30);
       }
     }
     // === Compra de carta (qualquer jogador) ===
@@ -3135,6 +3159,7 @@ function animateFromDelta(oldS, newS) {
       });
     }
   }
+  return renderDelay;
 }
 
 // =================== ANIMAÇÃO DE COMPRA ===================
@@ -3396,6 +3421,31 @@ function showRevealNotice(ev) {
 }
 
 
+function queueDyingMinion(minionId, damage = null, delay = 0) {
+  const run = () => {
+    const el = document.querySelector(`.minion[data-minion-id='${minionId}']`);
+    if (!el) return;
+    if (damage) {
+      spawnDamageBubble(el, damage);
+      spawnSpark(el);
+    }
+    el.classList.add("dying");
+    // Detacha um clone do fluxo para a renderização poder remover o lacaio
+    // real sem cortar a animação de morte.
+    const clone = el.cloneNode(true);
+    clone.style.position = "fixed";
+    const r = el.getBoundingClientRect();
+    clone.style.left = r.left + "px";
+    clone.style.top = r.top + "px";
+    clone.style.zIndex = 30;
+    document.getElementById("fx-layer").appendChild(clone);
+    clone.classList.add("dying");
+    setTimeout(() => clone.remove(), 600);
+  };
+  if (delay > 0) setTimeout(run, delay);
+  else run();
+}
+
 // Adia animações até logo após o re-render (que apaga e recria os DOM nodes)
 let pendingAnims = [];
 function queueShake(selector, kind, value, delay = 0) {
@@ -3465,7 +3515,7 @@ function spawnSpark(el) {
 
 // Anima o ATAQUE: o atacante caminha até o alvo, tromba nele e volta.
 function animateAttack(attackerId, targetId) {
-  // Espera o re-render colocar o atacante no DOM novamente.
+  // Usa o DOM atual (pré-render do dano) para o atacante ir até o alvo antigo.
   setTimeout(() => {
     const atkEl = document.querySelector(`.minion[data-minion-id='${attackerId}']`);
     if (!atkEl) return;
@@ -3520,9 +3570,9 @@ function animateAttack(attackerId, targetId) {
       { transform: `translate(${overX}px, ${overY}px) scale(1.12) rotate(${lean * 0.45}deg)`, offset: 0.72, easing: "cubic-bezier(.16,.9,.24,1.25)" },
       { transform: `translate(${recoilX}px, ${recoilY}px) scale(0.98) rotate(${-lean * 0.25}deg)`, offset: 0.82, easing: "ease-out" },
       { transform: "translate(0, 0) scale(1) rotate(0deg)", offset: 1, easing: "ease-in" },
-    ], { duration: 760, iterations: 1, fill: "forwards" });
+    ], { duration: ATTACK_ANIMATION_MS, iterations: 1, fill: "forwards" });
 
-    setTimeout(() => spawnImpactRing(tgtEl), 500);
+    setTimeout(() => spawnImpactRing(tgtEl), ATTACK_IMPACT_MS);
     anim.onfinish = () => {
       clone.remove();
       atkEl.classList.remove("attack-source-hidden");
@@ -3532,7 +3582,7 @@ function animateAttack(attackerId, targetId) {
       clone.remove();
       atkEl.classList.remove("attack-source-hidden");
       tgtEl.classList.remove("impact-target");
-    }, 850);
+    }, ATTACK_STATE_RENDER_DELAY_MS + 30);
   }, 30);
 }
 
