@@ -1727,8 +1727,9 @@ function evaluateHandConditionForUi(cond, card, handCard, context = {}) {
     case "SUMMONED_MINION_TRIBE":
       return cardHasTribeForUi(card, cond.tribe);
     default:
-      // Condições dependentes de ataque/morte ou contexto do servidor não são
-      // previsíveis só olhando a mão; não sinalizamos para evitar borda enganosa.
+      // Condições dependentes de alvo escolhido, ataque/morte ou contexto do
+      // servidor não são previsíveis só olhando a mão; não sinalizamos para
+      // evitar uma borda enganosa.
       return false;
   }
 }
