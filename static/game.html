@@ -3619,10 +3619,9 @@ function makeLogItem(ev, all, idx) {
                title: `${playerLabel} descartou`, text: details.join("\n"), details };
     }
     case "burn": {
-      const owner = ev.player ?? ev.owner;
-      const isMine = owner === myPid;
+      const cardId = cardFromEvent(ev, ctx);
       const details = [detailForEvent(ev, ctx)].filter(Boolean);
-      return { kind: "burn", cardId: isMine ? ev.card_id : null,
+      return { kind: "burn", cardId,
                title: "Carta queimada", text: details.join("\n"), details };
     }
     case "divine_shield_break":
