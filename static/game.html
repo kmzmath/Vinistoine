@@ -428,18 +428,54 @@ const KW_SYMBOL = {
   PASSIVE: "⚡",       // Efeito contínuo (raio via SVG)
 };
 const KW_NAME = {
+  BATTLECRY: "Ao ser jogado",
+  RUSH: "Rapidez",
+  STEALTH: "Furtividade",
   TAUNT: "Provocar",
   DIVINE_SHIELD: "Escudo Divino",
-  LIFESTEAL: "Roubo de Vida",
-  POISONOUS: "Veneno",
-  STEALTH: "Furtividade",
-  WINDFURY: "Fúria dos Ventos",
+  ECHO: "ECO",
+  FREEZE: "Congelar",
   DEATHRATTLE: "Último Suspiro",
-  PASSIVE: "Efeito Contínuo",
+  RESISTANT: "Resistente",
+  DORMANT: "Dormente",
+  EMPOWER: "Fortalecer",
+  POISONOUS: "Venenoso",
   CHARGE: "Investida",
-  RUSH: "Avanço",
-  BATTLECRY: "Grito de Guerra",
+  RECRUIT: "Recrute",
+  WINDFURY: "Fúria dos Ventos",
+  COMBO: "Combo",
+  ACTIVATED_ABILITY: "Habilidade",
+  LIFESTEAL: "Roubo de Vida",
+  PASSIVE: "Efeito Contínuo",
 };
+
+const KW_DESCRIPTION = {
+  BATTLECRY: "Efeito ativado uma vez quando você joga esta carta da mão.",
+  RUSH: "Pode atacar lacaios no turno em que entra em campo, mas não heróis nesse turno.",
+  STEALTH: "Não pode ser alvo de ataques, feitiços ou habilidades inimigas até atacar.",
+  TAUNT: "Inimigos devem atacar este lacaio antes de atacar outros alvos.",
+  DIVINE_SHIELD: "Previne todo o dano da primeira vez que este personagem receber dano.",
+  ECHO: "Ao ser jogada, cria uma cópia temporária na sua mão que some no fim do turno.",
+  FREEZE: "O personagem congelado perde seu próximo ataque.",
+  DEATHRATTLE: "Efeito ativado quando este lacaio morre.",
+  RESISTANT: "Reduz em 1 todo dano recebido; se o dano virar 0, Escudo Divino não é quebrado.",
+  DORMANT: "Fica em campo inativo: não pode atacar, ser atacado ou ser alvo até acordar.",
+  EMPOWER: "Ao jogar, você pode pagar 1 de mana extra para usar o efeito fortalecido.",
+  POISONOUS: "Qualquer dano causado por este lacaio destrói lacaios atingidos.",
+  CHARGE: "Pode atacar lacaios e heróis no turno em que entra em campo.",
+  RECRUIT: "Evoca diretamente do deck um lacaio que atenda aos requisitos do efeito.",
+  WINDFURY: "Pode atacar duas vezes a cada turno.",
+  COMBO: "Efeito extra ativado se você já jogou outra carta neste turno.",
+  ACTIVATED_ABILITY: "Habilidade manual do lacaio que você ativa no campo, pagando seu custo quando houver.",
+  LIFESTEAL: "Dano causado por este personagem também cura seu herói.",
+};
+
+const KEYWORD_PANEL_ORDER = [
+  "BATTLECRY", "RUSH", "STEALTH", "TAUNT", "DIVINE_SHIELD", "ECHO",
+  "FREEZE", "DEATHRATTLE", "RESISTANT", "DORMANT", "EMPOWER",
+  "POISONOUS", "CHARGE", "RECRUIT", "WINDFURY", "COMBO", "ACTIVATED_ABILITY",
+  "LIFESTEAL",
+];
 
 // ====== Tabuleiro ======
 function renderBoard() {
@@ -961,6 +997,57 @@ function normalizeTokenPreviewCard(token) {
   };
 }
 
+function collectKeywordHelpEntries(card, runtimeKeywords = []) {
+  const found = new Set();
+  for (const tag of [...(card.tags || []), ...(runtimeKeywords || [])]) {
+    if (KW_DESCRIPTION[tag]) found.add(tag);
+  }
+
+  for (const effect of (card.effects || [])) {
+    const trigger = effect.trigger || "";
+    const action = effect.action || "";
+    if (trigger === "ON_DEATH") found.add("DEATHRATTLE");
+    if (trigger === "ON_COMBO") found.add("COMBO");
+    if (trigger === "ACTIVATED_ABILITY" || trigger === "DURING_YOUR_TURN") found.add("ACTIVATED_ABILITY");
+    if (trigger === "ON_PLAY_EMPOWERED" || trigger === "ON_EMPOWER") found.add("EMPOWER");
+    if (action.includes("FREEZE")) found.add("FREEZE");
+    if (action.includes("RECRUIT")) found.add("RECRUIT");
+  }
+
+  return KEYWORD_PANEL_ORDER
+    .filter(key => found.has(key))
+    .map(key => ({ key, name: KW_NAME[key] || key, description: KW_DESCRIPTION[key] }));
+}
+
+function appendKeywordHelpPreview(root, card, runtimeKeywords = []) {
+  const entries = collectKeywordHelpEntries(card, runtimeKeywords);
+  if (!entries.length) return;
+
+  root.classList.add("has-keywords");
+  const wrap = document.createElement("div");
+  wrap.className = "keyword-help-preview";
+  const label = document.createElement("div");
+  label.className = "keyword-help-label";
+  label.textContent = "Keywords";
+  wrap.appendChild(label);
+
+  for (const entry of entries) {
+    const item = document.createElement("div");
+    item.className = "keyword-help-item";
+    const title = document.createElement("div");
+    title.className = "keyword-help-title";
+    title.textContent = entry.name;
+    const text = document.createElement("div");
+    text.className = "keyword-help-text";
+    text.textContent = entry.description;
+    item.appendChild(title);
+    item.appendChild(text);
+    wrap.appendChild(item);
+  }
+
+  root.insertBefore(wrap, root.firstChild);
+}
+
 function getMinionSummonPreviewCards(card) {
   const previews = [];
   const seen = new Set();
@@ -1023,7 +1110,7 @@ function showMinionCardPreview(m, ev) {
   if (!card || !card.id) return;
   const root = ensureHoverCardRoot();
   root.innerHTML = "";
-  root.classList.remove("has-related");
+  root.classList.remove("has-related", "has-keywords");
 
   const previewCard = renderCard(card, card.cost ?? 0, {
     show_hand_stats: true,
@@ -1033,6 +1120,7 @@ function showMinionCardPreview(m, ev) {
   });
   previewCard.classList.add("primary-preview-card");
   root.appendChild(previewCard);
+  if (!m.silenced) appendKeywordHelpPreview(root, card, m.keywords || []);
   if (!m.silenced) appendRelatedSummonPreviews(root, card);
 
   root.classList.add("visible");
@@ -1047,7 +1135,7 @@ function showHandCardPreview(handCard, ev) {
   if (!card || !card.id) return;
   const root = ensureHoverCardRoot();
   root.innerHTML = "";
-  root.classList.remove("has-related");
+  root.classList.remove("has-related", "has-keywords");
   const previewCard = renderCard(card, handCard.effective_cost ?? handCard.cost_override ?? card.cost ?? 0, {
     show_hand_stats: true,
     effective_attack: handCard.effective_attack,
@@ -1056,6 +1144,10 @@ function showHandCardPreview(handCard, ev) {
     cost_modified: handCard.cost_modified,
   });
   root.appendChild(previewCard);
+  appendKeywordHelpPreview(root, card, [
+    ...((card.tags || [])),
+    ...((handCard.extra_tags || [])),
+  ]);
   if (card.type === "MINION") appendRelatedSummonPreviews(root, card);
   root.classList.add("visible");
   moveMinionCardPreview(ev);
@@ -1263,7 +1355,7 @@ function moveMinionCardPreview(ev) {
 function hideMinionCardPreview() {
   const root = document.getElementById("hover-card-preview");
   if (!root) return;
-  root.classList.remove("visible", "has-related");
+  root.classList.remove("visible", "has-related", "has-keywords");
   root.innerHTML = "";
 }
 
