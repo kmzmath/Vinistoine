@@ -3408,7 +3408,9 @@ function logHeroName(owner) {
 
 function logTargetName(ev) {
   if (!ev) return "alvo";
-  if (ev.name && (ev.kind === "minion" || ev.kind === "hero" || ev.id)) return ev.kind === "hero" && ev.owner !== undefined ? logHeroName(Number(ev.owner)) : ev.name;
+  if (ev.name && (ev.kind === "minion" || ev.kind === "hero" || ev.id)) {
+    return ev.kind === "hero" && ev.owner !== undefined ? logHeroName(Number(ev.owner)) : ev.name;
+  }
   if (ev.target_name) {
     if (ev.target_kind === "hero" || String(ev.target || "").startsWith("hero:")) {
       const owner = ev.target_owner ?? ev.target_id ?? String(ev.target).split(":")[1];
