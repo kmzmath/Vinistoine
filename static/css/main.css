@@ -2494,6 +2494,37 @@ input:focus { border-color: var(--gold); }
 }
 .log-icon-turn .log-icon-inner .log-icon-badge { font-size: 0.95rem; }
 
+.log-icon-label {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  bottom: -5px;
+  transform: translateX(-50%);
+  max-width: 72px;
+  min-width: 34px;
+  padding: 1px 4px 2px;
+  border: 1px solid rgba(245, 201, 105, 0.78);
+  border-radius: 999px;
+  background: rgba(15, 8, 4, 0.9);
+  color: #fff4c8;
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0.015em;
+  text-align: center;
+  text-shadow: 0 1px 2px #000, 0 0 4px rgba(0, 0, 0, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.log-icon-attack .log-icon-label { max-width: 86px; font-size: 0.52rem; }
+
+
 /* Cores temáticas por tipo de evento. */
 .log-icon-attack       { border-color: #d8a560; }
 .log-icon-damage       { border-color: #c45a3a; }
@@ -2549,10 +2580,26 @@ input:focus { border-color: var(--gold); }
   color: var(--gold-bright);
   margin-bottom: 3px;
 }
-.log-tooltip .tip-text {
+.log-tooltip .tip-text,
+.log-tooltip .tip-details {
   color: var(--ink-dim);
   font-size: 0.78rem;
   line-height: 1.3;
+}
+.log-tooltip .tip-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.log-tooltip .tip-detail-line {
+  padding-left: 10px;
+  position: relative;
+}
+.log-tooltip .tip-detail-line::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--gold-dim);
 }
 .log-tooltip .tip-card-art {
   margin-top: 6px;

@@ -929,6 +929,38 @@ def _deliver_delayed_draws(state: GameState, player: PlayerState):
     state.pending_modifiers = keep
 
 
+def _log_target_snapshot(state: GameState, target_id: Optional[str]) -> Optional[dict]:
+    """Snapshot público de um alvo escolhido para enriquecer o histórico."""
+    if target_id is None:
+        return None
+    tid = str(target_id)
+    if tid.startswith("hero:"):
+        try:
+            owner = int(tid.split(":", 1)[1])
+        except Exception:
+            owner = None
+        return {
+            "kind": "hero",
+            "id": tid,
+            "owner": owner,
+            "name": f"Herói de P{owner}" if owner is not None else "Herói",
+        }
+    found = state.find_minion(tid)
+    if not found:
+        return {"kind": "unknown", "id": tid, "name": tid}
+    minion, owner = found
+    return {
+        "kind": "minion",
+        "id": minion.instance_id,
+        "name": minion.name,
+        "card_id": minion.card_id,
+        "owner": owner,
+        "attack": minion.attack,
+        "health": minion.health,
+        "max_health": minion.max_health,
+    }
+
+
 def _play_triggers_for_card(card: dict, combo_active: bool = False,
                             empowered: bool = False) -> list[str]:
     """Triggers de resolução principal ao jogar uma carta.
@@ -1068,7 +1100,12 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
         pm["consumed"] = True
     state.pending_modifiers = [pm for pm in state.pending_modifiers if not pm.get("consumed")]
 
-    state.log_event({
+    chosen_target_logs = [
+        snap for snap in (_log_target_snapshot(state, tid) for tid in chosen_targets)
+        if snap is not None
+    ]
+    first_target = chosen_target_logs[0] if chosen_target_logs else None
+    play_event = {
         "type": "play_card",
         "player": player_id,
         "card_id": card.get("id"),
@@ -1077,7 +1114,17 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
         "combo_active": combo_active,
         "empowered": bool(empowered) and main_triggers != ["ON_PLAY"],
         "direction": direction,
-    })
+        "targets": chosen_target_logs,
+    }
+    if first_target:
+        play_event.update({
+            "target": first_target.get("id"),
+            "target_kind": first_target.get("kind"),
+            "target_name": first_target.get("name"),
+            "target_card_id": first_target.get("card_id"),
+            "target_owner": first_target.get("owner"),
+        })
+    state.log_event(play_event)
 
     if is_minion:
         base_atk = card.get("attack")
@@ -1957,7 +2004,13 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
         state.log_event({
             "type": "attack",
             "attacker": attacker.instance_id,
+            "attacker_name": attacker.name,
+            "attacker_card_id": attacker.card_id,
+            "attacker_owner": attacker.owner,
             "target": target.instance_id,
+            "target_name": target.name,
+            "target_card_id": target.card_id,
+            "target_owner": target.owner,
         })
     else:  # herói
         effects.damage_character(state, target, attacker_atk, source_owner=player_id,
@@ -1965,7 +2018,12 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
         state.log_event({
             "type": "attack",
             "attacker": attacker.instance_id,
+            "attacker_name": attacker.name,
+            "attacker_card_id": attacker.card_id,
+            "attacker_owner": attacker.owner,
             "target": f"hero:{target.player_id}",
+            "target_name": f"Herói de P{target.player_id}",
+            "target_owner": target.player_id,
         })
 
     attacker.attacks_this_turn += 1
@@ -2052,6 +2110,7 @@ def cleanup(state: GameState):
                 "name": minion.name,
             })
             state.log_event({"type": "death", "minion": minion.instance_id,
+                             "name": minion.name, "card_id": minion.card_id,
                              "owner": owner, "death_index": death_index})
             # ON_DEATH com death_index disponível em ctx.
             effects.fire_minion_trigger(

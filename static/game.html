@@ -3326,22 +3326,231 @@ const LOG_SVGS = {
 // Heurísticas para agregar eventos relacionados em um único item visual.
 // Ex: play_card + summon imediatamente em seguida = uma só entrada.
 function buildLogItems(events) {
-  const items = [];
+  let items = [];
   const seenSeq = new Set();
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
     if (ev.seq !== undefined && seenSeq.has(ev.seq)) continue;
     const item = makeLogItem(ev, events, i);
     if (!item) continue;
-    if (ev.seq !== undefined) seenSeq.add(ev.seq);
-    // Marca eventos consumidos (ex: o summon que veio com o play_card).
+    item.sourceSeq = ev.seq;
     if (item.consumedSeqs) {
       for (const s of item.consumedSeqs) seenSeq.add(s);
+      // Alguns grupos (principalmente ataque) absorvem eventos que vieram
+      // imediatamente antes, como dano de combate. Remove entradas já criadas.
+      items = items.filter(existing => !item.consumedSeqs.includes(existing.sourceSeq));
     }
+    if (ev.seq !== undefined) seenSeq.add(ev.seq);
     items.push(item);
   }
   // Mais recentes primeiro, limita pra não poluir.
   return items.slice(-LOG_MAX_ITEMS).reverse();
+}
+
+const LOG_GROUP_STOP_TYPES = new Set([
+  "game_start", "turn_start", "game_end", "concede", "play_card", "attack",
+]);
+const LOG_GROUP_DETAIL_TYPES = new Set([
+  "summon", "summon_token", "summon_copy", "resummon",
+  "damage", "heal", "death", "death_replaced_shuffle_into_deck", "poison_kill",
+  "divine_shield_break", "damage_prevented", "damage_reduced",
+  "draw", "draw_from_choice", "draw_minion", "draw_spell", "draw_card_type",
+  "draw_minion_from_deck", "draw_card_from_deck_filtered", "draw_highest_revealed",
+  "draw_lowest_cost_minion", "draw_minion_with_tag", "draw_repeat", "draw_playable_card",
+  "discard", "discard_from_deck_choice", "discard_lowest_revealed",
+  "burn", "burn_delayed_draw", "burn_returned_minion", "burn_stolen",
+  "return_to_hand", "return_to_hand_burned", "return_to_hand_modify_cost",
+  "reveal_top_card", "reveal_top_each_deck", "reveal_drawn_card", "reveal_hand_card",
+  "reveal_hand_edges", "reveal_choose_draw_picked_revealed", "reveal_choose_draw_kept_mario",
+  "silence", "freeze", "freeze_hero",
+]);
+
+function logSeq(ev) { return ev && ev.seq !== undefined ? ev.seq : null; }
+function consumeEvent(consumed, ev) {
+  const seq = logSeq(ev);
+  if (seq !== null) consumed.push(seq);
+}
+
+function cardName(cardId, fallback = "Carta") {
+  return cardId ? (allCards[cardId]?.name || cardId) : fallback;
+}
+
+function logVisibleCardName(ev, cardId = ev?.card_id, owner = ev?.player) {
+  if (!cardId) return "uma carta";
+  // Compra normal do oponente continua privada; revelações, queimadas e
+  // descartes do deck são eventos públicos e podem mostrar o card_id logado.
+  if (ev?.type === "draw" && owner !== myPid && !ev.revealed) return "uma carta do baralho";
+  return cardName(cardId, cardId);
+}
+
+function logShortName(name, fallback = "?") {
+  const raw = String(name || fallback).trim();
+  if (!raw) return fallback;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return words[0].slice(0, 10);
+  const meaningful = words.filter(w => !/^(de|da|do|dos|das|e)$/i.test(w));
+  const picked = (meaningful.length ? meaningful : words).slice(0, 2);
+  return picked.map(w => w.slice(0, 1).toUpperCase()).join("");
+}
+
+function logMinionNameById(id) {
+  const boards = [
+    ...((state?.you && state.you.board) || []),
+    ...((state?.opponent && state.opponent.board) || []),
+  ];
+  const found = boards.find(m => m.instance_id === id);
+  return found?.name || null;
+}
+
+function logHeroName(owner) {
+  return `Herói de ${playerName(owner)}`;
+}
+
+function logTargetName(ev) {
+  if (!ev) return "alvo";
+  if (ev.name && (ev.kind === "minion" || ev.kind === "hero" || ev.id)) return ev.kind === "hero" && ev.owner !== undefined ? logHeroName(Number(ev.owner)) : ev.name;
+  if (ev.target_name) {
+    if (ev.target_kind === "hero" || String(ev.target || "").startsWith("hero:")) {
+      const owner = ev.target_owner ?? ev.target_id ?? String(ev.target).split(":")[1];
+      return logHeroName(Number(owner));
+    }
+    return ev.target_name;
+  }
+  if (ev.target_kind === "hero") return logHeroName(ev.target_id);
+  if (String(ev.target || "").startsWith("hero:")) return logHeroName(Number(String(ev.target).split(":")[1]));
+  return logMinionNameById(ev.target || ev.target_id || ev.minion) || ev.target || ev.target_id || ev.minion || "alvo";
+}
+
+function logMinionEventName(ev) {
+  return ev?.minion?.name || ev?.name || logMinionNameById(ev?.minion || ev?.target_id) || ev?.minion || "lacaio";
+}
+
+function logEventDetail(ev, context = {}) {
+  const type = ev?.type;
+  if (!type) return null;
+  if (type === "summon" || type === "summon_token") {
+    const m = ev.minion || {};
+    const stats = m.attack !== undefined && m.health !== undefined ? ` (${m.attack}/${m.health})` : "";
+    return `${playerName(ev.owner)} evocou ${m.name || "um lacaio"}${stats}.`;
+  }
+  if (type === "summon_copy") {
+    return `Evocou uma cópia${ev.copies ? ` (${ev.copies}x)` : ""}.`;
+  }
+  if (type === "resummon") {
+    return `Reevocou ${cardName(ev.card_id, "um lacaio")}.`;
+  }
+  if (type === "damage") {
+    const target = logTargetName(ev);
+    const source = ev.source_name ? ` por ${ev.source_name}` : (context.sourceName ? ` por ${context.sourceName}` : "");
+    const armor = ev.armor_absorbed ? ` (${ev.armor_absorbed} absorvido por armadura)` : "";
+    const reflected = ev.reflected ? " refletido" : "";
+    return `${target} sofreu ${ev.amount} de dano${reflected}${source}${armor}.`;
+  }
+  if (type === "damage_prevented") {
+    return `Dano prevenido em ${logTargetName(ev)}${ev.reason ? ` (${ev.reason})` : ""}.`;
+  }
+  if (type === "damage_reduced") {
+    return `Dano reduzido em ${logTargetName(ev)}: ${ev.source_amount} → ${ev.final_amount}${ev.reason ? ` (${ev.reason})` : ""}.`;
+  }
+  if (type === "heal") {
+    return `${logTargetName(ev)} curou ${ev.amount} de vida.`;
+  }
+  if (type === "death") {
+    return `${logMinionEventName(ev)} morreu${ev.owner !== undefined ? ` (${playerName(ev.owner)})` : ""}.`;
+  }
+  if (type === "death_replaced_shuffle_into_deck") {
+    return `${cardName(ev.card_id, ev.minion || "lacaio")} morreria, mas voltou para o deck.`;
+  }
+  if (type === "poison_kill") {
+    return `${logMinionEventName(ev)} foi destruído por Venenoso.`;
+  }
+  if (type === "divine_shield_break") {
+    return `Escudo Divino quebrado em ${logMinionNameById(ev.minion) || ev.minion || "um lacaio"}.`;
+  }
+  if (type.startsWith("draw")) {
+    const source = context.sourceName ? ` por ${context.sourceName}` : "";
+    return `${playerName(ev.player)} comprou ${logVisibleCardName(ev)}${type === "draw_highest_revealed" ? " entre as reveladas" : ""}${source}.`;
+  }
+  if (type.startsWith("reveal")) {
+    if (type === "reveal_top_each_deck") {
+      const cards = (ev.cards || []).map(c => `${playerName(c.owner)}: ${cardName(c.card_id, c.card_id)}`).join("; ");
+      const source = context.sourceName ? ` por ${context.sourceName}` : "";
+      return `Revelou o topo dos decks${cards ? ` (${cards})` : ""}${source}.`;
+    }
+    if (type === "reveal_hand_edges") {
+      const cards = (ev.cards || []).map(c => cardName(c.card_id, c.card_id)).join(" e ");
+      return `${playerName(ev.player)} revelou ${cards || "cartas da mão"}.`;
+    }
+    const source = context.sourceName ? ` por ${context.sourceName}` : "";
+    return `${playerName(ev.player)} revelou ${cardName(ev.card_id, "uma carta")}${source}.`;
+  }
+  if (type.startsWith("burn")) {
+    const owner = ev.player ?? ev.owner;
+    const cardId = ev.card_id || ev.card;
+    const source = context.sourceName ? ` por ${context.sourceName}` : "";
+    return `${owner !== undefined ? playerName(owner) : "Um jogador"} queimou ${cardName(cardId, ev.minion || "uma carta")}${source}.`;
+  }
+  if (type.startsWith("discard")) {
+    return `${playerName(ev.player)} descartou ${cardName(ev.card_id, "uma carta")}.`;
+  }
+  if (type.startsWith("return_to_hand")) {
+    return `${logMinionNameById(ev.minion) || ev.name || ev.minion || "Um lacaio"} voltou para a mão${ev.cost_modifier ? ` (custo ${ev.cost_modifier > 0 ? "+" : ""}${ev.cost_modifier})` : ""}.`;
+  }
+  if (type === "silence") return `${logMinionNameById(ev.minion) || ev.minion || "Um lacaio"} foi silenciado.`;
+  if (type === "freeze") return `${logMinionNameById(ev.minion) || ev.minion || "Um lacaio"} foi congelado.`;
+  if (type === "freeze_hero") return `${logHeroName(ev.player)} foi congelado.`;
+  return null;
+}
+
+function collectForwardDetails(all, idx, consumed, context = {}) {
+  const details = [];
+  for (let j = idx + 1; j < all.length && details.length < 12; j++) {
+    const ev = all[j];
+    if (LOG_GROUP_STOP_TYPES.has(ev.type)) break;
+    if (!LOG_GROUP_DETAIL_TYPES.has(ev.type) && !String(ev.type || "").startsWith("draw") && !String(ev.type || "").startsWith("reveal") && !String(ev.type || "").startsWith("burn") && !String(ev.type || "").startsWith("discard")) {
+      continue;
+    }
+    const detail = logEventDetail(ev, context);
+    if (!detail) continue;
+    details.push(detail);
+    consumeEvent(consumed, ev);
+  }
+  return details;
+}
+
+function collectAttackDetails(ev, all, idx, consumed) {
+  const attackerName = ev.attacker_name || logMinionNameById(ev.attacker) || ev.attacker || "?";
+  const targetName = logTargetName(ev);
+  const relatedIds = new Set([ev.attacker, ev.target, ev.target_id].filter(Boolean));
+  const details = [`${attackerName} atacou ${targetName}.`];
+
+  const previousCombat = [];
+  for (let j = idx - 1; j >= 0 && previousCombat.length < 4; j--) {
+    const prev = all[j];
+    if (LOG_GROUP_STOP_TYPES.has(prev.type)) break;
+    const targetId = prev.target_id || prev.minion;
+    if ((prev.type === "damage" || prev.type === "divine_shield_break" || prev.type === "damage_prevented") && relatedIds.has(targetId)) {
+      previousCombat.unshift(prev);
+      consumeEvent(consumed, prev);
+    }
+  }
+  for (const detailEv of previousCombat) {
+    const line = logEventDetail(detailEv, { sourceName: detailEv.target_id === ev.attacker ? targetName : attackerName });
+    if (line) details.push(line);
+  }
+
+  for (let j = idx + 1; j < all.length && details.length < 12; j++) {
+    const next = all[j];
+    if (LOG_GROUP_STOP_TYPES.has(next.type)) break;
+    const targetId = next.target_id || next.minion;
+    const isCombatResult = relatedIds.has(targetId) || next.type === "poison_kill" || String(next.type || "").startsWith("return_to_hand");
+    if (!isCombatResult && !LOG_GROUP_DETAIL_TYPES.has(next.type)) continue;
+    const line = logEventDetail(next, { sourceName: attackerName });
+    if (!line) continue;
+    details.push(line);
+    consumeEvent(consumed, next);
+  }
+  return { attackerName, targetName, details };
 }
 
 function makeLogItem(ev, all, idx) {
@@ -3355,55 +3564,83 @@ function makeLogItem(ev, all, idx) {
       return { kind: "turn", icon: `T${ev.turn}`, title: `Turno ${ev.turn}`,
                text: `Vez de ${playerName(ev.player)}` };
     case "play_card": {
-      // Tenta absorver o summon imediatamente posterior (mesmo player) para
-      // não duplicar.
-      const next = all[idx + 1];
-      if (next && next.type === "summon" && next.owner === ev.player) {
-        if (next.seq !== undefined) consumed.push(next.seq);
-      }
+      const cardTitle = ev.card_name || cardName(ev.card_id, "Carta");
+      const details = [`${playerLabel} jogou ${cardTitle} pagando ${ev.cost ?? "?"} de mana.`];
+      if (ev.empowered) details.push("Foi jogada fortalecida.");
+      if (ev.combo_active) details.push("Combo estava ativo.");
+      const targets = ev.targets || (ev.target ? [ev] : []);
+      if (targets.length) details.push(`Alvo${targets.length > 1 ? "s" : ""}: ${targets.map(t => logTargetName(t)).join(", ")}.`);
+      details.push(...collectForwardDetails(all, idx, consumed, { sourceName: cardTitle }));
       return {
         kind: "play",
         cardId: ev.card_id,
-        title: `${playerLabel} jogou ${ev.card_name || "?"}`,
-        text: `Custo: ${ev.cost ?? "?"}`,
+        label: logShortName(cardTitle, "Jogar"),
+        title: `${playerLabel} jogou ${cardTitle}`,
+        text: details.join("\n"),
+        details,
         consumedSeqs: consumed,
       };
     }
-    case "summon": {
-      const cardId = ev.minion && ev.minion.card_id;
+    case "summon":
+    case "summon_token": {
+      const m = ev.minion || {};
+      const cardId = m.card_id;
+      const details = [logEventDetail(ev)].filter(Boolean);
       return {
         kind: "summon",
         cardId,
-        title: `${playerName(ev.owner)} evocou ${ev.minion?.name || "?"}`,
-        text: ev.minion ? `${ev.minion.attack}/${ev.minion.health}` : "",
+        label: logShortName(m.name, "Evoc"),
+        title: `${playerName(ev.owner)} evocou ${m.name || "um lacaio"}`,
+        text: details.join("\n"),
+        details,
       };
     }
-    case "attack":
+    case "attack": {
+      const grouped = collectAttackDetails(ev, all, idx, consumed);
       return { kind: "attack",
-               title: "Ataque",
-               text: `${ev.attacker || "?"} → ${ev.target || "?"}` };
-    case "damage":
+               cardId: ev.attacker_card_id,
+               label: `${logShortName(grouped.attackerName)}→${logShortName(grouped.targetName)}`,
+               title: `${grouped.attackerName} atacou ${grouped.targetName}`,
+               text: grouped.details.join("\n"),
+               details: grouped.details,
+               consumedSeqs: consumed };
+    }
+    case "damage": {
+      const targetName = logTargetName(ev);
+      const details = [logEventDetail(ev)].filter(Boolean);
       return { kind: "damage", badge: `-${ev.amount}`,
+               cardId: ev.target_card_id,
+               label: `${logShortName(targetName)} -${ev.amount}`,
                title: "Dano",
-               text: `${ev.amount} em ${ev.target_kind || "alvo"}` };
-    case "heal":
+               text: details.join("\n"),
+               details };
+    }
+    case "heal": {
+      const targetName = logTargetName(ev);
+      const details = [logEventDetail(ev)].filter(Boolean);
       return { kind: "heal", badge: `+${ev.amount}`,
-               title: "Cura", text: `+${ev.amount}` };
-    case "death":
+               cardId: ev.target_card_id,
+               label: `${logShortName(targetName)} +${ev.amount}`,
+               title: "Cura", text: details.join("\n"), details };
+    }
+    case "death": {
+      const name = logMinionEventName(ev);
+      const details = [logEventDetail(ev)].filter(Boolean);
       return { kind: "death",
-               title: "Lacaio morreu",
-               text: ev.minion || "" };
+               cardId: ev.card_id,
+               label: `☠ ${logShortName(name)}`,
+               title: `${name} morreu`,
+               text: details.join("\n"), details };
+    }
     case "draw": {
-      // Importante: nunca revelar o nome/imagem da carta que o oponente
-      // comprou - isso vazaria informação privada da mão dele.
       const isMine = ev.player === myPid;
+      const details = [logEventDetail(ev)].filter(Boolean);
       return {
         kind: "draw",
         cardId: isMine ? ev.card_id : null,
         title: `${playerLabel} comprou`,
-        text: isMine && ev.card_id
-          ? (allCards[ev.card_id]?.name || ev.card_id)
-          : "Carta do baralho",
+        text: details.join("\n"),
+        details,
       };
     }
     case "fatigue":
@@ -3411,37 +3648,35 @@ function makeLogItem(ev, all, idx) {
                title: `${playerLabel} - Fadiga`,
                text: `${ev.amount} de dano` };
     case "discard": {
-      // Mesma regra: descartes do oponente não revelam a carta.
       const isMine = ev.player === myPid;
+      const details = [logEventDetail(ev)].filter(Boolean);
       return {
         kind: "discard",
         cardId: isMine ? ev.card_id : null,
         title: `${playerLabel} descartou`,
-        text: isMine && ev.card_id ? (allCards[ev.card_id]?.name || ev.card_id) : "",
+        text: details.join("\n"),
+        details,
       };
     }
     case "burn": {
-      // "Burn" = mão cheia, carta comprada é destruída. Carta vinda da mão
-      // do oponente também não pode ser exibida.
-      const isMine = ev.player === myPid;
+      const details = [logEventDetail(ev)].filter(Boolean);
       return {
         kind: "burn",
-        cardId: isMine ? ev.card_id : null,
+        cardId: ev.card_id || null,
         title: "Carta queimada",
-        text: isMine && ev.card_id
-          ? (allCards[ev.card_id]?.name || ev.card_id)
-          : "Mão cheia",
+        text: details.join("\n"),
+        details,
       };
     }
     case "divine_shield_break":
       return { kind: "shield",
-               title: "Escudo Divino quebrado", text: "" };
+               title: "Escudo Divino quebrado", text: logEventDetail(ev) || "" };
     case "silence":
       return { kind: "silence",
-               title: "Silenciado", text: "" };
+               title: "Silenciado", text: logEventDetail(ev) || "" };
     case "freeze":
       return { kind: "freeze",
-               title: "Congelado", text: "" };
+               title: "Congelado", text: logEventDetail(ev) || "" };
     case "concede":
       return { kind: "concede",
                title: `${playerLabel} se rendeu`, text: "" };
@@ -3456,10 +3691,18 @@ function makeLogItem(ev, all, idx) {
     case "unimplemented_action":
       return { kind: "info",
                title: "Efeito não implementado", text: ev.action || "" };
-    default:
+    default: {
+      const detail = logEventDetail(ev);
+      if (detail && LOG_GROUP_DETAIL_TYPES.has(ev.type)) {
+        const prefixKind = String(ev.type || "").split("_")[0];
+        const kind = LOG_SVGS[prefixKind] ? prefixKind : "info";
+        const cardId = ev.card_id || ev.target_card_id || ev.minion?.card_id || null;
+        return { kind, cardId, title: detail.replace(/\.$/, ""), text: detail, details: [detail] };
+      }
       // Eventos verbosos/irrelevantes (echo_expire, temporary_*, aplicações
       // internas de aura) não viram entradas no histórico visual.
       return null;
+    }
   }
 }
 
@@ -3509,17 +3752,32 @@ function buildLogIcon(item) {
   }
   wrap.appendChild(inner);
 
+  if (item.label) {
+    const label = document.createElement("div");
+    label.className = "log-icon-label";
+    label.textContent = item.label;
+    wrap.appendChild(label);
+  }
+
   const tip = document.createElement("div");
   tip.className = "log-tooltip";
   const t1 = document.createElement("div");
   t1.className = "tip-title";
   t1.textContent = item.title || "";
   tip.appendChild(t1);
-  if (item.text) {
-    const t2 = document.createElement("div");
-    t2.className = "tip-text";
-    t2.textContent = item.text;
-    tip.appendChild(t2);
+  const detailLines = Array.isArray(item.details) && item.details.length
+    ? item.details
+    : (item.text ? [item.text] : []);
+  if (detailLines.length) {
+    const details = document.createElement("div");
+    details.className = "tip-details";
+    for (const lineText of detailLines) {
+      const line = document.createElement("div");
+      line.className = "tip-detail-line";
+      line.textContent = lineText;
+      details.appendChild(line);
+    }
+    tip.appendChild(details);
   }
   // Para entradas com cardId, embute uma miniatura grande no tooltip.
   if (item.cardId && cardImages[item.cardId]) {
