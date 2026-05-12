@@ -2521,7 +2521,6 @@ input:focus { border-color: var(--gold); }
   pointer-events: none;
   z-index: 2;
 }
-
 .log-icon-attack .log-icon-label { max-width: 86px; font-size: 0.52rem; }
 
 
@@ -2580,10 +2579,26 @@ input:focus { border-color: var(--gold); }
   color: var(--gold-bright);
   margin-bottom: 3px;
 }
-.log-tooltip .tip-text {
+.log-tooltip .tip-text,
+.log-tooltip .tip-details {
   color: var(--ink-dim);
   font-size: 0.78rem;
   line-height: 1.3;
+}
+.log-tooltip .tip-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.log-tooltip .tip-detail-line {
+  padding-left: 10px;
+  position: relative;
+}
+.log-tooltip .tip-detail-line::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--gold-dim);
 }
 .log-tooltip .tip-card-art {
   margin-top: 6px;
