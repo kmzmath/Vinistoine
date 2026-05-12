@@ -1990,11 +1990,21 @@ input:focus { border-color: var(--gold); }
   filter: drop-shadow(0 14px 12px rgba(0,0,0,0.55));
 }
 .minion.attack-runner .portrait-ring {
-  animation: attackRunnerBob 90ms ease-in-out infinite alternate;
+  animation: attackRunnerBob 180ms ease-in-out infinite alternate;
 }
 @keyframes attackRunnerBob {
   0% { transform: translateY(0) rotate(-2deg); }
   100% { transform: translateY(-7px) rotate(2deg); }
+}
+.minion.impact-target,
+.hero.impact-target {
+  animation: impactTargetBump 0.34s ease-out;
+}
+@keyframes impactTargetBump {
+  0% { transform: translate(0, 0) scale(1); filter: brightness(1); }
+  28% { transform: translate(5px, -3px) scale(1.05); filter: brightness(1.7) saturate(1.25); }
+  58% { transform: translate(-3px, 2px) scale(0.98); }
+  100% { transform: translate(0, 0) scale(1); filter: brightness(1); }
 }
 .impact-ring {
   position: absolute;
@@ -2007,7 +2017,7 @@ input:focus { border-color: var(--gold); }
   box-shadow:
     0 0 18px rgba(255, 92, 40, 0.85),
     inset 0 0 18px rgba(255, 92, 40, 0.55);
-  animation: impactRingPop 0.26s ease-out forwards;
+  animation: impactRingPop 0.36s ease-out forwards;
 }
 @keyframes impactRingPop {
   0% { transform: scale(0.25); opacity: 1; }

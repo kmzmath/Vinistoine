@@ -49,9 +49,9 @@ let dragState = null;
 let pendingStateRenderTimer = null;
 let stateRenderVersion = 0;
 
-const ATTACK_ANIMATION_MS = 380;
-const ATTACK_STATE_RENDER_DELAY_MS = 430;
-const ATTACK_IMPACT_MS = 250;
+const ATTACK_ANIMATION_MS = 760;
+const ATTACK_STATE_RENDER_DELAY_MS = 820;
+const ATTACK_IMPACT_MS = 500;
 
 function scheduleStateRender(delay = 0) {
   if (myPid === null) return;
@@ -2985,11 +2985,21 @@ function animateFromDelta(oldS, newS) {
   // mesmo com eventos novos.
   const oldSeqs = new Set((oldS.log || []).map(ev => ev.seq).filter(v => v !== undefined));
   const newEvents = (newS.log || []).filter(ev => ev.seq === undefined || !oldSeqs.has(ev.seq));
+  const normalizeImpactId = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string" || typeof value === "number") return String(value);
+    return null;
+  };
+  const attackImpactIds = new Set();
   const damageAmountByMinion = new Map();
   let hasAttackAnimation = false;
   for (const ev of newEvents) {
     if (ev.type === "attack" || ev.type === "forced_attack") {
       hasAttackAnimation = true;
+      const attackerId = normalizeImpactId(ev.attacker);
+      if (attackerId) attackImpactIds.add(attackerId);
+      const targetId = normalizeImpactId(ev.target);
+      if (targetId) attackImpactIds.add(targetId);
     }
     if (ev.type === "damage" && ev.target_kind === "minion" && ev.target_id) {
       const id = String(ev.target_id);
@@ -2997,6 +3007,10 @@ function animateFromDelta(oldS, newS) {
     }
   }
   const renderDelay = hasAttackAnimation ? ATTACK_STATE_RENDER_DELAY_MS : 0;
+  const impactDelayFor = (id) => {
+    const impactId = normalizeImpactId(id);
+    return impactId && attackImpactIds.has(impactId) ? ATTACK_IMPACT_MS : 0;
+  };
 
   // Para cada lacaio que sumiu (morreu), animar dying no último frame antes
   // da renderização que remove o lacaio. Em ataques, isso segura a morte até
@@ -3004,7 +3018,8 @@ function animateFromDelta(oldS, newS) {
   const deadIds = Object.keys(oldByid).filter(id => !newByid[id]);
   for (const id of deadIds) {
     const lethalDamage = damageAmountByMinion.get(String(id));
-    queueDyingMinion(id, lethalDamage, renderDelay);
+    const dyingDelay = Math.max(renderDelay, impactDelayFor(id));
+    queueDyingMinion(id, lethalDamage, dyingDelay);
   }
 
   // Mudanças de HP / divine shield em lacaios que continuam
@@ -3013,7 +3028,7 @@ function animateFromDelta(oldS, newS) {
     if (!o) continue;
     if (n.health < o.health) {
       const dmg = o.health - n.health;
-      queueShake(`.minion[data-minion-id='${id}']`, "dmg", dmg);
+      queueShake(`.minion[data-minion-id='${id}']`, "dmg", dmg, impactDelayFor(id));
     } else if (n.health > o.health) {
       const heal = n.health - o.health;
       queueShake(`.minion[data-minion-id='${id}']`, "heal", heal);
@@ -3026,14 +3041,16 @@ function animateFromDelta(oldS, newS) {
   // Mudança de HP em heróis
   if (newS.you.hero_health < oldS.you.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "dmg",
-               oldS.you.hero_health - newS.you.hero_health);
+               oldS.you.hero_health - newS.you.hero_health,
+               impactDelayFor(`hero:${newS.you.player_id}`));
   } else if (newS.you.hero_health > oldS.you.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "heal",
                newS.you.hero_health - oldS.you.hero_health);
   }
   if (newS.opponent.hero_health < oldS.opponent.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "dmg",
-               oldS.opponent.hero_health - newS.opponent.hero_health);
+               oldS.opponent.hero_health - newS.opponent.hero_health,
+               impactDelayFor(`hero:${newS.opponent.player_id}`));
   } else if (newS.opponent.hero_health > oldS.opponent.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "heal",
                newS.opponent.hero_health - oldS.opponent.hero_health);
@@ -3440,11 +3457,11 @@ function flushPendingAnims() {
       const el = document.querySelector(a.selector);
       if (!el) return;
       if (a.kind === "dmg") {
+        el.classList.add("taking-damage");
+        setTimeout(() => el.classList.remove("taking-damage"), 550);
         if (el.classList.contains("minion")) {
           spawnDamageBubble(el, a.value);
         } else {
-          el.classList.add("taking-damage");
-          setTimeout(() => el.classList.remove("taking-damage"), 550);
           spawnFloatNum(el, "-" + a.value, "damage");
         }
         spawnSpark(el);
@@ -3545,6 +3562,7 @@ function animateAttack(attackerId, targetId) {
     fx.appendChild(clone);
 
     atkEl.classList.add("attack-source-hidden");
+    tgtEl.classList.add("impact-target");
     const anim = clone.animate([
       { transform: "translate(0, 0) scale(1) rotate(0deg)", offset: 0, easing: "ease-out" },
       { transform: `translate(${impactX * 0.38}px, ${impactY * 0.38}px) scale(1.03) rotate(${lean}deg)`, offset: 0.34 },
@@ -3558,10 +3576,12 @@ function animateAttack(attackerId, targetId) {
     anim.onfinish = () => {
       clone.remove();
       atkEl.classList.remove("attack-source-hidden");
+      tgtEl.classList.remove("impact-target");
     };
     setTimeout(() => {
       clone.remove();
       atkEl.classList.remove("attack-source-hidden");
+      tgtEl.classList.remove("impact-target");
     }, ATTACK_STATE_RENDER_DELAY_MS + 30);
   }, 30);
 }
