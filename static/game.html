@@ -614,7 +614,7 @@ function renderBoard() {
     const canAfford = me.mana >= cost || (spellPaysHealth && me.hero_health > 0);
     if (!isMyTurn || !canAfford) el.classList.add("unaffordable");
     else el.classList.add("playable");
-    const activation = getHandCardActivationSignal(card);
+    const activation = getHandCardActivationSignal(c, card);
     if (isMyTurn && canAfford && activation.active) {
       el.classList.add("effect-ready");
       el.title = activation.reason || "Efeito condicional ativo";
@@ -1642,7 +1642,51 @@ function cardHasTribeForUi(card, tribe) {
   return (card.tribes || []).includes(tribe);
 }
 
-function evaluateHandConditionForUi(cond, card) {
+function handHasOtherCardWithTribe(handCard, tribe) {
+  if (!tribe || !state?.you) return false;
+  return (state.you.hand || []).some(other => {
+    if (String(other.instance_id) === String(handCard?.instance_id)) return false;
+    return cardHasTribeForUi(allCards[other.card_id], tribe);
+  });
+}
+
+function allBoardMinionsForUi() {
+  return [
+    ...((state?.you && state.you.board) || []),
+    ...((state?.opponent && state.opponent.board) || []),
+  ];
+}
+
+function targetDescAllowsMinionForUi(desc, minion) {
+  if (!desc || !minion || (minion.tags || []).includes("DORMANT")) return false;
+  const valid = desc.valid || ["MINION"];
+  const owner = minion.owner;
+  const isFriendly = owner === state.you?.player_id;
+  const isEnemy = owner === state.opponent?.player_id;
+  const allowed = valid.includes("MINION")
+    || (isFriendly && valid.includes("FRIENDLY_MINION"))
+    || (isEnemy && valid.includes("ENEMY_MINION"));
+  if (!allowed) return false;
+  if (desc.required_tribe && !minionHasTribe(minion, desc.required_tribe)) return false;
+  if (desc.tribe && !minionHasTribe(minion, desc.tribe)) return false;
+  return true;
+}
+
+function anyTargetCandidateForUi(targetDescs, predicate = () => true) {
+  const descs = (targetDescs || []).filter(d => d && d.mode === "CHOSEN");
+  if (!descs.length) return false;
+  return descs.some(desc => allBoardMinionsForUi().some(minion => (
+    targetDescAllowsMinionForUi(desc, minion) && predicate(minion, desc)
+  )));
+}
+
+function chosenTargetDescsForEffect(eff) {
+  const out = [];
+  collectChosenTargetDescsForEffect(eff, out);
+  return out;
+}
+
+function evaluateHandConditionForUi(cond, card, handCard, context = {}) {
   if (!cond || !cond.type || !state?.you) return false;
   const me = state.you;
   const foe = state.opponent || {};
@@ -1666,8 +1710,18 @@ function evaluateHandConditionForUi(cond, card) {
       return friendlyBoard.length > 0;
     case "ENEMY_MINION_EXISTS":
       return enemyBoard.length > 0;
+    case "TARGET_HAS_TRIBE":
+      return anyTargetCandidateForUi(context.targetDescs, minion => minionHasTribe(minion, cond.tribe));
+    case "TARGET_ATTACK_LESS_THAN_SELF_ATTACK": {
+      const selfAttack = handCard?.effective_attack ?? card.attack ?? 0;
+      return anyTargetCandidateForUi(context.targetDescs, minion => (minion.attack ?? 0) < selfAttack);
+    }
     case "OPPONENT_HAS_MORE_CARDS_IN_HAND":
       return (foe.hand_size ?? (foe.hand || []).length ?? 0) > (me.hand || []).length;
+    case "ONLY_FRIENDLY_MINION":
+      // Para um lacaio ainda na mão, ele será o único aliado logo após entrar
+      // apenas se seu campo atual estiver vazio.
+      return card.type === "MINION" && friendlyBoard.length === 0;
     case "CARD_TRIBE":
     case "PLAYED_CARD_TRIBE":
     case "SUMMONED_MINION_TRIBE":
@@ -1680,34 +1734,65 @@ function evaluateHandConditionForUi(cond, card) {
   }
 }
 
-function effectHasActiveConditionalForUi(eff, card) {
+function effectHasActiveConditionalForUi(eff, card, handCard, inheritedTargetDescs = []) {
   if (!eff) return false;
+  const ownTargetDescs = chosenTargetDescsForEffect(eff);
+  const targetDescs = ownTargetDescs.length ? ownTargetDescs : inheritedTargetDescs;
   if (eff.action === "CONDITIONAL_EFFECTS") {
-    return evaluateHandConditionForUi(eff.condition || {}, card);
+    return evaluateHandConditionForUi(eff.condition || {}, card, handCard, { targetDescs });
   }
-  if (eff.condition && evaluateHandConditionForUi(eff.condition, card)) return true;
+  if (eff.condition && evaluateHandConditionForUi(eff.condition, card, handCard, { targetDescs })) return true;
+  if ((eff.target || {}).mode === "CHOSEN" && eff.target.required_tribe) {
+    return anyTargetCandidateForUi([eff.target]);
+  }
   for (const sub of (eff.effects || [])) {
-    if (effectHasActiveConditionalForUi(sub, card)) return true;
+    if (effectHasActiveConditionalForUi(sub, card, handCard, targetDescs)) return true;
   }
   for (const sub of (eff.additional_effects || [])) {
-    if (effectHasActiveConditionalForUi(sub, card)) return true;
+    if (effectHasActiveConditionalForUi(sub, card, handCard, targetDescs)) return true;
   }
   return false;
 }
 
-function getHandCardActivationSignal(card) {
+function effectHasActiveHandDependencyForUi(eff, handCard) {
+  const target = eff.target || {};
+  if (target.mode !== "NEXT_CARD_PLAYED_THIS_TURN") return false;
+  return (target.valid || []).some(valid => {
+    if (!valid.startsWith("CARD_WITH_TRIBE_")) return false;
+    return handHasOtherCardWithTribe(handCard, valid.slice("CARD_WITH_TRIBE_".length));
+  });
+}
+
+function getHandCardActivationSignal(handCard, card) {
   const effects = card.effects || [];
   const comboActive = (state.you?.cards_played_this_turn || 0) > 0;
   if (comboActive && effects.some(e => e.trigger === "ON_COMBO")) {
     return { active: true, reason: "Combo ativo: esta carta ativará o efeito de Combo." };
   }
 
-  const activeConditional = effects
-    .filter(e => e.trigger === "ON_PLAY")
-    .some(e => effectHasActiveConditionalForUi(e, card));
-  if (activeConditional) {
+  const playOrAuraEffects = effects.filter(e => e.trigger === "ON_PLAY" || e.trigger === "AURA");
+  const playTargetDescs = [];
+  for (const eff of playOrAuraEffects) collectChosenTargetDescsForEffect(eff, playTargetDescs);
+  const activePlayConditional = playOrAuraEffects
+    .some(e => effectHasActiveConditionalForUi(e, card, handCard, playTargetDescs));
+  if (activePlayConditional) {
     return { active: true, reason: "Condição cumprida: o efeito ao ser jogado será ativado." };
   }
+
+  const activeInHandConditional = effects
+    .filter(e => e.trigger === "IN_HAND")
+    .some(e => effectHasActiveConditionalForUi(e, card, handCard));
+  if (activeInHandConditional) {
+    return { active: true, reason: "Condição cumprida: o efeito ativo na mão está ligado." };
+  }
+
+  const activeHandDependency = effects
+    .filter(e => e.trigger === "ON_PLAY")
+    .some(e => effectHasActiveHandDependencyForUi(e, handCard));
+  if (activeHandDependency) {
+    return { active: true, reason: "Há uma carta na mão que aproveita este efeito ao ser jogado." };
+  }
+
   return { active: false, reason: "" };
 }
 
