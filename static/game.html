@@ -945,18 +945,96 @@ function ensureHoverCardRoot() {
   return el;
 }
 
+function normalizeTokenPreviewCard(token) {
+  return {
+    id: token.id || token.card_id || `token-${token.name || "lacaio"}`,
+    name: token.name || "Lacaio",
+    type: token.type || "MINION",
+    cost: token.cost ?? 0,
+    attack: token.attack ?? 0,
+    health: token.health ?? 0,
+    durability: token.durability ?? null,
+    text: token.text || "",
+    tags: token.tags || [],
+    tribes: token.tribes || [],
+    effects: token.effects || [],
+  };
+}
+
+function getMinionSummonPreviewCards(card) {
+  const previews = [];
+  const seen = new Set();
+  for (const effect of (card.effects || [])) {
+    // O caso mais importante é o Último Suspiro que evoca outro lacaio
+    // (ex: Pizzaiolo -> Pizza). Mantemos as ações genéricas de evocação
+    // para que outros lacaios com fichas/cópias também revelem o resultado.
+    const action = effect.action || "";
+    if (!action.includes("SUMMON")) continue;
+
+    let previewCard = null;
+    const previewId = effect.card_id || effect.summon_card_id;
+    if (previewId) {
+      previewCard = allCards[previewId] || null;
+    } else if (effect.token) {
+      previewCard = normalizeTokenPreviewCard(effect.token);
+    }
+    if (!previewCard || previewCard.type !== "MINION") continue;
+
+    const key = previewCard.id || previewCard.name;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    previews.push({
+      card: previewCard,
+      amount: effect.amount || effect.summon_count || effect.summon_count_source || null,
+      trigger: effect.trigger || "",
+    });
+  }
+  return previews;
+}
+
+function appendRelatedSummonPreviews(root, card) {
+  const relatedSummons = getMinionSummonPreviewCards(card);
+  if (!relatedSummons.length) return;
+
+  root.classList.add("has-related");
+  const relatedWrap = document.createElement("div");
+  relatedWrap.className = "related-summon-preview";
+  relatedWrap.innerHTML = `<div class="related-summon-label">Evoca</div>`;
+
+  for (const related of relatedSummons) {
+    const relatedItem = document.createElement("div");
+    relatedItem.className = "related-summon-item";
+    const relatedCard = renderCard(related.card, related.card.cost ?? 0, { show_hand_stats: true });
+    relatedCard.classList.add("summoned-preview-card");
+    relatedItem.appendChild(relatedCard);
+    if (related.amount && related.amount !== 1) {
+      const amountBadge = document.createElement("div");
+      amountBadge.className = "related-summon-amount";
+      amountBadge.textContent = `x${related.amount}`;
+      relatedItem.appendChild(amountBadge);
+    }
+    relatedWrap.appendChild(relatedItem);
+  }
+  root.appendChild(relatedWrap);
+}
+
 function showMinionCardPreview(m, ev) {
   const card = allCards[m.card_id] || {};
   if (!card || !card.id) return;
   const root = ensureHoverCardRoot();
   root.innerHTML = "";
+  root.classList.remove("has-related");
+
   const previewCard = renderCard(card, card.cost ?? 0, {
     show_hand_stats: true,
     effective_attack: m.attack,
     effective_health: m.health,
     stats_modified: m.attack !== (card.attack ?? 0) || m.max_health !== (card.health ?? 0),
   });
+  previewCard.classList.add("primary-preview-card");
   root.appendChild(previewCard);
+  if (!m.silenced) appendRelatedSummonPreviews(root, card);
+
   root.classList.add("visible");
   moveMinionCardPreview(ev);
 }
@@ -969,6 +1047,7 @@ function showHandCardPreview(handCard, ev) {
   if (!card || !card.id) return;
   const root = ensureHoverCardRoot();
   root.innerHTML = "";
+  root.classList.remove("has-related");
   const previewCard = renderCard(card, handCard.effective_cost ?? handCard.cost_override ?? card.cost ?? 0, {
     show_hand_stats: true,
     effective_attack: handCard.effective_attack,
@@ -977,6 +1056,7 @@ function showHandCardPreview(handCard, ev) {
     cost_modified: handCard.cost_modified,
   });
   root.appendChild(previewCard);
+  if (card.type === "MINION") appendRelatedSummonPreviews(root, card);
   root.classList.add("visible");
   moveMinionCardPreview(ev);
 }
@@ -1183,7 +1263,7 @@ function moveMinionCardPreview(ev) {
 function hideMinionCardPreview() {
   const root = document.getElementById("hover-card-preview");
   if (!root) return;
-  root.classList.remove("visible");
+  root.classList.remove("visible", "has-related");
   root.innerHTML = "";
 }
 
