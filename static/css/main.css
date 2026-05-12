@@ -3145,8 +3145,8 @@ input:focus { border-color: var(--gold); }
 
 /* ====== Painel de configurações de áudio (canto inferior direito) ======
    Botão flutuante sempre visível em qualquer página. Ao clicar abre um
-   pequeno painel acima dele com slider de volume, mute e "próxima". Em
-   /play o botão de "Render-se" também aparece nesse painel. */
+   pequeno painel acima dele com slider de volume, mute e "próxima". Durante
+   partidas ativas, o botão de "Render-se" também aparece nesse painel. */
 .audio-settings {
   position: fixed;
   right: 14px;
@@ -3225,6 +3225,9 @@ input:focus { border-color: var(--gold); }
 .audio-settings-panel .aud-row {
   display: flex; align-items: center; gap: 8px;
 }
+/* O atributo hidden precisa vencer o display:flex de .aud-row; sem esta
+   regra, o botão de Render-se continuava visível no menu. */
+.audio-settings-panel .aud-row[hidden] { display: none; }
 .audio-settings-panel .aud-volume-row { gap: 8px; }
 .audio-settings-panel input[type="range"] {
   flex: 1;
