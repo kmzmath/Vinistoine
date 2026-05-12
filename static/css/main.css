@@ -3145,8 +3145,8 @@ input:focus { border-color: var(--gold); }
 
 /* ====== Painel de configurações de áudio (canto inferior direito) ======
    Botão flutuante sempre visível em qualquer página. Ao clicar abre um
-   pequeno painel acima dele com slider de volume, mute e "próxima". Em
-   /play o botão de "Render-se" também aparece nesse painel. */
+   pequeno painel acima dele com slider de volume, mute e "próxima". Durante
+   partidas ativas, o botão de "Render-se" também aparece nesse painel. */
 .audio-settings {
   position: fixed;
   right: 14px;
