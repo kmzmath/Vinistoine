@@ -2961,6 +2961,19 @@ function animateFromDelta(oldS, newS) {
   // mesmo com eventos novos.
   const oldSeqs = new Set((oldS.log || []).map(ev => ev.seq).filter(v => v !== undefined));
   const newEvents = (newS.log || []).filter(ev => ev.seq === undefined || !oldSeqs.has(ev.seq));
+  const attackImpactIds = new Set();
+  const damageAmountByMinion = new Map();
+  for (const ev of newEvents) {
+    if (ev.type === "attack" || ev.type === "forced_attack") {
+      if (ev.attacker) attackImpactIds.add(String(ev.attacker));
+      if (ev.target) attackImpactIds.add(String(ev.target));
+    }
+    if (ev.type === "damage" && ev.target_kind === "minion" && ev.target_id) {
+      const id = String(ev.target_id);
+      damageAmountByMinion.set(id, (damageAmountByMinion.get(id) || 0) + (Number(ev.amount) || 0));
+    }
+  }
+  const impactDelayFor = (id) => attackImpactIds.has(String(id)) ? 500 : 0;
 
   // Para cada lacaio que sumiu (morreu), animar dying ANTES da rerenderização
   const deadIds = Object.keys(oldByid).filter(id => !newByid[id]);
@@ -2979,6 +2992,10 @@ function animateFromDelta(oldS, newS) {
       clone.classList.add("dying");
       setTimeout(() => clone.remove(), 600);
     }
+    const lethalDamage = damageAmountByMinion.get(String(id));
+    if (lethalDamage) {
+      queueShake(`.minion[data-minion-id='${id}']`, "dmg", lethalDamage, impactDelayFor(id));
+    }
   }
 
   // Mudanças de HP / divine shield em lacaios que continuam
@@ -2987,7 +3004,7 @@ function animateFromDelta(oldS, newS) {
     if (!o) continue;
     if (n.health < o.health) {
       const dmg = o.health - n.health;
-      queueShake(`.minion[data-minion-id='${id}']`, "dmg", dmg);
+      queueShake(`.minion[data-minion-id='${id}']`, "dmg", dmg, impactDelayFor(id));
     } else if (n.health > o.health) {
       const heal = n.health - o.health;
       queueShake(`.minion[data-minion-id='${id}']`, "heal", heal);
@@ -3000,14 +3017,16 @@ function animateFromDelta(oldS, newS) {
   // Mudança de HP em heróis
   if (newS.you.hero_health < oldS.you.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "dmg",
-               oldS.you.hero_health - newS.you.hero_health);
+               oldS.you.hero_health - newS.you.hero_health,
+               impactDelayFor(`hero:${newS.you.player_id}`));
   } else if (newS.you.hero_health > oldS.you.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "heal",
                newS.you.hero_health - oldS.you.hero_health);
   }
   if (newS.opponent.hero_health < oldS.opponent.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "dmg",
-               oldS.opponent.hero_health - newS.opponent.hero_health);
+               oldS.opponent.hero_health - newS.opponent.hero_health,
+               impactDelayFor(`hero:${newS.opponent.player_id}`));
   } else if (newS.opponent.hero_health > oldS.opponent.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "heal",
                newS.opponent.hero_health - oldS.opponent.hero_health);
@@ -3016,7 +3035,7 @@ function animateFromDelta(oldS, newS) {
   // Eventos do log: ataques, summons, draws (de qualquer jogador) e cartas
   // jogadas pelo oponente.
   for (const ev of newEvents) {
-    if (ev.type === "attack") {
+    if (ev.type === "attack" || ev.type === "forced_attack") {
       animateAttack(ev.attacker, ev.target);
     }
     if (ev.type === "summon") {
@@ -3379,25 +3398,46 @@ function showRevealNotice(ev) {
 
 // Adia animações até logo após o re-render (que apaga e recria os DOM nodes)
 let pendingAnims = [];
-function queueShake(selector, kind, value) {
-  pendingAnims.push({ selector, kind, value });
+function queueShake(selector, kind, value, delay = 0) {
+  pendingAnims.push({ selector, kind, value, delay });
 }
 function flushPendingAnims() {
   for (const a of pendingAnims) {
-    const el = document.querySelector(a.selector);
-    if (!el) continue;
-    if (a.kind === "dmg") {
-      el.classList.add("taking-damage");
-      setTimeout(() => el.classList.remove("taking-damage"), 550);
-      spawnFloatNum(el, "-" + a.value, "damage");
-      spawnSpark(el);
-    } else if (a.kind === "heal") {
-      spawnFloatNum(el, "+" + a.value, "heal");
-    } else if (a.kind === "shield") {
-      spawnFloatNum(el, a.value, "shield");
-    }
+    const run = () => {
+      const el = document.querySelector(a.selector);
+      if (!el) return;
+      if (a.kind === "dmg") {
+        el.classList.add("taking-damage");
+        setTimeout(() => el.classList.remove("taking-damage"), 550);
+        if (el.classList.contains("minion")) {
+          spawnDamageBubble(el, a.value);
+        } else {
+          spawnFloatNum(el, "-" + a.value, "damage");
+        }
+        spawnSpark(el);
+      } else if (a.kind === "heal") {
+        spawnFloatNum(el, "+" + a.value, "heal");
+      } else if (a.kind === "shield") {
+        spawnFloatNum(el, a.value, "shield");
+      }
+    };
+    if (a.delay && a.delay > 0) setTimeout(run, a.delay);
+    else run();
   }
   pendingAnims = [];
+}
+
+
+function spawnDamageBubble(el, amount) {
+  const r = el.getBoundingClientRect();
+  const fx = document.getElementById("fx-layer");
+  const b = document.createElement("div");
+  b.className = "damage-bubble";
+  b.textContent = `-${amount}`;
+  b.style.left = (r.left + r.width / 2) + "px";
+  b.style.top = (r.top + Math.max(8, r.height * 0.18)) + "px";
+  fx.appendChild(b);
+  setTimeout(() => b.remove(), 1050);
 }
 
 function spawnFloatNum(el, txt, kind) {
@@ -3423,9 +3463,9 @@ function spawnSpark(el) {
   setTimeout(() => s.remove(), 460);
 }
 
-// Anima o ATAQUE: o atacante "salta" em direção ao alvo e volta
+// Anima o ATAQUE: o atacante caminha até o alvo, tromba nele e volta.
 function animateAttack(attackerId, targetId) {
-  // Espera o re-render colocar o atacante no DOM novamente
+  // Espera o re-render colocar o atacante no DOM novamente.
   setTimeout(() => {
     const atkEl = document.querySelector(`.minion[data-minion-id='${attackerId}']`);
     if (!atkEl) return;
@@ -3440,18 +3480,71 @@ function animateAttack(attackerId, targetId) {
 
     const ar = atkEl.getBoundingClientRect();
     const tr = tgtEl.getBoundingClientRect();
-    const dy = (tr.top + tr.height/2) - (ar.top + ar.height/2);
-    const dx = (tr.left + tr.width/2) - (ar.left + ar.width/2);
+    const attackerCenter = { x: ar.left + ar.width / 2, y: ar.top + ar.height / 2 };
+    const targetCenter = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+    const dx = targetCenter.x - attackerCenter.x;
+    const dy = targetCenter.y - attackerCenter.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const stopGap = Math.min(54, Math.max(28, Math.min(ar.width, tr.width) * 0.34));
+    const impactX = dx - ux * stopGap;
+    const impactY = dy - uy * stopGap;
+    const overX = dx - ux * Math.max(18, stopGap * 0.55);
+    const overY = dy - uy * Math.max(18, stopGap * 0.55);
+    const recoilX = impactX - ux * 24;
+    const recoilY = impactY - uy * 24;
+    const lean = Math.max(-8, Math.min(8, dx / 28));
 
-    if (Math.abs(dy) > Math.abs(dx)) {
-      atkEl.classList.add(dy < 0 ? "attacking-up" : "attacking-down");
-    } else {
-      atkEl.classList.add(dx < 0 ? "attacking-left" : "attacking-right");
-    }
+    const fx = document.getElementById("fx-layer");
+    const clone = atkEl.cloneNode(true);
+    clone.classList.remove("attacking-up", "attacking-down", "attacking-left", "attacking-right", "taking-damage", "entering", "dying");
+    clone.classList.add("attack-runner");
+    clone.style.position = "fixed";
+    clone.style.left = ar.left + "px";
+    clone.style.top = ar.top + "px";
+    clone.style.width = ar.width + "px";
+    clone.style.height = ar.height + "px";
+    clone.style.margin = "0";
+    clone.style.zIndex = 35;
+    clone.style.pointerEvents = "none";
+    clone.style.transformOrigin = "50% 58%";
+    fx.appendChild(clone);
+
+    atkEl.classList.add("attack-source-hidden");
+    tgtEl.classList.add("impact-target");
+    const anim = clone.animate([
+      { transform: "translate(0, 0) scale(1) rotate(0deg)", offset: 0, easing: "ease-out" },
+      { transform: `translate(${impactX * 0.38}px, ${impactY * 0.38}px) scale(1.03) rotate(${lean}deg)`, offset: 0.34 },
+      { transform: `translate(${impactX * 0.72}px, ${impactY * 0.72}px) scale(1.06) rotate(${-lean * 0.8}deg)`, offset: 0.56 },
+      { transform: `translate(${overX}px, ${overY}px) scale(1.12) rotate(${lean * 0.45}deg)`, offset: 0.72, easing: "cubic-bezier(.16,.9,.24,1.25)" },
+      { transform: `translate(${recoilX}px, ${recoilY}px) scale(0.98) rotate(${-lean * 0.25}deg)`, offset: 0.82, easing: "ease-out" },
+      { transform: "translate(0, 0) scale(1) rotate(0deg)", offset: 1, easing: "ease-in" },
+    ], { duration: 760, iterations: 1, fill: "forwards" });
+
+    setTimeout(() => spawnImpactRing(tgtEl), 500);
+    anim.onfinish = () => {
+      clone.remove();
+      atkEl.classList.remove("attack-source-hidden");
+      tgtEl.classList.remove("impact-target");
+    };
     setTimeout(() => {
-      atkEl.classList.remove("attacking-up", "attacking-down", "attacking-left", "attacking-right");
-    }, 470);
+      clone.remove();
+      atkEl.classList.remove("attack-source-hidden");
+      tgtEl.classList.remove("impact-target");
+    }, 850);
   }, 30);
+}
+
+function spawnImpactRing(el) {
+  const r = el.getBoundingClientRect();
+  const fx = document.getElementById("fx-layer");
+  const ring = document.createElement("div");
+  ring.className = "impact-ring";
+  ring.style.left = (r.left + r.width / 2 - 45) + "px";
+  ring.style.top = (r.top + r.height / 2 - 45) + "px";
+  fx.appendChild(ring);
+  setTimeout(() => ring.remove(), 360);
 }
 
 // Após cada render, dispara animações pendentes
