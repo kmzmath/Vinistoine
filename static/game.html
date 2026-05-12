@@ -992,6 +992,32 @@ function getMinionSummonPreviewCards(card) {
   return previews;
 }
 
+function appendRelatedSummonPreviews(root, card) {
+  const relatedSummons = getMinionSummonPreviewCards(card);
+  if (!relatedSummons.length) return;
+
+  root.classList.add("has-related");
+  const relatedWrap = document.createElement("div");
+  relatedWrap.className = "related-summon-preview";
+  relatedWrap.innerHTML = `<div class="related-summon-label">Evoca</div>`;
+
+  for (const related of relatedSummons) {
+    const relatedItem = document.createElement("div");
+    relatedItem.className = "related-summon-item";
+    const relatedCard = renderCard(related.card, related.card.cost ?? 0, { show_hand_stats: true });
+    relatedCard.classList.add("summoned-preview-card");
+    relatedItem.appendChild(relatedCard);
+    if (related.amount && related.amount !== 1) {
+      const amountBadge = document.createElement("div");
+      amountBadge.className = "related-summon-amount";
+      amountBadge.textContent = `x${related.amount}`;
+      relatedItem.appendChild(amountBadge);
+    }
+    relatedWrap.appendChild(relatedItem);
+  }
+  root.appendChild(relatedWrap);
+}
+
 function showMinionCardPreview(m, ev) {
   const card = allCards[m.card_id] || {};
   if (!card || !card.id) return;
@@ -1007,30 +1033,7 @@ function showMinionCardPreview(m, ev) {
   });
   previewCard.classList.add("primary-preview-card");
   root.appendChild(previewCard);
-
-  const relatedSummons = !m.silenced ? getMinionSummonPreviewCards(card) : [];
-  if (relatedSummons.length) {
-    root.classList.add("has-related");
-    const relatedWrap = document.createElement("div");
-    relatedWrap.className = "related-summon-preview";
-    relatedWrap.innerHTML = `<div class="related-summon-label">Evoca</div>`;
-
-    for (const related of relatedSummons) {
-      const relatedItem = document.createElement("div");
-      relatedItem.className = "related-summon-item";
-      const relatedCard = renderCard(related.card, related.card.cost ?? 0, { show_hand_stats: true });
-      relatedCard.classList.add("summoned-preview-card");
-      relatedItem.appendChild(relatedCard);
-      if (related.amount && related.amount !== 1) {
-        const amountBadge = document.createElement("div");
-        amountBadge.className = "related-summon-amount";
-        amountBadge.textContent = `x${related.amount}`;
-        relatedItem.appendChild(amountBadge);
-      }
-      relatedWrap.appendChild(relatedItem);
-    }
-    root.appendChild(relatedWrap);
-  }
+  if (!m.silenced) appendRelatedSummonPreviews(root, card);
 
   root.classList.add("visible");
   moveMinionCardPreview(ev);
@@ -1053,6 +1056,7 @@ function showHandCardPreview(handCard, ev) {
     cost_modified: handCard.cost_modified,
   });
   root.appendChild(previewCard);
+  if (card.type === "MINION") appendRelatedSummonPreviews(root, card);
   root.classList.add("visible");
   moveMinionCardPreview(ev);
 }
