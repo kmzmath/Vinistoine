@@ -3326,27 +3326,201 @@ const LOG_SVGS = {
 // Heurísticas para agregar eventos relacionados em um único item visual.
 // Ex: play_card + summon imediatamente em seguida = uma só entrada.
 function buildLogItems(events) {
-  const items = [];
+  let items = [];
   const seenSeq = new Set();
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
     if (ev.seq !== undefined && seenSeq.has(ev.seq)) continue;
     const item = makeLogItem(ev, events, i);
     if (!item) continue;
-    if (ev.seq !== undefined) seenSeq.add(ev.seq);
-    // Marca eventos consumidos (ex: o summon que veio com o play_card).
+    item.sourceSeq = ev.seq;
     if (item.consumedSeqs) {
       for (const s of item.consumedSeqs) seenSeq.add(s);
+      items = items.filter(existing => !item.consumedSeqs.includes(existing.sourceSeq));
     }
+    if (ev.seq !== undefined) seenSeq.add(ev.seq);
     items.push(item);
   }
   // Mais recentes primeiro, limita pra não poluir.
   return items.slice(-LOG_MAX_ITEMS).reverse();
 }
 
+const LOG_MAJOR_TYPES = new Set(["game_start", "turn_start", "game_end", "concede", "play_card", "attack"]);
+const LOG_DETAIL_TYPES = new Set([
+  "summon", "summon_token", "summon_copy", "resummon",
+  "damage", "damage_prevented", "damage_reduced", "divine_shield_break",
+  "heal", "death", "death_replaced_shuffle_into_deck", "poison_kill",
+  "draw", "draw_from_choice", "draw_minion", "draw_spell", "draw_card_type",
+  "draw_minion_from_deck", "draw_card_from_deck_filtered", "draw_highest_revealed",
+  "draw_lowest_cost_minion", "draw_minion_with_tag", "draw_repeat", "draw_playable_card",
+  "discard", "discard_from_deck_choice", "discard_lowest_revealed",
+  "burn", "burn_delayed_draw", "burn_returned_minion", "burn_stolen",
+  "return_to_hand", "return_to_hand_burned", "return_to_hand_modify_cost",
+  "reveal_top_card", "reveal_top_each_deck", "reveal_drawn_card", "reveal_hand_card", "reveal_hand_edges",
+  "silence", "freeze", "freeze_hero",
+]);
+
+function eventSeq(ev) { return ev && ev.seq !== undefined ? ev.seq : null; }
+function markConsumed(consumed, ev) {
+  const seq = eventSeq(ev);
+  if (seq !== null) consumed.push(seq);
+}
+function cardName(cardId, fallback = "Carta") {
+  return cardId ? (allCards[cardId]?.name || cardId) : fallback;
+}
+function shortLogName(name, fallback = "?") {
+  const raw = String(name || fallback).trim();
+  if (!raw) return fallback;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return words[0].slice(0, 10);
+  const useful = words.filter(w => !/^(de|da|do|dos|das|e)$/i.test(w));
+  return (useful.length ? useful : words).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+}
+function heroLabel(pid) { return `Herói de ${playerName(Number(pid))}`; }
+
+function logContext(events, idx) {
+  const minions = new Map();
+  for (let i = 0; i <= idx; i++) {
+    const ev = events[i];
+    if (!ev) continue;
+    if ((ev.type === "summon" || ev.type === "summon_token") && ev.minion?.instance_id) {
+      minions.set(ev.minion.instance_id, { ...ev.minion, owner: ev.owner });
+    }
+    if (ev.type === "play_card" && ev.card_id && ev.card_name) {
+      // Ajuda cardName mesmo quando allCards ainda não terminou de carregar.
+      if (!allCards[ev.card_id]) allCards[ev.card_id] = { id: ev.card_id, name: ev.card_name };
+    }
+  }
+  return { minions };
+}
+
+function minionFromContext(ctx, id) {
+  if (!id) return null;
+  const boardMinion = [
+    ...((state?.you && state.you.board) || []),
+    ...((state?.opponent && state.opponent.board) || []),
+  ].find(m => m.instance_id === id);
+  return boardMinion || ctx.minions.get(id) || null;
+}
+
+function targetNameFromEvent(ev, ctx) {
+  const id = ev.target || ev.target_id || ev.minion;
+  if (ev.target_kind === "hero") return heroLabel(ev.target_id);
+  if (String(id || "").startsWith("hero:")) return heroLabel(String(id).split(":")[1]);
+  const minion = minionFromContext(ctx, id);
+  return ev.target_name || ev.name || minion?.name || id || "alvo";
+}
+
+function cardFromEvent(ev, ctx) {
+  if (ev.card_id) return ev.card_id;
+  if (ev.target_card_id) return ev.target_card_id;
+  if (ev.minion?.card_id) return ev.minion.card_id;
+  const minion = minionFromContext(ctx, ev.minion || ev.target_id || ev.target);
+  return minion?.card_id || null;
+}
+
+function detailForEvent(ev, ctx, sourceName = null) {
+  if (!ev) return null;
+  if (ev.type === "summon" || ev.type === "summon_token") {
+    const m = ev.minion || {};
+    const stats = m.attack !== undefined && m.health !== undefined ? ` (${m.attack}/${m.health})` : "";
+    return `${playerName(ev.owner)} evocou ${m.name || "um lacaio"}${stats}.`;
+  }
+  if (ev.type === "summon_copy") return `Evocou uma cópia${ev.copies ? ` (${ev.copies}x)` : ""}.`;
+  if (ev.type === "resummon") return `Reevocou ${cardName(ev.card_id, "um lacaio")}.`;
+  if (ev.type === "damage") {
+    const target = targetNameFromEvent(ev, ctx);
+    const armor = ev.armor_absorbed ? ` (${ev.armor_absorbed} absorvido por armadura)` : "";
+    const src = ev.source_name || sourceName;
+    return `${target} sofreu ${ev.amount} de dano${src ? ` por ${src}` : ""}${armor}.`;
+  }
+  if (ev.type === "damage_prevented") return `Dano prevenido em ${targetNameFromEvent(ev, ctx)}${ev.reason ? ` (${ev.reason})` : ""}.`;
+  if (ev.type === "damage_reduced") return `Dano reduzido em ${targetNameFromEvent(ev, ctx)}: ${ev.source_amount} → ${ev.final_amount}.`;
+  if (ev.type === "divine_shield_break") return `Escudo Divino quebrado em ${targetNameFromEvent(ev, ctx)}.`;
+  if (ev.type === "heal") return `${targetNameFromEvent(ev, ctx)} curou ${ev.amount}.`;
+  if (ev.type === "death") return `${targetNameFromEvent(ev, ctx)} morreu${ev.owner !== undefined ? ` (${playerName(ev.owner)})` : ""}.`;
+  if (ev.type === "death_replaced_shuffle_into_deck") return `${cardName(ev.card_id, targetNameFromEvent(ev, ctx))} morreria, mas voltou ao deck.`;
+  if (ev.type === "poison_kill") return `${targetNameFromEvent(ev, ctx)} foi destruído por Venenoso.`;
+  if (String(ev.type).startsWith("draw")) {
+    const visible = ev.player === myPid || ev.card_id;
+    const drawn = visible ? cardName(ev.card_id, "uma carta") : "uma carta do baralho";
+    return `${playerName(ev.player)} comprou ${drawn}${sourceName ? ` por ${sourceName}` : ""}.`;
+  }
+  if (String(ev.type).startsWith("reveal")) {
+    if (ev.type === "reveal_top_each_deck") {
+      const cards = (ev.cards || []).map(c => `${playerName(c.owner)}: ${cardName(c.card_id, c.card_id)}`).join("; ");
+      return `Revelou o topo dos decks${cards ? ` (${cards})` : ""}${sourceName ? ` por ${sourceName}` : ""}.`;
+    }
+    if (ev.type === "reveal_hand_edges") {
+      const cards = (ev.cards || []).map(c => cardName(c.card_id, c.card_id)).join(" e ");
+      return `${playerName(ev.player)} revelou ${cards || "cartas da mão"}${sourceName ? ` por ${sourceName}` : ""}.`;
+    }
+    return `${playerName(ev.player)} revelou ${cardName(ev.card_id, "uma carta")}${sourceName ? ` por ${sourceName}` : ""}.`;
+  }
+  if (String(ev.type).startsWith("burn")) {
+    const owner = ev.player ?? ev.owner;
+    return `${owner !== undefined ? playerName(owner) : "Um jogador"} queimou ${cardName(ev.card_id, "uma carta")}${sourceName ? ` por ${sourceName}` : ""}.`;
+  }
+  if (String(ev.type).startsWith("discard")) return `${playerName(ev.player)} descartou ${cardName(ev.card_id, "uma carta")}.`;
+  if (String(ev.type).startsWith("return_to_hand")) return `${targetNameFromEvent(ev, ctx)} voltou para a mão.`;
+  if (ev.type === "silence") return `${targetNameFromEvent(ev, ctx)} foi silenciado.`;
+  if (ev.type === "freeze") return `${targetNameFromEvent(ev, ctx)} foi congelado.`;
+  if (ev.type === "freeze_hero") return `${heroLabel(ev.player)} foi congelado.`;
+  return null;
+}
+
+function collectForwardDetails(all, idx, consumed, ctx, sourceName) {
+  const details = [];
+  for (let j = idx + 1; j < all.length && details.length < 10; j++) {
+    const ev = all[j];
+    if (LOG_MAJOR_TYPES.has(ev.type)) break;
+    if (!LOG_DETAIL_TYPES.has(ev.type)) continue;
+    const detail = detailForEvent(ev, ctx, sourceName);
+    if (!detail) continue;
+    details.push(detail);
+    markConsumed(consumed, ev);
+  }
+  return details;
+}
+
+function collectAttackDetails(ev, all, idx, consumed, ctx) {
+  const attacker = minionFromContext(ctx, ev.attacker);
+  const targetId = ev.target;
+  const target = minionFromContext(ctx, targetId);
+  const attackerName = attacker?.name || ev.attacker || "Atacante";
+  const targetName = String(targetId || "").startsWith("hero:") ? heroLabel(String(targetId).split(":")[1]) : (target?.name || targetId || "alvo");
+  const related = new Set([ev.attacker, targetId].filter(Boolean));
+  const details = [`${attackerName} atacou ${targetName}.`];
+
+  const prev = [];
+  for (let j = idx - 1; j >= 0 && prev.length < 4; j--) {
+    const e = all[j];
+    if (LOG_MAJOR_TYPES.has(e.type)) break;
+    const id = e.target_id || e.minion;
+    if ((e.type === "damage" || e.type === "divine_shield_break" || e.type === "damage_prevented") && related.has(id)) {
+      prev.unshift(e);
+      markConsumed(consumed, e);
+    }
+  }
+  for (const e of prev) details.push(detailForEvent(e, ctx, e.target_id === ev.attacker ? targetName : attackerName));
+
+  for (let j = idx + 1; j < all.length && details.length < 12; j++) {
+    const e = all[j];
+    if (LOG_MAJOR_TYPES.has(e.type)) break;
+    const id = e.target_id || e.minion;
+    if (!related.has(id) && !LOG_DETAIL_TYPES.has(e.type)) continue;
+    const detail = detailForEvent(e, ctx, attackerName);
+    if (!detail) continue;
+    details.push(detail);
+    markConsumed(consumed, e);
+  }
+  return { attackerName, targetName, details };
+}
+
 function makeLogItem(ev, all, idx) {
   const playerLabel = ev.player !== undefined ? playerName(ev.player) : "";
   const consumed = [];
+  const ctx = logContext(all, idx);
   switch (ev.type) {
     case "game_start":
       return { kind: "game", icon: "✦", title: "Início da partida",
@@ -3355,111 +3529,110 @@ function makeLogItem(ev, all, idx) {
       return { kind: "turn", icon: `T${ev.turn}`, title: `Turno ${ev.turn}`,
                text: `Vez de ${playerName(ev.player)}` };
     case "play_card": {
-      // Tenta absorver o summon imediatamente posterior (mesmo player) para
-      // não duplicar.
-      const next = all[idx + 1];
-      if (next && next.type === "summon" && next.owner === ev.player) {
-        if (next.seq !== undefined) consumed.push(next.seq);
-      }
+      const cardTitle = ev.card_name || cardName(ev.card_id, "Carta");
+      const details = [`${playerLabel} jogou ${cardTitle}.`, `Custo pago: ${ev.cost ?? "?"}.`];
+      if (ev.empowered) details.push("Foi jogada fortalecida.");
+      if (ev.combo_active) details.push("Combo estava ativo.");
+      details.push(...collectForwardDetails(all, idx, consumed, ctx, cardTitle));
       return {
         kind: "play",
         cardId: ev.card_id,
-        title: `${playerLabel} jogou ${ev.card_name || "?"}`,
-        text: `Custo: ${ev.cost ?? "?"}`,
+        label: shortLogName(cardTitle, "Jogar"),
+        title: `${playerLabel} jogou ${cardTitle}`,
+        text: details.join("\n"),
+        details,
         consumedSeqs: consumed,
       };
     }
-    case "summon": {
+    case "summon":
+    case "summon_token": {
       const cardId = ev.minion && ev.minion.card_id;
+      const details = [detailForEvent(ev, ctx)].filter(Boolean);
       return {
         kind: "summon",
         cardId,
+        label: shortLogName(ev.minion?.name, "Evoc"),
         title: `${playerName(ev.owner)} evocou ${ev.minion?.name || "?"}`,
-        text: ev.minion ? `${ev.minion.attack}/${ev.minion.health}` : "",
+        text: details.join("\n"),
+        details,
       };
     }
-    case "attack":
+    case "attack": {
+      const grouped = collectAttackDetails(ev, all, idx, consumed, ctx);
       return { kind: "attack",
-               title: "Ataque",
-               text: `${ev.attacker || "?"} → ${ev.target || "?"}` };
-    case "damage":
+               cardId: minionFromContext(ctx, ev.attacker)?.card_id,
+               label: `${shortLogName(grouped.attackerName)}→${shortLogName(grouped.targetName)}`,
+               title: `${grouped.attackerName} atacou ${grouped.targetName}`,
+               text: grouped.details.join("\n"),
+               details: grouped.details,
+               consumedSeqs: consumed };
+    }
+    case "damage": {
+      const targetName = targetNameFromEvent(ev, ctx);
+      const details = [detailForEvent(ev, ctx)].filter(Boolean);
       return { kind: "damage", badge: `-${ev.amount}`,
-               title: "Dano",
-               text: `${ev.amount} em ${ev.target_kind || "alvo"}` };
-    case "heal":
+               cardId: cardFromEvent(ev, ctx),
+               label: `${shortLogName(targetName)} -${ev.amount}`,
+               title: "Dano", text: details.join("\n"), details };
+    }
+    case "heal": {
+      const targetName = targetNameFromEvent(ev, ctx);
+      const details = [detailForEvent(ev, ctx)].filter(Boolean);
       return { kind: "heal", badge: `+${ev.amount}`,
-               title: "Cura", text: `+${ev.amount}` };
-    case "death":
-      return { kind: "death",
-               title: "Lacaio morreu",
-               text: ev.minion || "" };
+               cardId: cardFromEvent(ev, ctx),
+               label: `${shortLogName(targetName)} +${ev.amount}`,
+               title: "Cura", text: details.join("\n"), details };
+    }
+    case "death": {
+      const targetName = targetNameFromEvent(ev, ctx);
+      const details = [detailForEvent(ev, ctx)].filter(Boolean);
+      return { kind: "death", cardId: cardFromEvent(ev, ctx),
+               label: `☠ ${shortLogName(targetName)}`,
+               title: `${targetName} morreu`, text: details.join("\n"), details };
+    }
     case "draw": {
-      // Importante: nunca revelar o nome/imagem da carta que o oponente
-      // comprou - isso vazaria informação privada da mão dele.
       const isMine = ev.player === myPid;
-      return {
-        kind: "draw",
-        cardId: isMine ? ev.card_id : null,
-        title: `${playerLabel} comprou`,
-        text: isMine && ev.card_id
-          ? (allCards[ev.card_id]?.name || ev.card_id)
-          : "Carta do baralho",
-      };
+      const details = [detailForEvent(ev, ctx)].filter(Boolean);
+      return { kind: "draw", cardId: isMine ? ev.card_id : null,
+               title: `${playerLabel} comprou`, text: details.join("\n"), details };
     }
     case "fatigue":
       return { kind: "fatigue",
                title: `${playerLabel} - Fadiga`,
                text: `${ev.amount} de dano` };
     case "discard": {
-      // Mesma regra: descartes do oponente não revelam a carta.
       const isMine = ev.player === myPid;
-      return {
-        kind: "discard",
-        cardId: isMine ? ev.card_id : null,
-        title: `${playerLabel} descartou`,
-        text: isMine && ev.card_id ? (allCards[ev.card_id]?.name || ev.card_id) : "",
-      };
+      const details = [detailForEvent(ev, ctx)].filter(Boolean);
+      return { kind: "discard", cardId: isMine ? ev.card_id : null,
+               title: `${playerLabel} descartou`, text: details.join("\n"), details };
     }
     case "burn": {
-      // "Burn" = mão cheia, carta comprada é destruída. Carta vinda da mão
-      // do oponente também não pode ser exibida.
-      const isMine = ev.player === myPid;
-      return {
-        kind: "burn",
-        cardId: isMine ? ev.card_id : null,
-        title: "Carta queimada",
-        text: isMine && ev.card_id
-          ? (allCards[ev.card_id]?.name || ev.card_id)
-          : "Mão cheia",
-      };
+      const details = [detailForEvent(ev, ctx)].filter(Boolean);
+      return { kind: "burn", cardId: ev.card_id || null,
+               title: "Carta queimada", text: details.join("\n"), details };
     }
     case "divine_shield_break":
-      return { kind: "shield",
-               title: "Escudo Divino quebrado", text: "" };
+      return { kind: "shield", title: "Escudo Divino quebrado", text: detailForEvent(ev, ctx) || "" };
     case "silence":
-      return { kind: "silence",
-               title: "Silenciado", text: "" };
+      return { kind: "silence", title: "Silenciado", text: detailForEvent(ev, ctx) || "" };
     case "freeze":
-      return { kind: "freeze",
-               title: "Congelado", text: "" };
+      return { kind: "freeze", title: "Congelado", text: detailForEvent(ev, ctx) || "" };
     case "concede":
-      return { kind: "concede",
-               title: `${playerLabel} se rendeu`, text: "" };
+      return { kind: "concede", title: `${playerLabel} se rendeu`, text: "" };
     case "no_targets_available":
-      return { kind: "info",
-               title: ev.card_name || "Carta",
-               text: "Sem alvos válidos" };
+      return { kind: "info", title: ev.card_name || "Carta", text: "Sem alvos válidos" };
     case "game_end":
-      return { kind: "game",
-               title: "Fim de partida",
-               text: `Vencedor: ${ev.winner === -1 ? "Empate" : playerName(ev.winner)}` };
+      return { kind: "game", title: "Fim de partida", text: `Vencedor: ${ev.winner === -1 ? "Empate" : playerName(ev.winner)}` };
     case "unimplemented_action":
-      return { kind: "info",
-               title: "Efeito não implementado", text: ev.action || "" };
-    default:
-      // Eventos verbosos/irrelevantes (echo_expire, temporary_*, aplicações
-      // internas de aura) não viram entradas no histórico visual.
-      return null;
+      return { kind: "info", title: "Efeito não implementado", text: ev.action || "" };
+    default: {
+      if (!LOG_DETAIL_TYPES.has(ev.type)) return null;
+      const detail = detailForEvent(ev, ctx);
+      if (!detail) return null;
+      const prefix = String(ev.type || "").split("_")[0];
+      const kind = LOG_SVGS[prefix] ? prefix : "info";
+      return { kind, cardId: cardFromEvent(ev, ctx), title: detail.replace(/\.$/, ""), text: detail, details: [detail] };
+    }
   }
 }
 
@@ -3509,17 +3682,32 @@ function buildLogIcon(item) {
   }
   wrap.appendChild(inner);
 
+  if (item.label) {
+    const label = document.createElement("div");
+    label.className = "log-icon-label";
+    label.textContent = item.label;
+    wrap.appendChild(label);
+  }
+
   const tip = document.createElement("div");
   tip.className = "log-tooltip";
   const t1 = document.createElement("div");
   t1.className = "tip-title";
   t1.textContent = item.title || "";
   tip.appendChild(t1);
-  if (item.text) {
-    const t2 = document.createElement("div");
-    t2.className = "tip-text";
-    t2.textContent = item.text;
-    tip.appendChild(t2);
+  const detailLines = Array.isArray(item.details) && item.details.length
+    ? item.details
+    : (item.text ? [item.text] : []);
+  if (detailLines.length) {
+    const details = document.createElement("div");
+    details.className = "tip-details";
+    for (const lineText of detailLines) {
+      const line = document.createElement("div");
+      line.className = "tip-detail-line";
+      line.textContent = lineText;
+      details.appendChild(line);
+    }
+    tip.appendChild(details);
   }
   // Para entradas com cardId, embute uma miniatura grande no tooltip.
   if (item.cardId && cardImages[item.cardId]) {
