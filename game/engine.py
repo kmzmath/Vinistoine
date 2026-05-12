@@ -1957,7 +1957,13 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
         state.log_event({
             "type": "attack",
             "attacker": attacker.instance_id,
+            "attacker_name": attacker.name,
+            "attacker_card_id": attacker.card_id,
+            "attacker_owner": attacker.owner,
             "target": target.instance_id,
+            "target_name": target.name,
+            "target_card_id": target.card_id,
+            "target_owner": target.owner,
         })
     else:  # herói
         effects.damage_character(state, target, attacker_atk, source_owner=player_id,
@@ -1965,7 +1971,12 @@ def attack(state: GameState, player_id: int, attacker_instance_id: str,
         state.log_event({
             "type": "attack",
             "attacker": attacker.instance_id,
+            "attacker_name": attacker.name,
+            "attacker_card_id": attacker.card_id,
+            "attacker_owner": attacker.owner,
             "target": f"hero:{target.player_id}",
+            "target_name": f"Herói de P{target.player_id}",
+            "target_owner": target.player_id,
         })
 
     attacker.attacks_this_turn += 1
@@ -2052,6 +2063,7 @@ def cleanup(state: GameState):
                 "name": minion.name,
             })
             state.log_event({"type": "death", "minion": minion.instance_id,
+                             "name": minion.name, "card_id": minion.card_id,
                              "owner": owner, "death_index": death_index})
             # ON_DEATH com death_index disponível em ctx.
             effects.fire_minion_trigger(

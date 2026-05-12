@@ -3344,6 +3344,43 @@ function buildLogItems(events) {
   return items.slice(-LOG_MAX_ITEMS).reverse();
 }
 
+
+function logShortName(name, fallback = "?") {
+  const raw = String(name || fallback).trim();
+  if (!raw) return fallback;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return words[0].slice(0, 10);
+  const meaningful = words.filter(w => !/^(de|da|do|dos|das|e)$/i.test(w));
+  const picked = (meaningful.length ? meaningful : words).slice(0, 2);
+  return picked.map(w => w.slice(0, 1).toUpperCase()).join("");
+}
+
+function logMinionNameById(id) {
+  const boards = [
+    ...((state?.you && state.you.board) || []),
+    ...((state?.opponent && state.opponent.board) || []),
+  ];
+  const found = boards.find(m => m.instance_id === id);
+  return found?.name || null;
+}
+
+function logHeroName(owner) {
+  return `Herói de ${playerName(owner)}`;
+}
+
+function logTargetName(ev) {
+  if (ev.target_name) {
+    if (ev.target_kind === "hero" || String(ev.target || "").startsWith("hero:")) {
+      const owner = ev.target_owner ?? ev.target_id ?? String(ev.target).split(":")[1];
+      return logHeroName(Number(owner));
+    }
+    return ev.target_name;
+  }
+  if (ev.target_kind === "hero") return logHeroName(ev.target_id);
+  if (String(ev.target || "").startsWith("hero:")) return logHeroName(Number(String(ev.target).split(":")[1]));
+  return logMinionNameById(ev.target || ev.target_id) || ev.target || ev.target_id || "alvo";
+}
+
 function makeLogItem(ev, all, idx) {
   const playerLabel = ev.player !== undefined ? playerName(ev.player) : "";
   const consumed = [];
@@ -3364,6 +3401,7 @@ function makeLogItem(ev, all, idx) {
       return {
         kind: "play",
         cardId: ev.card_id,
+        label: logShortName(ev.card_name, "Jogar"),
         title: `${playerLabel} jogou ${ev.card_name || "?"}`,
         text: `Custo: ${ev.cost ?? "?"}`,
         consumedSeqs: consumed,
@@ -3374,25 +3412,43 @@ function makeLogItem(ev, all, idx) {
       return {
         kind: "summon",
         cardId,
+        label: logShortName(ev.minion?.name, "Evoc"),
         title: `${playerName(ev.owner)} evocou ${ev.minion?.name || "?"}`,
         text: ev.minion ? `${ev.minion.attack}/${ev.minion.health}` : "",
       };
     }
-    case "attack":
+    case "attack": {
+      const attackerName = ev.attacker_name || logMinionNameById(ev.attacker) || ev.attacker || "?";
+      const targetName = logTargetName(ev);
       return { kind: "attack",
+               cardId: ev.attacker_card_id,
+               label: `${logShortName(attackerName)}→${logShortName(targetName)}`,
                title: "Ataque",
-               text: `${ev.attacker || "?"} → ${ev.target || "?"}` };
-    case "damage":
+               text: `${attackerName} atacou ${targetName}` };
+    }
+    case "damage": {
+      const targetName = logTargetName(ev);
       return { kind: "damage", badge: `-${ev.amount}`,
+               cardId: ev.target_card_id,
+               label: `${logShortName(targetName)} -${ev.amount}`,
                title: "Dano",
-               text: `${ev.amount} em ${ev.target_kind || "alvo"}` };
-    case "heal":
+               text: `${targetName} sofreu ${ev.amount} de dano` };
+    }
+    case "heal": {
+      const targetName = logTargetName(ev);
       return { kind: "heal", badge: `+${ev.amount}`,
-               title: "Cura", text: `+${ev.amount}` };
-    case "death":
+               cardId: ev.target_card_id,
+               label: `${logShortName(targetName)} +${ev.amount}`,
+               title: "Cura", text: `${targetName} curou ${ev.amount}` };
+    }
+    case "death": {
+      const name = ev.name || logMinionNameById(ev.minion) || ev.minion || "Lacaio";
       return { kind: "death",
-               title: "Lacaio morreu",
-               text: ev.minion || "" };
+               cardId: ev.card_id,
+               label: `☠ ${logShortName(name)}`,
+               title: `${name} morreu`,
+               text: ev.owner !== undefined ? `Dono: ${playerName(ev.owner)}` : "" };
+    }
     case "draw": {
       // Importante: nunca revelar o nome/imagem da carta que o oponente
       // comprou - isso vazaria informação privada da mão dele.
@@ -3508,6 +3564,13 @@ function buildLogIcon(item) {
     inner.classList.add("with-badge");
   }
   wrap.appendChild(inner);
+
+  if (item.label) {
+    const label = document.createElement("div");
+    label.className = "log-icon-label";
+    label.textContent = item.label;
+    wrap.appendChild(label);
+  }
 
   const tip = document.createElement("div");
   tip.className = "log-tooltip";
