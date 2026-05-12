@@ -3412,6 +3412,12 @@ function targetNameFromEvent(ev, ctx) {
 }
 
 function cardFromEvent(ev, ctx) {
+  if (!ev) return null;
+  const type = String(ev.type || "");
+  const owner = ev.player ?? ev.owner;
+  if ((type.startsWith("draw") || type.startsWith("discard") || type.startsWith("burn")) && owner !== myPid) {
+    return null;
+  }
   if (ev.card_id) return ev.card_id;
   if (ev.target_card_id) return ev.target_card_id;
   if (ev.minion?.card_id) return ev.minion.card_id;
@@ -3442,8 +3448,8 @@ function detailForEvent(ev, ctx, sourceName = null) {
   if (ev.type === "death_replaced_shuffle_into_deck") return `${cardName(ev.card_id, targetNameFromEvent(ev, ctx))} morreria, mas voltou ao deck.`;
   if (ev.type === "poison_kill") return `${targetNameFromEvent(ev, ctx)} foi destruído por Venenoso.`;
   if (String(ev.type).startsWith("draw")) {
-    const visible = ev.player === myPid || ev.card_id;
-    const drawn = visible ? cardName(ev.card_id, "uma carta") : "uma carta do baralho";
+    const isMine = ev.player === myPid;
+    const drawn = isMine ? cardName(ev.card_id, "uma carta") : "uma carta do baralho";
     return `${playerName(ev.player)} comprou ${drawn}${sourceName ? ` por ${sourceName}` : ""}.`;
   }
   if (String(ev.type).startsWith("reveal")) {
@@ -3459,9 +3465,15 @@ function detailForEvent(ev, ctx, sourceName = null) {
   }
   if (String(ev.type).startsWith("burn")) {
     const owner = ev.player ?? ev.owner;
-    return `${owner !== undefined ? playerName(owner) : "Um jogador"} queimou ${cardName(ev.card_id, "uma carta")}${sourceName ? ` por ${sourceName}` : ""}.`;
+    const isMine = owner === myPid;
+    const burned = isMine ? cardName(ev.card_id, "uma carta") : "uma carta";
+    return `${owner !== undefined ? playerName(owner) : "Um jogador"} queimou ${burned}${sourceName ? ` por ${sourceName}` : ""}.`;
   }
-  if (String(ev.type).startsWith("discard")) return `${playerName(ev.player)} descartou ${cardName(ev.card_id, "uma carta")}.`;
+  if (String(ev.type).startsWith("discard")) {
+    const isMine = ev.player === myPid;
+    const discarded = isMine ? cardName(ev.card_id, "uma carta") : "uma carta";
+    return `${playerName(ev.player)} descartou ${discarded}.`;
+  }
   if (String(ev.type).startsWith("return_to_hand")) return `${targetNameFromEvent(ev, ctx)} voltou para a mão.`;
   if (ev.type === "silence") return `${targetNameFromEvent(ev, ctx)} foi silenciado.`;
   if (ev.type === "freeze") return `${targetNameFromEvent(ev, ctx)} foi congelado.`;
@@ -3607,8 +3619,10 @@ function makeLogItem(ev, all, idx) {
                title: `${playerLabel} descartou`, text: details.join("\n"), details };
     }
     case "burn": {
+      const owner = ev.player ?? ev.owner;
+      const isMine = owner === myPid;
       const details = [detailForEvent(ev, ctx)].filter(Boolean);
-      return { kind: "burn", cardId: ev.card_id || null,
+      return { kind: "burn", cardId: isMine ? ev.card_id : null,
                title: "Carta queimada", text: details.join("\n"), details };
     }
     case "divine_shield_break":

@@ -2497,9 +2497,10 @@ input:focus { border-color: var(--gold); }
 .log-icon-label {
   position: absolute;
   left: 50%;
+  right: auto;
   bottom: -5px;
   transform: translateX(-50%);
-  max-width: 78px;
+  max-width: 72px;
   min-width: 34px;
   padding: 1px 4px 2px;
   border: 1px solid rgba(245, 201, 105, 0.78);
@@ -2507,7 +2508,7 @@ input:focus { border-color: var(--gold); }
   background: rgba(15, 8, 4, 0.9);
   color: #fff4c8;
   font-family: 'Cinzel', serif;
-  font-size: 0.56rem;
+  font-size: 0.58rem;
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: 0.015em;
@@ -2520,7 +2521,7 @@ input:focus { border-color: var(--gold); }
   pointer-events: none;
   z-index: 2;
 }
-.log-icon-attack .log-icon-label { max-width: 88px; font-size: 0.5rem; }
+.log-icon-attack .log-icon-label { max-width: 86px; font-size: 0.52rem; }
 
 
 /* Cores temáticas por tipo de evento. */

@@ -126,6 +126,12 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
             "type": "damage",
             "target_kind": "minion",
             "target_id": target.instance_id,
+            "target_name": target.name,
+            "target_card_id": target.card_id,
+            "target_owner": target.owner,
+            "source_name": source_minion.name if source_minion else None,
+            "source_card_id": source_minion.card_id if source_minion else None,
+            "source_owner": source_owner,
             "amount": amount,
         })
 
@@ -191,6 +197,11 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
             "type": "damage",
             "target_kind": "hero",
             "target_id": target.player_id,
+            "target_name": f"Herói de P{target.player_id}",
+            "target_owner": target.player_id,
+            "source_name": source_minion.name if source_minion else None,
+            "source_card_id": source_minion.card_id if source_minion else None,
+            "source_owner": source_owner,
             "amount": amount,
             "armor_absorbed": absorbed,
         })
@@ -224,6 +235,10 @@ def _apply_reflect(state: GameState, attacker: Minion, amount: int, reflector_ow
         "type": "damage",
         "target_kind": "minion",
         "target_id": attacker.instance_id,
+        "target_name": attacker.name,
+        "target_card_id": attacker.card_id,
+        "target_owner": attacker.owner,
+        "source_owner": reflector_owner,
         "amount": amount,
         "reflected": True,
     })
@@ -239,7 +254,9 @@ def heal_character(state: GameState, target, amount: int) -> int:
         if healed > 0:
             state.log_event({
                 "type": "heal", "target_kind": "minion",
-                "target_id": target.instance_id, "amount": healed,
+                "target_id": target.instance_id, "target_name": target.name,
+                "target_card_id": target.card_id, "target_owner": target.owner,
+                "amount": healed,
             })
         return healed
     if isinstance(target, PlayerState):
@@ -249,7 +266,8 @@ def heal_character(state: GameState, target, amount: int) -> int:
         if healed > 0:
             state.log_event({
                 "type": "heal", "target_kind": "hero",
-                "target_id": target.player_id, "amount": healed,
+                "target_id": target.player_id, "target_name": f"Herói de P{target.player_id}",
+                "target_owner": target.player_id, "amount": healed,
             })
         return healed
     return 0
