@@ -1987,15 +1987,24 @@ input:focus { border-color: var(--gold); }
 }
 .minion.attack-runner {
   will-change: transform;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+  filter: drop-shadow(0 14px 12px rgba(0,0,0,0.55));
 }
 .minion.attack-runner .portrait-ring {
-  animation: attackRunnerBob 75ms ease-in-out infinite alternate;
+  animation: attackRunnerBob 180ms ease-in-out infinite alternate;
 }
 @keyframes attackRunnerBob {
-  0% { transform: translate3d(0,0,0) rotate(-2deg); }
-  100% { transform: translate3d(0,-5px,0) rotate(2deg); }
+  0% { transform: translateY(0) rotate(-2deg); }
+  100% { transform: translateY(-7px) rotate(2deg); }
+}
+.minion.impact-target,
+.hero.impact-target {
+  animation: impactTargetBump 0.34s ease-out;
+}
+@keyframes impactTargetBump {
+  0% { transform: translate(0, 0) scale(1); filter: brightness(1); }
+  28% { transform: translate(5px, -3px) scale(1.05); filter: brightness(1.7) saturate(1.25); }
+  58% { transform: translate(-3px, 2px) scale(0.98); }
+  100% { transform: translate(0, 0) scale(1); filter: brightness(1); }
 }
 .impact-ring {
   position: absolute;
@@ -2008,7 +2017,7 @@ input:focus { border-color: var(--gold); }
   box-shadow:
     0 0 18px rgba(255, 92, 40, 0.85),
     inset 0 0 18px rgba(255, 92, 40, 0.55);
-  animation: impactRingPop 0.2s ease-out forwards;
+  animation: impactRingPop 0.36s ease-out forwards;
 }
 @keyframes impactRingPop {
   0% { transform: scale(0.25); opacity: 1; }
@@ -2053,10 +2062,10 @@ input:focus { border-color: var(--gold); }
   100% { transform: translate(0,0); }
 }
 
-.minion.dying { animation: dying 0.3s ease-in forwards; }
+.minion.dying { animation: dying 0.55s ease-in forwards; }
 @keyframes dying {
   0% { transform: scale(1) rotate(0); opacity: 1; }
-  100% { transform: scale(0.4) rotate(20deg); opacity: 0; }
+  100% { transform: scale(0.4) rotate(20deg); opacity: 0; filter: blur(4px); }
 }
 
 .minion.entering { animation: entering 0.4s ease-out; }
@@ -2085,8 +2094,8 @@ input:focus { border-color: var(--gold); }
   text-shadow:
     0 2px 3px rgba(70, 0, 0, 0.95),
     0 0 8px rgba(255, 40, 0, 0.85);
-  backface-visibility: hidden;
-  animation: damageBubblePop 0.3s cubic-bezier(.18,.84,.26,1) forwards;
+  filter: drop-shadow(0 4px 5px rgba(0,0,0,0.75));
+  animation: damageBubblePop 1.05s cubic-bezier(.18,.84,.26,1) forwards;
 }
 .damage-bubble::before {
   content: "";
@@ -2099,10 +2108,11 @@ input:focus { border-color: var(--gold); }
   clip-path: polygon(50% 0%, 58% 20%, 78% 8%, 73% 31%, 100% 30%, 80% 46%, 96% 62%, 72% 61%, 80% 88%, 58% 73%, 50% 100%, 42% 73%, 20% 88%, 28% 61%, 4% 62%, 20% 46%, 0% 30%, 27% 31%, 22% 8%, 42% 20%);
 }
 @keyframes damageBubblePop {
-  0% { transform: translate3d(-50%, -50%, 0) scale(0.15) rotate(-10deg); opacity: 0; }
-  28% { transform: translate3d(-50%, -62%, 0) scale(1.18) rotate(4deg); opacity: 1; }
-  68% { transform: translate3d(-50%, -82%, 0) scale(1) rotate(-2deg); opacity: 1; }
-  100% { transform: translate3d(-50%, -105%, 0) scale(0.78) rotate(5deg); opacity: 0; }
+  0% { transform: translate(-50%, -50%) scale(0.15) rotate(-10deg); opacity: 0; }
+  16% { transform: translate(-50%, -58%) scale(1.25) rotate(4deg); opacity: 1; }
+  32% { transform: translate(-50%, -54%) scale(1) rotate(-2deg); opacity: 1; }
+  72% { transform: translate(-50%, -86%) scale(0.98) rotate(1deg); opacity: 1; }
+  100% { transform: translate(-50%, -112%) scale(0.76) rotate(5deg); opacity: 0; }
 }
 
 /* Números flutuantes de dano/cura */
