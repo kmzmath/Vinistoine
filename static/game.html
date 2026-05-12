@@ -2985,11 +2985,14 @@ function animateFromDelta(oldS, newS) {
   // mesmo com eventos novos.
   const oldSeqs = new Set((oldS.log || []).map(ev => ev.seq).filter(v => v !== undefined));
   const newEvents = (newS.log || []).filter(ev => ev.seq === undefined || !oldSeqs.has(ev.seq));
+  const attackImpactIds = new Set();
   const damageAmountByMinion = new Map();
   let hasAttackAnimation = false;
   for (const ev of newEvents) {
     if (ev.type === "attack" || ev.type === "forced_attack") {
       hasAttackAnimation = true;
+      if (ev.attacker) attackImpactIds.add(String(ev.attacker));
+      if (ev.target) attackImpactIds.add(String(ev.target));
     }
     if (ev.type === "damage" && ev.target_kind === "minion" && ev.target_id) {
       const id = String(ev.target_id);
@@ -2997,6 +3000,7 @@ function animateFromDelta(oldS, newS) {
     }
   }
   const renderDelay = hasAttackAnimation ? ATTACK_STATE_RENDER_DELAY_MS : 0;
+  const impactDelayFor = (id) => attackImpactIds.has(String(id)) ? ATTACK_IMPACT_MS : 0;
 
   // Para cada lacaio que sumiu (morreu), animar dying no último frame antes
   // da renderização que remove o lacaio. Em ataques, isso segura a morte até
@@ -3004,7 +3008,8 @@ function animateFromDelta(oldS, newS) {
   const deadIds = Object.keys(oldByid).filter(id => !newByid[id]);
   for (const id of deadIds) {
     const lethalDamage = damageAmountByMinion.get(String(id));
-    queueDyingMinion(id, lethalDamage, renderDelay);
+    const dyingDelay = Math.max(renderDelay, impactDelayFor(id));
+    queueDyingMinion(id, lethalDamage, dyingDelay);
   }
 
   // Mudanças de HP / divine shield em lacaios que continuam
@@ -3013,7 +3018,7 @@ function animateFromDelta(oldS, newS) {
     if (!o) continue;
     if (n.health < o.health) {
       const dmg = o.health - n.health;
-      queueShake(`.minion[data-minion-id='${id}']`, "dmg", dmg);
+      queueShake(`.minion[data-minion-id='${id}']`, "dmg", dmg, impactDelayFor(id));
     } else if (n.health > o.health) {
       const heal = n.health - o.health;
       queueShake(`.minion[data-minion-id='${id}']`, "heal", heal);
@@ -3026,14 +3031,16 @@ function animateFromDelta(oldS, newS) {
   // Mudança de HP em heróis
   if (newS.you.hero_health < oldS.you.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "dmg",
-               oldS.you.hero_health - newS.you.hero_health);
+               oldS.you.hero_health - newS.you.hero_health,
+               impactDelayFor(`hero:${newS.you.player_id}`));
   } else if (newS.you.hero_health > oldS.you.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.you.player_id}']`, "heal",
                newS.you.hero_health - oldS.you.hero_health);
   }
   if (newS.opponent.hero_health < oldS.opponent.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "dmg",
-               oldS.opponent.hero_health - newS.opponent.hero_health);
+               oldS.opponent.hero_health - newS.opponent.hero_health,
+               impactDelayFor(`hero:${newS.opponent.player_id}`));
   } else if (newS.opponent.hero_health > oldS.opponent.hero_health) {
     queueShake(`.hero[data-hero-owner='${newS.opponent.player_id}']`, "heal",
                newS.opponent.hero_health - oldS.opponent.hero_health);
