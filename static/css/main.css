@@ -1981,6 +1981,50 @@ input:focus { border-color: var(--gold); }
 }
 .minion:hover .tooltip { opacity: 1; }
 
+
+.minion.attack-source-hidden {
+  visibility: hidden;
+}
+.minion.attack-runner {
+  will-change: transform;
+  filter: drop-shadow(0 14px 12px rgba(0,0,0,0.55));
+}
+.minion.attack-runner .portrait-ring {
+  animation: attackRunnerBob 180ms ease-in-out infinite alternate;
+}
+@keyframes attackRunnerBob {
+  0% { transform: translateY(0) rotate(-2deg); }
+  100% { transform: translateY(-7px) rotate(2deg); }
+}
+.minion.impact-target,
+.hero.impact-target {
+  animation: impactTargetBump 0.34s ease-out;
+}
+@keyframes impactTargetBump {
+  0% { transform: translate(0, 0) scale(1); filter: brightness(1); }
+  28% { transform: translate(5px, -3px) scale(1.05); filter: brightness(1.7) saturate(1.25); }
+  58% { transform: translate(-3px, 2px) scale(0.98); }
+  100% { transform: translate(0, 0) scale(1); filter: brightness(1); }
+}
+.impact-ring {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 31;
+  border: 4px solid rgba(255, 236, 148, 0.95);
+  box-shadow:
+    0 0 18px rgba(255, 92, 40, 0.85),
+    inset 0 0 18px rgba(255, 92, 40, 0.55);
+  animation: impactRingPop 0.36s ease-out forwards;
+}
+@keyframes impactRingPop {
+  0% { transform: scale(0.25); opacity: 1; }
+  70% { opacity: 0.9; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+
 /* Animações de combate e dano */
 .minion.attacking-up { animation: attackUp 0.45s ease-out; }
 .minion.attacking-down { animation: attackDown 0.45s ease-out; }
@@ -2030,6 +2074,46 @@ input:focus { border-color: var(--gold); }
   0% { transform: scale(0) rotate(-180deg); opacity: 0; }
   60% { transform: scale(1.15) rotate(0); opacity: 1; }
   100% { transform: scale(1) rotate(0); }
+}
+
+
+.damage-bubble {
+  position: absolute;
+  min-width: 54px;
+  height: 46px;
+  padding: 0 10px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 34;
+  font-family: 'Cinzel';
+  font-weight: 900;
+  font-size: 1.45rem;
+  color: #fff3cb;
+  text-shadow:
+    0 2px 3px rgba(70, 0, 0, 0.95),
+    0 0 8px rgba(255, 40, 0, 0.85);
+  filter: drop-shadow(0 4px 5px rgba(0,0,0,0.75));
+  animation: damageBubblePop 1.05s cubic-bezier(.18,.84,.26,1) forwards;
+}
+.damage-bubble::before {
+  content: "";
+  position: absolute;
+  inset: -13px -17px;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 50% 55%, #ffef8a 0 18%, #ff8a2a 19% 43%, #b91515 44% 58%, transparent 59%),
+    conic-gradient(from 8deg, transparent 0 5%, #ffef8a 5% 9%, transparent 9% 15%, #ff6b20 15% 21%, transparent 21% 30%, #fff0a0 30% 35%, transparent 35% 42%, #ff7b20 42% 48%, transparent 48% 56%, #ffef8a 56% 62%, transparent 62% 70%, #ff5a1f 70% 77%, transparent 77% 84%, #fff0a0 84% 90%, transparent 90% 100%);
+  clip-path: polygon(50% 0%, 58% 20%, 78% 8%, 73% 31%, 100% 30%, 80% 46%, 96% 62%, 72% 61%, 80% 88%, 58% 73%, 50% 100%, 42% 73%, 20% 88%, 28% 61%, 4% 62%, 20% 46%, 0% 30%, 27% 31%, 22% 8%, 42% 20%);
+}
+@keyframes damageBubblePop {
+  0% { transform: translate(-50%, -50%) scale(0.15) rotate(-10deg); opacity: 0; }
+  16% { transform: translate(-50%, -58%) scale(1.25) rotate(4deg); opacity: 1; }
+  32% { transform: translate(-50%, -54%) scale(1) rotate(-2deg); opacity: 1; }
+  72% { transform: translate(-50%, -86%) scale(0.98) rotate(1deg); opacity: 1; }
+  100% { transform: translate(-50%, -112%) scale(0.76) rotate(5deg); opacity: 0; }
 }
 
 /* Números flutuantes de dano/cura */
