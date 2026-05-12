@@ -614,6 +614,11 @@ function renderBoard() {
     const canAfford = me.mana >= cost || (spellPaysHealth && me.hero_health > 0);
     if (!isMyTurn || !canAfford) el.classList.add("unaffordable");
     else el.classList.add("playable");
+    const activation = getHandCardActivationSignal(card);
+    if (isMyTurn && canAfford && activation.active) {
+      el.classList.add("effect-ready");
+      el.title = activation.reason || "Efeito condicional ativo";
+    }
     if (spellPaysHealth) el.classList.add("pays-with-health");
     el.dataset.handId = c.instance_id;
     if (arrivingDrawHandIds.has(String(c.instance_id))) {
@@ -1623,6 +1628,87 @@ function effectNeedsAdjacentDirection(eff) {
     if (effectNeedsAdjacentDirection(sub)) return true;
   }
   return false;
+}
+
+
+function minionHasTribe(minion, tribe) {
+  if (!minion || !tribe) return false;
+  const tribes = minion.tribes || [];
+  return tribes.includes(tribe);
+}
+
+function cardHasTribeForUi(card, tribe) {
+  if (!card || !tribe) return false;
+  return (card.tribes || []).includes(tribe);
+}
+
+function evaluateHandConditionForUi(cond, card) {
+  if (!cond || !cond.type || !state?.you) return false;
+  const me = state.you;
+  const foe = state.opponent || {};
+  const friendlyBoard = me.board || [];
+  const enemyBoard = foe.board || [];
+  const amount = Number(cond.amount ?? cond.count ?? 0);
+
+  switch (cond.type) {
+    case "FRIENDLY_MINION_TRIBE_EXISTS":
+      return friendlyBoard.some(m => minionHasTribe(m, cond.tribe));
+    case "FRIENDLY_MINION_COUNT_GTE":
+    case "FRIENDLY_MINION_COUNT_AT_LEAST":
+      // A carta ainda está na mão, então o campo atual já corresponde a
+      // "outros lacaios" para Battlecries como Niurau (exclude_self).
+      return friendlyBoard.length >= amount;
+    case "ENEMY_MINION_COUNT_GTE":
+      return enemyBoard.length >= amount;
+    case "HAND_SIZE_GTE":
+      return (me.hand || []).length >= amount;
+    case "FRIENDLY_MINION_EXISTS":
+      return friendlyBoard.length > 0;
+    case "ENEMY_MINION_EXISTS":
+      return enemyBoard.length > 0;
+    case "OPPONENT_HAS_MORE_CARDS_IN_HAND":
+      return (foe.hand_size ?? (foe.hand || []).length ?? 0) > (me.hand || []).length;
+    case "CARD_TRIBE":
+    case "PLAYED_CARD_TRIBE":
+    case "SUMMONED_MINION_TRIBE":
+      return cardHasTribeForUi(card, cond.tribe);
+    default:
+      // Condições dependentes de alvo escolhido, ataque/morte ou contexto do
+      // servidor não são previsíveis só olhando a mão; não sinalizamos para
+      // evitar uma borda enganosa.
+      return false;
+  }
+}
+
+function effectHasActiveConditionalForUi(eff, card) {
+  if (!eff) return false;
+  if (eff.action === "CONDITIONAL_EFFECTS") {
+    return evaluateHandConditionForUi(eff.condition || {}, card);
+  }
+  if (eff.condition && evaluateHandConditionForUi(eff.condition, card)) return true;
+  for (const sub of (eff.effects || [])) {
+    if (effectHasActiveConditionalForUi(sub, card)) return true;
+  }
+  for (const sub of (eff.additional_effects || [])) {
+    if (effectHasActiveConditionalForUi(sub, card)) return true;
+  }
+  return false;
+}
+
+function getHandCardActivationSignal(card) {
+  const effects = card.effects || [];
+  const comboActive = (state.you?.cards_played_this_turn || 0) > 0;
+  if (comboActive && effects.some(e => e.trigger === "ON_COMBO")) {
+    return { active: true, reason: "Combo ativo: esta carta ativará o efeito de Combo." };
+  }
+
+  const activeConditional = effects
+    .filter(e => e.trigger === "ON_PLAY")
+    .some(e => effectHasActiveConditionalForUi(e, card));
+  if (activeConditional) {
+    return { active: true, reason: "Condição cumprida: o efeito ao ser jogado será ativado." };
+  }
+  return { active: false, reason: "" };
 }
 
 function effectsForPlayMode(card, opts = {}) {

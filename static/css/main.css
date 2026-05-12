@@ -2094,6 +2094,41 @@ input:focus { border-color: var(--gold); }
 .hand-row .card.unaffordable { filter: grayscale(0.7) brightness(0.55); }
 .hand-row .card.unaffordable:hover { transform: translateY(-8px) scale(1.04); }
 .hand-row .card.playable { box-shadow: 0 -8px 14px rgba(102,255,122,0.25); }
+.hand-row .card.effect-ready {
+  border-color: #75ff8a;
+  box-shadow:
+    0 -8px 14px rgba(102,255,122,0.25),
+    0 0 0 2px rgba(117,255,138,0.85),
+    0 0 16px rgba(117,255,138,0.75),
+    0 0 30px rgba(117,255,138,0.45);
+  animation: handEffectReadyPulse 1.25s ease-in-out infinite;
+}
+.hand-row .card.effect-ready::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 6;
+  border: 2px solid rgba(190,255,198,0.92);
+  box-shadow: inset 0 0 10px rgba(117,255,138,0.55);
+}
+.hand-row .card.effect-ready:hover {
+  box-shadow:
+    0 -8px 14px rgba(102,255,122,0.25),
+    0 0 0 2px rgba(117,255,138,0.95),
+    0 0 20px rgba(117,255,138,0.9),
+    0 0 38px rgba(117,255,138,0.58);
+}
+.hand-row .card.unaffordable.effect-ready {
+  animation: none;
+  border-color: var(--gold-dim);
+  box-shadow: none;
+}
+@keyframes handEffectReadyPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.14); }
+}
 .hand-row .card.draw-arriving {
   opacity: 0;
   pointer-events: none;
