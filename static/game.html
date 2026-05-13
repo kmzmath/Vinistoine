@@ -667,18 +667,18 @@ function renderBoard() {
   }
   // Curvatura: espalha cartas em um arco leve. Cada carta recebe rotação
   // proporcional à distância do centro e um pequeno offset vertical.
-  // O dy é pequeno (até 4px) pra que os cantos do leque NÃO transbordem
-  // por baixo do container e fiquem cortados pelo overflow da arena.
+  // A elevação base da mão fica no CSS (--hand-base-y); aqui só alimentamos
+  // as variáveis do leque para não sobrescrever hover/estados visuais.
   const total = handCards.length;
-  if (total > 1) {
-    handCards.forEach(({ el }, i) => {
-      const t = (i - (total - 1) / 2) / Math.max(1, (total - 1) / 2); // -1..1
-      const rot = t * 6;             // até ±6° nas pontas
-      const dy = Math.abs(t) * 4;    // até 4px abaixando nas pontas
-      el.style.transformOrigin = "50% 110%";
-      el.style.transform = `translateY(${dy}px) rotate(${rot}deg)`;
-    });
-  }
+  handCards.forEach(({ el }, i) => {
+    const t = total > 1
+      ? (i - (total - 1) / 2) / Math.max(1, (total - 1) / 2) // -1..1
+      : 0;
+    const rot = t * 6;             // até ±6° nas pontas
+    const dy = Math.abs(t) * 4;    // até 4px abaixando nas pontas
+    el.style.setProperty("--hand-fan-y", `${dy}px`);
+    el.style.setProperty("--hand-rot", `${rot}deg`);
+  });
   arena.appendChild(myHand);
 
   // Decks à direita da mesa (absoluto, dentro do arena)
