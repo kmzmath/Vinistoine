@@ -25,6 +25,7 @@
     <nav class="nav" id="main-nav">
       <a href="/lobby" data-route="lobby">Saguão</a>
       <a href="/deckbuilder" data-route="decks">Decks</a>
+      <a href="/portraits" data-route="portraits">Portraits</a>
     </nav>
     <span class="muted" id="user-label"></span>
     <button class="btn small" id="logout-btn">Sair</button>
@@ -97,11 +98,25 @@
         </div>
       </div>
     </section>
+
+    <!-- ================== PORTRAITS ================== -->
+    <section class="view" data-view="portraits">
+      <div class="container portraits-container">
+        <div class="row" style="margin-bottom: 1rem;">
+          <h2 style="margin: 0;">Portraits</h2>
+          <span class="spacer"></span>
+          <span class="muted" id="portrait-status">Escolha o retrato que será usado nas partidas.</span>
+        </div>
+        <div class="panel">
+          <div class="portrait-grid" id="portrait-grid"></div>
+        </div>
+      </div>
+    </section>
   </main>
 
 <script>
 // =========================================================================
-// Shell unificado Saguão ↔ Decks (mesmo HTML p/ /lobby e /deckbuilder).
+// Shell unificado Saguão ↔ Decks ↔ Portraits (mesmo HTML p/ /lobby e /deckbuilder).
 // Sem reload: trocar de aba é uma classe CSS + history.pushState. Por isso
 // a música do <audio> global (gerenciado por /static/js/audio.js) não para
 // nem reseta entre as duas - some "engasgada".
@@ -144,6 +159,8 @@ function toast(msg) {
 let allCards = [];      // catálogo completo (decks view filtra/lista)
 let cardImages = {};    // card_id -> url
 let heroImages = {};    // username -> url
+let portraits = [];      // portraits disponíveis em /static/portraits
+let selectedPortrait = null;
 let savedDecks = [];    // decks do usuário (compartilhado)
 
 // estado do construtor
@@ -213,7 +230,7 @@ function preloadImage(url) {
   });
 }
 async function preloadCardAssets() {
-  const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
+  const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {}), ...portraits.map(p => p.url)];
   if (!urls.length) { updateAssetProgress(1, 1); return; }
   let done = 0;
   updateAssetProgress(0, urls.length);
@@ -249,6 +266,13 @@ async function fetchCardImages() {
 async function fetchDecks() {
   const r = await api("/api/decks");
   savedDecks = await r.json();
+}
+async function fetchPortraits() {
+  const r = await api("/api/portraits");
+  if (!r) return;
+  const data = await r.json();
+  portraits = data.portraits || [];
+  selectedPortrait = data.selected || null;
 }
 // Atualiza ambas as views quando a lista de decks muda (salvar/excluir).
 async function refreshDecksEverywhere() {
@@ -368,6 +392,44 @@ function setupLobbyHandlers() {
   };
   document.getElementById("refresh-btn").onclick = loadMatches;
   document.getElementById("mode-select").onchange = updateLobbyModeControls;
+}
+
+// ===============================================================
+// VIEW: PORTRAITS
+// ===============================================================
+function renderPortraits() {
+  const grid = document.getElementById("portrait-grid");
+  const status = document.getElementById("portrait-status");
+  if (!grid) return;
+  grid.innerHTML = "";
+  if (!portraits.length) {
+    grid.innerHTML = '<div class="faint">Nenhuma portrait encontrada em /static/portraits.</div>';
+    if (status) status.textContent = "Adicione imagens em static/portraits para liberar escolhas.";
+    return;
+  }
+  if (status) status.textContent = selectedPortrait ? "Portrait selecionada para suas próximas partidas." : "Escolha o retrato que será usado nas partidas.";
+  for (const portrait of portraits) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "portrait-card" + (portrait.id === selectedPortrait ? " selected" : "");
+    card.innerHTML = `
+      <div class="portrait-card-image" style="background-image:url('${portrait.url}')"></div>
+      <div class="portrait-card-name">${escapeHtml(portrait.name || portrait.id)}</div>
+      <div class="portrait-card-check">${portrait.id === selectedPortrait ? "Selecionada" : "Usar portrait"}</div>
+    `;
+    card.onclick = () => selectPortrait(portrait.id);
+    grid.appendChild(card);
+  }
+}
+
+async function selectPortrait(portraitId) {
+  const r = await api("/api/portraits/select", { method: "POST", body: JSON.stringify({ portrait: portraitId }) });
+  if (!r) return;
+  const data = await r.json();
+  if (!r.ok) { toast(data.detail || "Erro ao selecionar portrait"); return; }
+  selectedPortrait = data.selected;
+  toast("Portrait selecionada!");
+  renderPortraits();
 }
 
 // ===============================================================
@@ -624,11 +686,13 @@ function setupDecksHandlers() {
 // ===============================================================
 // Ordem visual: Saguão à esquerda, Decks à direita. Direção do voosh é
 // inferida pela posição relativa.
-const VIEW_ORDER = ["lobby", "decks"];
+const VIEW_ORDER = ["lobby", "decks", "portraits"];
 const ANIM_MS = 320;
 
 function viewFromPath(path) {
-  return path === "/deckbuilder" ? "decks" : "lobby";
+  if (path === "/deckbuilder") return "decks";
+  if (path === "/portraits") return "portraits";
+  return "lobby";
 }
 
 function showView(name, opts = {}) {
@@ -671,11 +735,11 @@ function showView(name, opts = {}) {
   });
 
   // Atualiza título da aba do navegador.
-  document.title = name === "decks" ? "Construtor de Decks - Vinístone" : "Saguão - Vinístone";
+  document.title = name === "decks" ? "Construtor de Decks - Vinístone" : (name === "portraits" ? "Portraits - Vinístone" : "Saguão - Vinístone");
 }
 
 function navigate(name) {
-  const path = name === "decks" ? "/deckbuilder" : "/lobby";
+  const path = name === "decks" ? "/deckbuilder" : (name === "portraits" ? "/portraits" : "/lobby");
   if (window.location.pathname !== path) {
     history.pushState({ view: name }, "", path);
   }
@@ -720,6 +784,7 @@ async function init() {
       fetchCards().catch((e) => console.warn("fetchCards falhou:", e)),
       fetchCardImages().catch((e) => console.warn("fetchCardImages falhou:", e)),
       fetchDecks().catch((e) => console.warn("fetchDecks falhou:", e)),
+      fetchPortraits().catch((e) => console.warn("fetchPortraits falhou:", e)),
     ]);
 
     // 2) Renderiza ambas as views ao mesmo tempo - elas já moram no DOM.
@@ -734,6 +799,7 @@ async function init() {
     renderDeck();
     renderDecksSavedList();
     setupDecksHandlers();
+    renderPortraits();
 
     // 3) Pré-carrega imagens em background.
     await preloadCardAssets();

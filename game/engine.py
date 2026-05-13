@@ -18,7 +18,9 @@ from . import targeting
 def new_game(player_a_name: str, deck_a: list[str],
              player_b_name: str, deck_b: list[str],
              seed: Optional[int] = None,
-             manual_choices: bool = False) -> GameState:
+             manual_choices: bool = False,
+             player_a_portrait: Optional[str] = None,
+             player_b_portrait: Optional[str] = None) -> GameState:
     """Cria um novo jogo. deck_a e deck_b são listas de card_ids (já validadas).
 
     manual_choices=True habilita escolhas pendentes reais para partidas via
@@ -30,8 +32,8 @@ def new_game(player_a_name: str, deck_a: list[str],
     # decide quem começa
     first = rng.randint(0, 1)
 
-    p0 = PlayerState(player_id=0, name=player_a_name, deck=list(deck_a))
-    p1 = PlayerState(player_id=1, name=player_b_name, deck=list(deck_b))
+    p0 = PlayerState(player_id=0, name=player_a_name, portrait_url=player_a_portrait, deck=list(deck_a))
+    p1 = PlayerState(player_id=1, name=player_b_name, portrait_url=player_b_portrait, deck=list(deck_b))
     rng.shuffle(p0.deck)
     rng.shuffle(p1.deck)
 

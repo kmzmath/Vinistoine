@@ -207,6 +207,7 @@ class CardInHand:
 class PlayerState:
     player_id: int  # 0 ou 1
     name: str
+    portrait_url: Optional[str] = None
     hero_health: int = STARTING_HEALTH
     hero_armor: int = 0
     hero_max_health: int = STARTING_HEALTH
@@ -234,6 +235,7 @@ class PlayerState:
         return {
             "player_id": self.player_id,
             "name": self.name,
+            "portrait_url": self.portrait_url,
             "hero_health": self.hero_health,
             "hero_armor": self.hero_armor,
             "hero_max_health": self.hero_max_health,

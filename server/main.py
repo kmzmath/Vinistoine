@@ -114,6 +114,10 @@ class JoinMatchIn(BaseModel):
     deck_id: Optional[int] = None
 
 
+class PortraitIn(BaseModel):
+    portrait: constr(min_length=1, max_length=120, strip_whitespace=True)
+
+
 # ============================ Startup ============================
 @app.on_event("startup")
 def on_startup():
@@ -144,6 +148,11 @@ def lobby_page():
 
 @app.get("/deckbuilder")
 def deckbuilder_page():
+    return FileResponse(STATIC_DIR / "shell.html", headers=_SHELL_HEADERS)
+
+
+@app.get("/portraits")
+def portraits_page():
     return FileResponse(STATIC_DIR / "shell.html", headers=_SHELL_HEADERS)
 
 
@@ -190,7 +199,7 @@ def login(payload: LoginIn):
 @app.get("/api/me")
 def me(request: Request):
     user = require_user(request)
-    return {"user_id": user.id, "nickname": user.nickname}
+    return {"user_id": user.id, "nickname": user.nickname, "selected_portrait": user.selected_portrait}
 
 
 # ============================ Cartas ============================
@@ -222,6 +231,49 @@ def list_card_images():
             if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
                 hero_avatars[f.stem.lower()] = f"/static/heroes/{f.name}"
     return {"cards": available, "heroes": hero_avatars}
+
+
+def available_portraits() -> dict[str, str]:
+    portraits_dir = STATIC_DIR / "portraits"
+    portraits: dict[str, str] = {}
+    if portraits_dir.exists():
+        for f in sorted(portraits_dir.iterdir(), key=lambda x: x.name.lower()):
+            if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+                portraits[f.name] = f"/static/portraits/{f.name}"
+    return portraits
+
+
+def selected_portrait_url(user: User) -> Optional[str]:
+    if not user.selected_portrait:
+        return None
+    return available_portraits().get(user.selected_portrait)
+
+
+@app.get("/api/portraits")
+def list_portraits(request: Request):
+    user = require_user(request)
+    portraits = available_portraits()
+    selected = user.selected_portrait if user.selected_portrait in portraits else None
+    return {
+        "portraits": [{"id": pid, "url": url, "name": Path(pid).stem.replace("_", " ").title()} for pid, url in portraits.items()],
+        "selected": selected,
+    }
+
+
+@app.post("/api/portraits/select")
+def select_portrait(payload: PortraitIn, request: Request):
+    user = require_user(request)
+    portraits = available_portraits()
+    portrait = payload.portrait.strip()
+    if portrait not in portraits:
+        raise HTTPException(400, "Portrait inválida")
+    with get_session() as s:
+        u = s.get(User, user.id)
+        if u is None:
+            raise HTTPException(status_code=401, detail="Não autenticado")
+        u.selected_portrait = portrait
+        s.commit()
+    return {"selected": portrait, "url": portraits[portrait]}
 
 
 @app.get("/api/music")
@@ -331,7 +383,7 @@ def create_match(payload: CreateMatchIn, request: Request):
         if err:
             raise HTTPException(400, f"Deck inválido: {err}")
 
-    m = lobby.create_match(user.id, user.nickname, deck, game_mode=mode)
+    m = lobby.create_match(user.id, user.nickname, deck, game_mode=mode, host_portrait=selected_portrait_url(user))
     return {"match_id": m.match_id, "code": m.code, "mode": m.game_mode}
 
 
@@ -355,7 +407,7 @@ def join_match(payload: JoinMatchIn, request: Request):
         if err:
             raise HTTPException(400, f"Deck inválido: {err}")
 
-    m = lobby.join(code, user.id, user.nickname, deck)
+    m = lobby.join(code, user.id, user.nickname, deck, guest_portrait=selected_portrait_url(user))
     if m is None:
         raise HTTPException(400, "Sala não encontrada ou já cheia")
     return {"match_id": m.match_id, "code": m.code, "mode": m.game_mode}
