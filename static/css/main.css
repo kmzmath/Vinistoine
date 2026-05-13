@@ -2452,6 +2452,41 @@ input:focus { border-color: var(--gold); }
   filter: brightness(0.7);
 }
 
+/* Escolhas pendentes usam a mesma marcação visual do mulligan, mas podem
+   listar a mão inteira (até 10 cartas). Reduzimos e quebramos as cartas em
+   linhas para que mais de 5 opções caibam na tela sem sair pelas laterais. */
+.pending-choice-overlay .mulligan-cards {
+  max-width: min(96vw, 1280px);
+  max-height: min(70vh, 620px);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.4rem 0.6rem 0.8rem;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.pending-choice-overlay .mulligan-cards .card {
+  width: clamp(118px, 12vw, 170px);
+  height: clamp(171px, 17.45vw, 246px);
+}
+.pending-choice-overlay .mulligan-cards .card:hover {
+  transform: translateY(-6px);
+}
+.pending-choice-overlay .mulligan-cards > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pending-choice-overlay .mulligan-cards .card.full-art .hand-cost {
+  font-size: clamp(0.95rem, 1.25vw, 1.25rem);
+}
+.pending-choice-overlay .mulligan-cards .card.full-art .hand-atk,
+.pending-choice-overlay .mulligan-cards .card.full-art .hand-hp {
+  font-size: clamp(0.85rem, 1.1vw, 1.1rem);
+}
+
 /* Animação: carta selecionada VOA pra fora (em direção ao deck no canto superior direito) */
 .mulligan-cards .card.flying-out {
   animation: cardFlyOut 0.55s ease-in forwards;
