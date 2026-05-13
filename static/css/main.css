@@ -4038,6 +4038,5 @@ input:focus { border-color: var(--gold); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.28); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .match-start-intro { display: none; }
-}
+/* A intro é parte do fluxo da partida; não ocultamos por prefers-reduced-motion,
+   senão alguns navegadores/OS fazem a abertura simplesmente não aparecer. */

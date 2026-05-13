@@ -174,12 +174,7 @@ function connect() {
       prevState = state;
       state = newState;
       syncSurrenderAvailability();
-      if (newState.phase === "MULLIGAN") {
-        onMulliganStateUpdate(newState);
-        // Dispara a transição assim que o estado de mulligan chega pelo WS.
-        // O render logo abaixo monta o mulligan normal por baixo do overlay.
-        maybePlayMatchStartIntro((newState.mulligan_done || [])[myPid] === true);
-      }
+      if (newState.phase === "MULLIGAN") onMulliganStateUpdate(newState);
       // Só renderiza se já temos myPid (caso contrário esperamos joined chegar).
       // Em ataques, renderizar só depois da corrida evita HP/morte antes da colisão.
       if (myPid !== null) scheduleStateRender(renderDelay);
@@ -437,7 +432,9 @@ function renderMulligan() {
     <div id="mull-action"></div>
   `;
   root.appendChild(overlay);
-  maybePlayMatchStartIntro(myDone);
+  // A intro deve ser disparada só depois que o mulligan já foi montado no DOM.
+  // Isso evita chamadas prematuras vindas do WebSocket ou renders parciais.
+  requestAnimationFrame(() => maybePlayMatchStartIntro(myDone));
 
   const handBox = document.getElementById("mull-cards");
   for (const c of state.you.hand) {
@@ -487,7 +484,15 @@ function renderMulligan() {
 }
 
 function maybePlayMatchStartIntro(myDone) {
-  if (matchIntroPlayed || myDone || !state?.you || !state?.opponent || document.querySelector(".match-start-intro")) return;
+  if (
+    matchIntroPlayed ||
+    myDone ||
+    myPid === null ||
+    state?.phase !== "MULLIGAN" ||
+    !state?.you ||
+    !state?.opponent ||
+    document.querySelector(".match-start-intro")
+  ) return;
   matchIntroPlayed = true;
 
   const intro = document.createElement("div");
