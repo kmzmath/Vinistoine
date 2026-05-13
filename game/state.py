@@ -160,6 +160,9 @@ class CardInHand:
     # ECHO: cartas que foram jogadas com ECHO retornam à mão como temporárias.
     # No fim do turno são descartadas.
     echo_temporary: bool = False
+    # Cartas reveladas por efeitos públicos permanecem identificáveis enquanto
+    # ficam na mão, permitindo que o oponente as veja no lugar do cardback.
+    revealed: bool = False
 
     def effective_cost(self) -> int:
         """Custo final considerando override e modificador."""
@@ -168,7 +171,7 @@ class CardInHand:
         return max(0, base + self.cost_modifier)
 
     def to_dict(self, hidden: bool = False) -> dict:
-        if hidden:
+        if hidden and not self.revealed:
             return {"instance_id": self.instance_id, "hidden": True}
         from .cards import get_card
         card = get_card(self.card_id) or {}
@@ -195,6 +198,7 @@ class CardInHand:
             "cost_modified": eff_cost != base_cost,
             "echo_temporary": self.echo_temporary,
             "extra_tags": list(self.extra_tags or []),
+            "revealed": self.revealed,
             "hidden": False,
         }
 

@@ -143,3 +143,59 @@ def test_move_enemy_minion_to_hand_and_set_cost():
     moved = state.players[pid].hand[-1]
     assert moved.card_id == "pizza"
     assert moved.effective_cost() == 1
+
+
+def test_revealed_hand_card_stays_visible_in_opponent_snapshot():
+    state = _new_blank_match(manual_choices=True)
+    pid = state.current_player
+    p = state.players[pid]
+    p.hand = [CardInHand(instance_id=gen_id("h_"), card_id="stonks")]
+    spell = p.hand[0]
+
+    effects.resolve_effect(
+        state,
+        {"action": "REVEAL_CARD_FROM_HAND", "target": {"mode": "SELF_HAND", "valid": ["SPELL"]}},
+        pid,
+        None,
+        {},
+    )
+    ok, msg = engine.resolve_choice(state, pid, state.pending_choice["choice_id"], {"card_id": spell.instance_id})
+    assert ok, msg
+
+    opponent_view = state.to_dict(viewer_id=1 - pid)["opponent"]["hand"][0]
+    assert opponent_view["instance_id"] == spell.instance_id
+    assert opponent_view["card_id"] == "stonks"
+    assert opponent_view["revealed"] is True
+    assert opponent_view["hidden"] is False
+
+
+def test_non_revealed_hand_card_remains_hidden_in_opponent_snapshot():
+    state = _new_blank_match()
+    pid = state.current_player
+    p = state.players[pid]
+    p.hand = [CardInHand(instance_id=gen_id("h_"), card_id="stonks")]
+
+    opponent_view = state.to_dict(viewer_id=1 - pid)["opponent"]["hand"][0]
+    assert opponent_view == {"instance_id": p.hand[0].instance_id, "hidden": True}
+
+
+def test_revealed_drawn_card_stays_visible_in_opponent_snapshot():
+    state = _new_blank_match()
+    pid = state.current_player
+    p = state.players[pid]
+    p.hand.clear()
+    p.deck = ["banana"]
+
+    effects.resolve_effect(
+        state,
+        {"action": "DRAW_CARD", "amount": 1, "target": {"mode": "SELF_PLAYER"}, "reveal": True},
+        pid,
+        None,
+        {},
+    )
+
+    drawn = p.hand[0]
+    assert drawn.revealed is True
+    opponent_view = state.to_dict(viewer_id=1 - pid)["opponent"]["hand"][0]
+    assert opponent_view["card_id"] == "banana"
+    assert opponent_view["revealed"] is True

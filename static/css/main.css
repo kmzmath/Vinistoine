@@ -2258,6 +2258,23 @@ input:focus { border-color: var(--gold); }
 }
 .card-back:first-child { margin-left: 0; }
 
+.zone-opp-hand .opponent-revealed-hand-card {
+  width: 60px;
+  height: 84px;
+  margin-left: -16px;
+  cursor: zoom-in;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.76), 0 0 10px rgba(245,201,105,0.22);
+  flex-shrink: 0;
+}
+.zone-opp-hand .opponent-revealed-hand-card:first-child { margin-left: 0; }
+.zone-opp-hand .opponent-revealed-hand-card:hover {
+  z-index: 10;
+  transform: translateY(7px) scale(1.24);
+}
+.zone-opp-hand .opponent-revealed-hand-card.full-art .hand-cost { font-size: 0.55rem; }
+.zone-opp-hand .opponent-revealed-hand-card.full-art .hand-atk,
+.zone-opp-hand .opponent-revealed-hand-card.full-art .hand-hp { font-size: 0.5rem; }
+
 /* === BOTÃO ENCERRAR TURNO: medalhão circular estilo Hearthstone ===
    Vai na MESMA coluna dos decks (right: 14px), centralizado verticalmente
    entre o deck do oponente (no topo) e o do jogador (embaixo). Antes ele

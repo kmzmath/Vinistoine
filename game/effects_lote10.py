@@ -103,6 +103,7 @@ def register_lote10_handlers(handler):
         chosen_id = ctx.get("hand_card_id") or ctx.get("chosen_hand_card")
         ch = next((c for c in candidates if c.instance_id == chosen_id), None) if chosen_id else candidates[0]
         ch.cost_modifier += int(eff.get("cost_modifier", -1) or -1)
+        ch.revealed = True
         state.log_event({"type": "reveal_hand_card", "player": source_owner,
                          "instance_id": ch.instance_id, "card_id": ch.card_id,
                          "cost_modifier": int(eff.get("cost_modifier", -1) or -1)})
@@ -126,6 +127,8 @@ def register_lote10_handlers(handler):
             cards = [p.hand[0]]
             if len(p.hand) > 1:
                 cards.append(p.hand[-1])
+            for c in cards:
+                c.revealed = True
             state.log_event({
                 "type": "reveal_hand_edges",
                 "player": p.player_id,

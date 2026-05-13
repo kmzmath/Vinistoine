@@ -37,7 +37,9 @@ def _resolve_mario_choice(state, owner: int, drawn_instance_id: str,
         if p.deck and p.deck[0] == revealed_card_id:
             p.deck.pop(0)
             if len(p.hand) < MAX_HAND_SIZE:
-                p.hand.append(CardInHand(instance_id=gen_id("h_"), card_id=revealed_card_id))
+                p.hand.append(CardInHand(
+                    instance_id=gen_id("h_"), card_id=revealed_card_id, revealed=True,
+                ))
                 state.log_event({"type": "mario_choose_draw",
                                  "player": owner, "chosen": revealed_card_id})
             else:

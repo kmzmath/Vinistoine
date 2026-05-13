@@ -1430,6 +1430,7 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
             return False, "Carta não está mais na mão"
         amount = int(choice.get("cost_modifier", -1) or -1)
         card.cost_modifier += amount
+        card.revealed = True
         state.pending_choice = None
         state.log_event({"type": "reveal_hand_card", "player": player_id,
                          "instance_id": card.instance_id, "card_id": card.card_id,
