@@ -343,7 +343,10 @@ def test_minion_to_dict_inclui_can_attack_e_keywords():
     assert "TAUNT" in d["keywords"]
     assert "DIVINE_SHIELD" in d["keywords"]
     assert "POISONOUS" in d["keywords"]
-    # Quando silenciado, keywords vira []
+    # Silence remove as keywords no momento em que é aplicado, mas keywords
+    # adicionadas depois continuam visíveis para a UI.
     m.silenced = True
+    m.tags.clear()
+    m.tags.append("TAUNT")
     d2 = m.to_dict()
-    assert d2["keywords"] == []
+    assert d2["keywords"] == ["TAUNT"]

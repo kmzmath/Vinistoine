@@ -44,7 +44,7 @@ def _mitigate_minion_damage(state: GameState, target: Minion, amount: int) -> in
     Escudo Divino NÃO é quebrado.
     """
     original = amount
-    if amount > 0 and target.has_tag("RESISTANT") and not target.silenced:
+    if amount > 0 and target.has_tag("RESISTANT"):
         amount = max(0, amount - 1)
         state.log_event({
             "type": "damage_reduced",
@@ -63,7 +63,7 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
     """Aplica dano a um lacaio ou herói. Retorna dano realmente aplicado."""
     if amount <= 0:
         return 0
-    if source_minion and not source_minion.silenced and source_minion.has_tag("CANNOT_DEAL_DAMAGE_THIS_TURN"):
+    if source_minion and source_minion.has_tag("CANNOT_DEAL_DAMAGE_THIS_TURN"):
         state.log_event({"type": "damage_prevented", "source": source_minion.instance_id,
                          "reason": "CANNOT_DEAL_DAMAGE_THIS_TURN"})
         return 0
@@ -96,7 +96,7 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
                 "reason": "RESISTANT",
             })
             return 0
-        if target.divine_shield and not target.silenced:
+        if target.divine_shield:
             target.divine_shield = False
             state.log_event({"type": "divine_shield_break", "minion": target.instance_id})
             return 0
@@ -147,13 +147,13 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
             pass
 
         # GAIN_ATTACK_ON_DAMAGE: Baiano - ganha atk pelo dano levado
-        if target.has_tag("GAIN_ATTACK_ON_DAMAGE") and not target.silenced:
+        if target.has_tag("GAIN_ATTACK_ON_DAMAGE"):
             target.attack += amount
             state.log_event({"type": "gain_attack_on_damage",
                              "minion": target.instance_id, "amount": amount})
 
         # POISONOUS: se source é minion e causou dano > 0, mata
-        if source_minion and not source_minion.silenced:
+        if source_minion:
             kills_via_poison = False
             if source_minion.has_tag("POISONOUS"):
                 kills_via_poison = True
@@ -170,11 +170,11 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
                 state.log_event({"type": "poison_kill", "minion": target.instance_id})
 
         # LIFESTEAL no source
-        if source_minion and not source_minion.silenced and source_minion.has_tag("LIFESTEAL"):
+        if source_minion and source_minion.has_tag("LIFESTEAL"):
             heal_character(state, state.player_at(source_minion.owner), amount)
 
         # REFLECT: se alvo tem tag REFLECT e source é minion, reflete o dano
-        if target.has_tag("REFLECT") and not target.silenced and source_minion is not None:
+        if target.has_tag("REFLECT") and source_minion is not None:
             # Evita loop infinito: damage_character só reflete se source != target
             if source_minion is not target:
                 # Aplica reflect SEM ser is_spell (é dano físico refletido)
@@ -211,7 +211,7 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
                 fire_self_hero_takes_damage_triggers(state, target, remaining, source_owner, source_minion)
             except Exception:
                 pass
-        if source_minion and not source_minion.silenced and source_minion.has_tag("LIFESTEAL"):
+        if source_minion and source_minion.has_tag("LIFESTEAL"):
             heal_character(state, state.player_at(source_minion.owner), amount)
         return amount
 
@@ -226,7 +226,7 @@ def _apply_reflect(state: GameState, attacker: Minion, amount: int, reflector_ow
         state.log_event({"type": "damage_prevented", "target_kind": "minion",
                          "target_id": attacker.instance_id, "reason": "RESISTANT"})
         return
-    if attacker.divine_shield and not attacker.silenced:
+    if attacker.divine_shield:
         attacker.divine_shield = False
         state.log_event({"type": "divine_shield_break", "minion": attacker.instance_id})
         return
@@ -985,10 +985,10 @@ def _remove_tag(state, eff, source_owner, source_minion, ctx):
 @handler("SILENCE")
 def _silence(state, eff, source_owner, source_minion, ctx):
     """Remove TODO o texto de carta + efeitos do lacaio:
-    - Marca silenced=True (impede has_tag e triggers)
+    - Marca silenced=True (impede texto/triggers próprios do lacaio)
     - Limpa estados temporários (divine shield, frozen, cant_attack, immune)
     - REMOVE BUFFS: reseta atk/health para os valores originais da carta
-    - Limpa tags adicionadas via efeito (ADD_TAG)
+    - Limpa tags/keywords existentes, permitindo buffs futuros normalmente
     """
     from .cards import get_card
     targets = targeting.resolve_targets(state, eff.get("target") or {}, source_owner,
@@ -1013,8 +1013,11 @@ def _silence(state, eff, source_owner, source_minion, ctx):
             damage_taken = max(0, t.max_health - t.health)
             t.max_health = base_hp
             t.health = max(1, base_hp - damage_taken)
-            # Reseta tags para as originais da carta
-            t.tags = list(base.get("tags") or [])
+            # Remove tags/keywords atuais, inclusive as originais da carta.
+            # DORMANT é preservado por precedência de regras: um dormente
+            # silenciado continua dormente e não vira um alvo/atacante zumbi.
+            preserved_tags = [tag for tag in t.tags if tag == "DORMANT"]
+            t.tags = preserved_tags
             state.log_event({"type": "silence", "minion": t.instance_id})
 
 

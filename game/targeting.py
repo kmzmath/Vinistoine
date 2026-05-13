@@ -20,8 +20,6 @@ def _is_trigger_immune(candidate, source_owner: int) -> bool:
     """
     if not isinstance(candidate, Minion):
         return False
-    if candidate.silenced:
-        return False
     trigger = CURRENT_SOURCE_TRIGGER
     if not trigger:
         return False

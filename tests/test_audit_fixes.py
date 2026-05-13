@@ -70,9 +70,11 @@ def test_silenced_dormant_minion_continua_dormente():
 
     # Silenciado mas DORMANT precede silence: ainda é dormente.
     assert m.has_tag("DORMANT") is True
-    # Outras tags continuam mascaradas pelo silence.
+    # DORMANT ainda mascara outras tags enquanto o lacaio está dormente.
     m.tags.append("TAUNT")
     assert m.has_tag("TAUNT") is False
+    m.tags.remove("DORMANT")
+    assert m.has_tag("TAUNT") is True
 
 
 def test_to_dict_inclui_hero_attacks_e_fatigue():

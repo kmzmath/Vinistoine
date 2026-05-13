@@ -56,13 +56,12 @@ class Minion:
     owner: int = 0  # 0 ou 1
 
     def has_tag(self, tag: str) -> bool:
-        # DORMANT precede silence: um dormente silenciado continua dormente
-        # (cant_attack/immune permanecem True), então a engine e o targeting
-        # devem continuar tratando-o como inerte para evitar zumbi-targetável.
+        # Silence remove as tags/texto existentes no momento em que é aplicado,
+        # mas não impede encantamentos posteriores. Portanto `silenced` não pode
+        # mascarar a lista inteira de tags: buffs/keywords concedidos depois do
+        # silêncio precisam funcionar normalmente.
         if tag == "DORMANT":
             return "DORMANT" in self.tags
-        if self.silenced:
-            return False
         # Dormente não existe de fato na mesa para fins de Provocar/Furtividade/etc.
         # Mantemos a tag DORMANT visível para a UI, mas desativamos as demais.
         if "DORMANT" in self.tags:
@@ -132,8 +131,9 @@ class Minion:
             # Calculados - cliente usa pra decidir quando mostrar borda verde "pode atacar"
             "can_attack": self.can_attack(),
             "can_attack_hero": self.can_attack_hero(),
-            # Lista de keywords ativas (visíveis), considerando silence
-            "keywords": [] if self.silenced else [
+            # Lista de keywords ativas (visíveis). Silence já remove as keywords
+            # antigas de `tags`; keywords adicionadas depois devem aparecer.
+            "keywords": [
                 t for t in self.tags
                 if t in ("TAUNT", "DIVINE_SHIELD", "STEALTH", "LIFESTEAL",
                          "POISONOUS", "WINDFURY", "CHARGE", "RUSH",

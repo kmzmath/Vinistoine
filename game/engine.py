@@ -504,7 +504,10 @@ def apply_continuous_effects(state: GameState):
                         # curem o lacaio a cada recálculo e também evita que
                         # debuffs negativos voltem como cura indevida.
                         m.max_health = max(1, m.max_health - hp)
-                        m.health = m.health - hp
+                        new_health = m.health - hp
+                        if m.health > 0:
+                            new_health = max(1, new_health)
+                        m.health = new_health
                         if m.health > m.max_health:
                             m.health = m.max_health
                     m.tags.remove(tag)
@@ -1783,11 +1786,12 @@ def _find_attack_redirector(state: GameState, defender_pid: int, original_target
     for m in list(state.players[defender_pid].board):
         if m is original_target:
             continue
-        if m.silenced or m.health <= 0 or m.immune or m.has_tag("STEALTH"):
+        if m.health <= 0 or m.immune or m.has_tag("STEALTH"):
             continue
-        for eff in m.effects or []:
-            if eff.get("action") == "REDIRECT_ATTACK_TO_SELF":
-                return m
+        if not m.silenced:
+            for eff in m.effects or []:
+                if eff.get("action") == "REDIRECT_ATTACK_TO_SELF":
+                    return m
         if m.has_tag("REDIRECT_ATTACK_TO_SELF"):
             return m
     return None
