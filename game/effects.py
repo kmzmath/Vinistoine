@@ -1691,3 +1691,6 @@ effects_lote27_requested_fixes.register_lote27_requested_fixes_handlers(handler)
 
 from . import effects_lote29_features
 effects_lote29_features.register_lote29_features_handlers(handler)
+
+from . import effects_lote33_requested_cards
+effects_lote33_requested_cards.register_lote33_requested_cards_handlers(handler)
