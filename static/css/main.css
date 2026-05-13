@@ -3852,3 +3852,309 @@ input:focus { border-color: var(--gold); }
   from { transform: scale(0.82) rotate(0deg); opacity: 0.5; }
   to { transform: scale(1.18) rotate(18deg); opacity: 0.95; }
 }
+
+/* === Animação de início de partida → mulligan ===
+   Ordem visual em camadas: tabuleiro (mulligan-arena), retratos, VS, cartas,
+   brilhos/moeda dourados ambientais, banner e botão. As posições usam %/vw do
+   canvas da arena para manter o enquadramento responsivo pelo scale global. */
+.mulligan-arena {
+  --intro-fade: cubic-bezier(0.22, 1, 0.36, 1);      /* easeOutCubic */
+  --intro-back: cubic-bezier(0.34, 1.56, 0.64, 1);  /* easeOutBack */
+  --intro-sine: cubic-bezier(0.37, 0, 0.63, 1);     /* easeInOutSine */
+  background:
+    radial-gradient(ellipse 42% 34% at 50% 50%, rgba(245, 201, 105, 0.18), transparent 62%),
+    radial-gradient(ellipse 90% 90% at 50% 48%, #3d2c1a 0%, #2a1b10 44%, #120c08 100%);
+}
+.mulligan-arena::before {
+  background:
+    radial-gradient(circle at 28% 30%, rgba(245, 201, 105, 0.08), transparent 7%),
+    radial-gradient(circle at 70% 65%, rgba(74, 127, 168, 0.08), transparent 8%),
+    repeating-linear-gradient(92deg, rgba(80,55,25,0) 0 60px, rgba(70,45,20,0.09) 61px 62px),
+    repeating-linear-gradient(178deg, rgba(120,80,40,0) 0 110px, rgba(95,65,30,0.06) 111px 113px);
+  animation: mulliganAmbientPulse 3.2s var(--intro-sine) infinite alternate;
+}
+.mulligan-arena::after {
+  z-index: 4;
+  background: radial-gradient(ellipse 76% 66% at 50% 50%, transparent 42%, rgba(2, 1, 0, 0.72) 100%);
+}
+.mulligan-arena.intro-playing {
+  animation: matchIntroBoardFade 500ms var(--intro-fade) both,
+             matchIntroCenterLight 700ms var(--intro-fade) 4300ms both;
+}
+
+.mulligan-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.match-intro-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+}
+.match-intro-ambient::before,
+.match-intro-ambient::after,
+.match-intro-ambient span {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 234, 170, 0.95), rgba(212, 166, 74, 0.16) 58%, transparent 72%);
+  box-shadow: 0 0 18px rgba(245, 201, 105, 0.6);
+  opacity: 0.45;
+  animation: matchIntroSpark 2.6s var(--intro-sine) infinite alternate;
+}
+.match-intro-ambient::before { left: 18%; top: 25%; animation-delay: -0.8s; }
+.match-intro-ambient::after { right: 22%; bottom: 27%; animation-delay: -1.4s; }
+.match-intro-ambient span:nth-child(1) { left: 43%; top: 18%; }
+.match-intro-ambient span:nth-child(2) { left: 56%; top: 76%; animation-delay: -1.1s; }
+.match-intro-ambient span:nth-child(3) { left: 13%; top: 68%; animation-delay: -1.8s; }
+.match-intro-ambient span:nth-child(4) { left: 83%; top: 36%; animation-delay: -0.35s; }
+
+.match-intro-portrait {
+  position: absolute;
+  z-index: 12;
+  width: min(22%, 360px);
+  aspect-ratio: 0.78;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  filter: drop-shadow(0 22px 28px rgba(0,0,0,0.66));
+}
+.match-intro-portrait.player-a {
+  left: 9%;
+  bottom: 10%;
+  transform-origin: 20% 90%;
+}
+.match-intro-portrait.player-b {
+  right: 9%;
+  top: 8%;
+  transform-origin: 80% 10%;
+}
+.match-intro-portrait-art {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  border: 8px solid var(--gold);
+  border-radius: 24px 24px 42px 42px;
+  background: linear-gradient(145deg, rgba(38, 25, 13, 0.95), rgba(12, 8, 5, 0.95));
+  background-size: cover;
+  background-position: center;
+  color: rgba(255, 232, 174, 0.88);
+  font-family: 'Cinzel';
+  font-size: 6rem;
+  font-weight: 900;
+  box-shadow:
+    inset 0 0 32px rgba(0,0,0,0.68),
+    inset 0 0 0 2px rgba(255,255,255,0.12),
+    0 0 28px rgba(212,166,74,0.32);
+  overflow: hidden;
+}
+.match-intro-portrait-art::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(120deg, transparent 15%, rgba(255, 239, 190, 0.28) 45%, transparent 60%);
+  transform: translateX(-130%);
+  animation: matchIntroGoldSweep 2.7s var(--intro-sine) infinite;
+}
+.match-intro-portrait-label {
+  width: 92%;
+  margin-top: -8px;
+  padding: 10px 12px 9px;
+  text-align: center;
+  border: 1px solid rgba(245, 201, 105, 0.75);
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(180deg, rgba(39, 24, 9, 0.95), rgba(12, 8, 5, 0.95));
+  box-shadow: 0 10px 20px rgba(0,0,0,0.44), inset 0 0 12px rgba(245,201,105,0.08);
+}
+.match-intro-portrait-label strong,
+.match-intro-portrait-label span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.match-intro-portrait-label strong {
+  font-family: 'Cinzel';
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+  font-size: 1.15rem;
+}
+.match-intro-portrait-label span {
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+  text-transform: capitalize;
+}
+.match-intro-vs {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 14;
+  transform: translate(-50%, -50%) scale(0.72);
+  opacity: 0;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: clamp(6rem, 12vw, 13rem);
+  letter-spacing: 0.03em;
+  color: #d42718;
+  -webkit-text-stroke: 3px rgba(255, 198, 84, 0.46);
+  text-shadow: 0 8px 0 rgba(40, 0, 0, 0.82), 0 0 22px rgba(232, 90, 63, 0.72), 0 0 48px rgba(212,166,74,0.36);
+}
+.mulligan-arena.intro-playing .match-intro-portrait.player-a { animation: matchIntroPlayerA 4500ms var(--intro-back) 500ms both; }
+.mulligan-arena.intro-playing .match-intro-portrait.player-b { animation: matchIntroPlayerB 4500ms var(--intro-back) 620ms both; }
+.mulligan-arena.intro-playing .match-intro-vs { animation: matchIntroVs 3800ms var(--intro-sine) 500ms both; }
+.mulligan-arena:not(.intro-playing) .match-intro-portrait,
+.mulligan-arena:not(.intro-playing) .match-intro-vs { display: none; }
+
+.mulligan-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.8rem;
+  padding: 5.5% 8% 6%;
+  background: radial-gradient(ellipse 58% 48% at 50% 50%, rgba(20, 14, 8, 0.08), rgba(0,0,0,0.28) 78%);
+  opacity: 1;
+}
+.mulligan-arena.intro-playing .mulligan-overlay {
+  opacity: 0;
+  animation: mulliganUiReveal 320ms var(--intro-fade) 5000ms forwards;
+}
+.mulligan-banner {
+  min-width: min(680px, 70%);
+  padding: 16px 48px 14px;
+  text-align: center;
+  border: 1px solid rgba(245, 201, 105, 0.78);
+  border-radius: 18px 18px 30px 30px;
+  background:
+    radial-gradient(circle at 8% 50%, rgba(74,127,168,0.42), transparent 14%),
+    radial-gradient(circle at 92% 50%, rgba(245,201,105,0.34), transparent 14%),
+    linear-gradient(180deg, rgba(38, 25, 13, 0.96), rgba(12, 8, 5, 0.94));
+  box-shadow: 0 14px 34px rgba(0,0,0,0.5), 0 0 18px rgba(74,127,168,0.26), inset 0 0 20px rgba(245,201,105,0.09);
+}
+.mulligan-banner h2 {
+  margin: 0 0 2px;
+  font-size: 2rem;
+  text-transform: uppercase;
+}
+.mulligan-banner .muted {
+  font-family: 'Cinzel';
+  letter-spacing: 0.14em;
+  color: #d9d0bd;
+}
+.mulligan-arena.intro-playing .mulligan-banner { animation: mulliganBannerDrop 700ms var(--intro-back) 5200ms both; }
+
+.mulligan-cards {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(18px, 2.2vw, 34px);
+  min-height: 345px;
+  perspective: 1000px;
+}
+.mulligan-cards .card {
+  cursor: pointer;
+  transform-origin: center;
+  box-shadow: 0 18px 28px rgba(0,0,0,0.58), 0 0 12px rgba(74, 255, 138, 0.22);
+  outline: 2px solid rgba(91, 255, 135, 0.82);
+  animation: mulliganSelectablePulse 1800ms var(--intro-sine) infinite alternate,
+             mulliganCardIdle 2400ms var(--intro-sine) infinite alternate;
+}
+.mulligan-arena.intro-playing .mulligan-cards .card {
+  opacity: 0;
+  animation: mulliganDealCard 780ms var(--intro-back) forwards,
+             mulliganSelectablePulse 1800ms var(--intro-sine) 6200ms infinite alternate,
+             mulliganCardIdle 2400ms var(--intro-sine) 6200ms infinite alternate;
+}
+.mulligan-arena.intro-playing .mulligan-cards .card:nth-child(1) { animation-delay: 5000ms, 6200ms, 6200ms; }
+.mulligan-arena.intro-playing .mulligan-cards .card:nth-child(2) { animation-delay: 5200ms, 6400ms, 6400ms; }
+.mulligan-arena.intro-playing .mulligan-cards .card:nth-child(3) { animation-delay: 5400ms, 6600ms, 6600ms; }
+.mulligan-arena.intro-playing .mulligan-cards .card:nth-child(4) { animation-delay: 5600ms, 6800ms, 6800ms; }
+.mulligan-cards .card:hover {
+  transform: translateY(-12px) scale(1.05);
+  filter: brightness(1.12);
+}
+.mulligan-cards .card.selected {
+  outline: 3px solid var(--crimson-bright);
+  box-shadow: 0 0 22px rgba(232, 90, 63, 0.62), 0 16px 28px rgba(0,0,0,0.56);
+  filter: saturate(0.95) brightness(0.86);
+}
+#mull-action .btn.primary {
+  min-width: 250px;
+  border-radius: 999px;
+  border-color: rgba(99, 179, 232, 0.95);
+  background: linear-gradient(180deg, #326d9b, #17324d 52%, #0b1726);
+  color: #e8f7ff;
+  box-shadow: 0 0 18px rgba(74, 127, 168, 0.54), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.mulligan-arena.intro-playing #mull-action {
+  opacity: 0;
+  animation: mulliganConfirmFade 450ms var(--intro-fade) 6200ms forwards;
+}
+
+@keyframes matchIntroBoardFade { from { filter: brightness(0); } to { filter: brightness(0.78); } }
+@keyframes matchIntroCenterLight { to { filter: brightness(1.08); } }
+@keyframes mulliganAmbientPulse { from { opacity: 0.55; } to { opacity: 0.95; } }
+@keyframes matchIntroSpark { from { transform: scale(0.72); opacity: 0.18; } to { transform: scale(1.35); opacity: 0.68; } }
+@keyframes matchIntroGoldSweep { 0%, 45% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
+@keyframes matchIntroPlayerA {
+  0% { opacity: 0; transform: translate(-8%, 8%) scale(0.82); }
+  10%, 83% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(123%, -74%) scale(0.36); }
+}
+@keyframes matchIntroPlayerB {
+  0% { opacity: 0; transform: translate(8%, -8%) scale(0.82); }
+  10%, 81% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-123%, 74%) scale(0.36); }
+}
+@keyframes matchIntroVs {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.58); }
+  14%, 82% { opacity: 1; }
+  24%, 44%, 64% { transform: translate(-50%, -50%) scale(1.04); }
+  34%, 54%, 74% { transform: translate(-50%, -50%) scale(0.96); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.28); }
+}
+@keyframes mulliganUiReveal { to { opacity: 1; } }
+@keyframes mulliganBannerDrop {
+  from { opacity: 0; transform: translateY(-86px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes mulliganDealCard {
+  0% { opacity: 0; transform: translate(44vw, -16vh) rotate(-28deg) scale(0.36); }
+  55% { opacity: 1; transform: translate(6vw, -7vh) rotate(10deg) scale(0.86); }
+  82% { opacity: 1; transform: translate(-1vw, 1vh) rotate(-3deg) scale(1.08); }
+  100% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
+}
+@keyframes mulliganSelectablePulse {
+  from { outline-color: rgba(91, 255, 135, 0.56); box-shadow: 0 18px 28px rgba(0,0,0,0.58), 0 0 10px rgba(91,255,135,0.2); }
+  to { outline-color: rgba(124, 255, 163, 0.98); box-shadow: 0 18px 28px rgba(0,0,0,0.58), 0 0 22px rgba(91,255,135,0.48); }
+}
+@keyframes mulliganCardIdle { from { translate: 0 0; } to { translate: 0 -4px; } }
+@keyframes mulliganConfirmFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mulligan-arena.intro-playing,
+  .mulligan-arena.intro-playing .mulligan-overlay,
+  .mulligan-arena.intro-playing .mulligan-banner,
+  .mulligan-arena.intro-playing #mull-action,
+  .mulligan-cards .card,
+  .match-intro-ambient::before,
+  .match-intro-ambient::after,
+  .match-intro-ambient span {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .match-intro-portrait,
+  .match-intro-vs { display: none !important; }
+}

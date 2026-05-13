@@ -359,6 +359,35 @@ async function cancelWaitingRoom() {
 // Snapshot da mão usado pra detectar cartas novas chegando após confirmar
 let mulliganOldHandIds = null;  // Set de instance_ids antes do swap
 let mulliganConfirming = false;
+let matchIntroPlayed = false;
+
+function getPlayerPortraitUrl(player) {
+  const key = (player?.name || "").toLowerCase();
+  return player?.portrait_url || heroImages[key] || "";
+}
+
+function getPortraitFrameName(player) {
+  const url = getPlayerPortraitUrl(player);
+  if (!url) return "Moldura dourada";
+  const file = decodeURIComponent(String(url).split("/").pop() || "").replace(/\.[^.]+$/, "");
+  return file ? file.replaceAll("_", " ").replaceAll("-", " ") : "Moldura dourada";
+}
+
+function renderVersusPortrait(player, roleClass) {
+  const img = getPlayerPortraitUrl(player);
+  const initial = (player?.name || "?").charAt(0).toUpperCase();
+  const portraitStyle = img ? `style="background-image:url('${img}')"` : "";
+  const content = img ? "" : escapeHtml(initial);
+  return `
+    <div class="match-intro-portrait ${roleClass}">
+      <div class="match-intro-portrait-art" ${portraitStyle}>${content}</div>
+      <div class="match-intro-portrait-label">
+        <strong>${escapeHtml(player?.name || "Jogador")}</strong>
+        <span>${escapeHtml(getPortraitFrameName(player))}</span>
+      </div>
+    </div>
+  `;
+}
 
 function renderMulligan() {
   const root = document.getElementById("board-root");
@@ -366,6 +395,21 @@ function renderMulligan() {
 
   const myDone = (state.mulligan_done || [])[myPid] === true;
   const oppDone = (state.mulligan_done || [])[1 - myPid] === true;
+  const playIntro = !matchIntroPlayed && !myDone;
+  if (playIntro) matchIntroPlayed = true;
+
+  const layout = document.createElement("div");
+  layout.className = "arena-layout mulligan-arena" + (playIntro ? " intro-playing" : "");
+
+  const stage = document.createElement("div");
+  stage.className = "mulligan-stage";
+  stage.innerHTML = `
+    <div class="match-intro-ambient" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    ${renderVersusPortrait(state.you, "player-a")}
+    ${renderVersusPortrait(state.opponent, "player-b")}
+    <div class="match-intro-vs" aria-hidden="true">VS</div>
+  `;
+  layout.appendChild(stage);
 
   const overlay = document.createElement("div");
   overlay.className = "mulligan-overlay" + (myDone ? " confirmed" : "");
@@ -373,12 +417,16 @@ function renderMulligan() {
   let headerHtml;
   if (myDone) {
     headerHtml = `
-      <h2 style="color: var(--gold-bright);">Cartas confirmadas</h2>
-      <div class="muted">Aguarde o oponente terminar a troca de cartas.</div>`;
+      <div class="mulligan-banner confirmed-banner">
+        <h2 style="color: var(--gold-bright);">Cartas confirmadas</h2>
+        <div class="muted">Aguarde o oponente terminar a troca de cartas.</div>
+      </div>`;
   } else {
     headerHtml = `
-      <h2>Selecione cartas para descartar</h2>
-      <div class="muted">Clique nas cartas que NÃO quer manter. Elas voltam ao baralho e você compra novas.</div>`;
+      <div class="mulligan-banner">
+        <h2>Mão Inicial</h2>
+        <div class="muted">Mantenha ou substitua cartas</div>
+      </div>`;
   }
 
   overlay.innerHTML = `
@@ -386,7 +434,8 @@ function renderMulligan() {
     <div class="mulligan-cards" id="mull-cards"></div>
     <div id="mull-action"></div>
   `;
-  root.appendChild(overlay);
+  layout.appendChild(overlay);
+  root.appendChild(layout);
 
   const handBox = document.getElementById("mull-cards");
   for (const c of state.you.hand) {
