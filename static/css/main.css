@@ -840,9 +840,9 @@ input:focus { border-color: var(--gold); }
   flex-direction: column;
   /* padding direito reservado para a coluna de decks + botão de turno
      (decks 96px + botão 100px empilhados na mesma coluna).
-     padding inferior maior (2.4%/~24px) afasta a mão da borda escura da
+     padding inferior maior (3.2%/~32px) afasta a mão da borda escura da
      arena — antes ficava colada e a vinheta engolia metade da carta. */
-  padding: 1.4% 150px 2.4% 4%;
+  padding: 1.4% 150px 3.2% 4%;
   box-sizing: border-box;
   z-index: 1;
 }
@@ -952,6 +952,10 @@ input:focus { border-color: var(--gold); }
   align-items: flex-end;
   overflow: visible;
   position: relative;
+  /* Sobe a mão em relação à moldura inferior da arena. Isso mantém a carta
+     inteira visível (ataque/vida/texto) mesmo com rotação nas pontas do leque
+     e com a borda real da arena participando do ajuste ao viewport. */
+  margin-bottom: 44px;
 }
 /* Prateleira luminosa atrás da mão. Funciona como uma "luz dirigida" no
    pergaminho - contrabalança a vinheta da arena pra que as cartas
