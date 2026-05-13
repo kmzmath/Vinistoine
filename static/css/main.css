@@ -3862,7 +3862,7 @@ input:focus { border-color: var(--gold); }
   --intro-sine: cubic-bezier(0.37, 0, 0.63, 1);     /* easeInOutSine */
   position: fixed;
   inset: 0;
-  z-index: 180;
+  z-index: 70000;
   overflow: hidden;
   pointer-events: auto;
   background: #000;

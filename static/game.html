@@ -174,7 +174,12 @@ function connect() {
       prevState = state;
       state = newState;
       syncSurrenderAvailability();
-      if (newState.phase === "MULLIGAN") onMulliganStateUpdate(newState);
+      if (newState.phase === "MULLIGAN") {
+        onMulliganStateUpdate(newState);
+        // Dispara a transição assim que o estado de mulligan chega pelo WS.
+        // O render logo abaixo monta o mulligan normal por baixo do overlay.
+        maybePlayMatchStartIntro((newState.mulligan_done || [])[myPid] === true);
+      }
       // Só renderiza se já temos myPid (caso contrário esperamos joined chegar).
       // Em ataques, renderizar só depois da corrida evita HP/morte antes da colisão.
       if (myPid !== null) scheduleStateRender(renderDelay);
@@ -395,11 +400,8 @@ function renderMulligan() {
 
   const myDone = (state.mulligan_done || [])[myPid] === true;
   const oppDone = (state.mulligan_done || [])[1 - myPid] === true;
-  const playIntro = !matchIntroPlayed && !myDone;
-  if (playIntro) matchIntroPlayed = true;
-
   const layout = document.createElement("div");
-  layout.className = "arena-layout mulligan-arena" + (playIntro ? " intro-playing" : "");
+  layout.className = "arena-layout mulligan-arena";
 
   const stage = document.createElement("div");
   stage.className = "mulligan-stage";
@@ -485,7 +487,7 @@ function renderMulligan() {
 }
 
 function maybePlayMatchStartIntro(myDone) {
-  if (matchIntroPlayed || myDone || !state?.you || !state?.opponent) return;
+  if (matchIntroPlayed || myDone || !state?.you || !state?.opponent || document.querySelector(".match-start-intro")) return;
   matchIntroPlayed = true;
 
   const intro = document.createElement("div");
