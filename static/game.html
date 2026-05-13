@@ -359,6 +359,35 @@ async function cancelWaitingRoom() {
 // Snapshot da mão usado pra detectar cartas novas chegando após confirmar
 let mulliganOldHandIds = null;  // Set de instance_ids antes do swap
 let mulliganConfirming = false;
+let matchIntroPlayed = false;
+
+function getPlayerPortraitUrl(player) {
+  const key = (player?.name || "").toLowerCase();
+  return player?.portrait_url || heroImages[key] || "";
+}
+
+function getPortraitFrameName(player) {
+  const url = getPlayerPortraitUrl(player);
+  if (!url) return "Moldura dourada";
+  const file = decodeURIComponent(String(url).split("/").pop() || "").replace(/\.[^.]+$/, "");
+  return file ? file.replaceAll("_", " ").replaceAll("-", " ") : "Moldura dourada";
+}
+
+function renderVersusPortrait(player, roleClass) {
+  const img = getPlayerPortraitUrl(player);
+  const initial = (player?.name || "?").charAt(0).toUpperCase();
+  const portraitStyle = img ? `style="background-image:url('${img}')"` : "";
+  const content = img ? "" : escapeHtml(initial);
+  return `
+    <div class="match-intro-portrait ${roleClass}">
+      <div class="match-intro-portrait-art" ${portraitStyle}>${content}</div>
+      <div class="match-intro-portrait-label">
+        <strong>${escapeHtml(player?.name || "Jogador")}</strong>
+        <span>${escapeHtml(getPortraitFrameName(player))}</span>
+      </div>
+    </div>
+  `;
+}
 
 function renderMulligan() {
   const root = document.getElementById("board-root");
@@ -387,6 +416,7 @@ function renderMulligan() {
     <div id="mull-action"></div>
   `;
   root.appendChild(overlay);
+  maybePlayMatchStartIntro(myDone);
 
   const handBox = document.getElementById("mull-cards");
   for (const c of state.you.hand) {
@@ -433,6 +463,24 @@ function renderMulligan() {
     actionBox.innerHTML = `<button class="btn primary" id="mull-confirm">Confirmar</button>`;
     document.getElementById("mull-confirm").onclick = () => doConfirmMulligan();
   }
+}
+
+function maybePlayMatchStartIntro(myDone) {
+  if (matchIntroPlayed || myDone || !state?.you || !state?.opponent) return;
+  matchIntroPlayed = true;
+
+  const intro = document.createElement("div");
+  intro.className = "match-start-intro";
+  intro.innerHTML = `
+    <div class="match-start-board" aria-hidden="true">
+      <div class="match-start-sparks"><span></span><span></span><span></span><span></span></div>
+    </div>
+    ${renderVersusPortrait(state.you, "player-a")}
+    ${renderVersusPortrait(state.opponent, "player-b")}
+    <div class="match-intro-vs" aria-hidden="true">VS</div>
+  `;
+  document.body.appendChild(intro);
+  setTimeout(() => intro.remove(), 6200);
 }
 
 function doConfirmMulligan() {
