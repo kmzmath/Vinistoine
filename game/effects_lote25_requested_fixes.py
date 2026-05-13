@@ -67,8 +67,7 @@ def register_lote25_requested_fixes_handlers(handler):
                 if t.has_tag("DORMANT"):
                     continue
                 t.frozen = True
-                # Congelamento deve consumir só a próxima oportunidade de ataque.
-                # No fim do próximo turno do dono, descongela.
+                # Congelamento deve consumir só a próxima oportunidade real de ataque.
                 t.freeze_pending = False
                 state.log_event({"type": "freeze", "minion": t.instance_id})
             elif isinstance(t, PlayerState):

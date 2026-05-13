@@ -1024,14 +1024,7 @@ def _silence(state, eff, source_owner, source_minion, ctx):
 
 @handler("FREEZE")
 def _freeze(state, eff, source_owner, source_minion, ctx):
-    """Aplica congelamento. O alvo pula seu próximo turno de ataque.
-    
-    Mecânica de turnos: marcamos freeze_pending=True no momento do congelamento.
-    No fim do turno do dono, freeze_pending vira False (significando que o turno
-    está se aproximando). No próximo end_turn do dono (depois de ele ter ficado
-    o turno inteiro sem atacar), descongela. Isso garante perda de exatamente
-    1 turno de ataque.
-    """
+    """Aplica congelamento. O alvo perde sua próxima oportunidade real de ataque."""
     targets = targeting.resolve_targets(state, eff.get("target") or {}, source_owner,
                                         source_minion, ctx.get("chosen_target"))
     for t in targets:

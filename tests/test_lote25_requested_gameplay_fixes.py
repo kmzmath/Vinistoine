@@ -75,6 +75,58 @@ def test_freeze_consumes_only_one_attack_opportunity():
     assert not m.frozen
 
 
+def test_freeze_after_minion_already_attacked_waits_for_next_attack_opportunity():
+    state = _new_blank_match(manual=False)
+    pid = state.current_player
+    foe = 1 - pid
+    m = _force_minion(state, pid, attack=3, health=3, ready=True)
+    m.attacks_this_turn = 1
+
+    effects.resolve_effect(
+        state,
+        {"action": "FREEZE", "target": {"mode": "CHOSEN", "valid": ["ANY_MINION"]}},
+        foe,
+        None,
+        {"chosen_target": m.instance_id},
+    )
+
+    engine.end_turn(state, pid)
+    assert m.frozen, "não deve descongelar se já não tinha ataques restantes neste turno"
+
+    engine.end_turn(state, foe)
+    assert m.frozen
+    assert not m.can_attack()
+
+    engine.end_turn(state, pid)
+    assert not m.frozen
+
+
+def test_skip_next_attack_after_minion_already_attacked_waits_for_next_opportunity():
+    state = _new_blank_match(manual=False)
+    pid = state.current_player
+    foe = 1 - pid
+    m = _force_minion(state, pid, attack=3, health=3, ready=True)
+    m.attacks_this_turn = 1
+
+    effects.resolve_effect(
+        state,
+        {"action": "SKIP_NEXT_ATTACK", "target": {"mode": "SELF"}},
+        pid,
+        m,
+        {},
+    )
+
+    engine.end_turn(state, pid)
+    assert m.skip_next_attack, "Vinagra/skip deve aguardar uma oportunidade real de ataque"
+
+    engine.end_turn(state, foe)
+    assert m.skip_next_attack
+    assert not m.can_attack()
+
+    engine.end_turn(state, pid)
+    assert not m.skip_next_attack
+
+
 def test_spaghetti_after_attacking_enemy_hero_opens_choice_and_applies_selected_sauce():
     state = _new_blank_match(manual=True)
     pid = state.current_player
