@@ -3265,6 +3265,38 @@ function animateFromDelta(oldS, newS) {
                newS.opponent.hero_health - oldS.opponent.hero_health);
   }
 
+  // Mapeia cartas que apareceram na minha mão neste delta. Algumas compras
+  // rápidas/filtradas antigas só registram card_id no log (sem instance_id);
+  // neste caso usamos o diff da mão nova para descobrir qual carta ocultar e
+  // qual slot deve receber a animação.
+  const oldMyHandIds = new Set(((oldS.you || {}).hand || []).map(c => String(c.instance_id)));
+  const newMyHandCards = ((newS.you || {}).hand || []).filter(c => !oldMyHandIds.has(String(c.instance_id)));
+  const consumedDrawHandIds = new Set();
+  const claimNewMyHandCard = (preferredInstanceId = null, preferredCardId = null) => {
+    const prefInst = preferredInstanceId == null ? null : String(preferredInstanceId);
+    if (prefInst) {
+      const byId = ((newS.you || {}).hand || []).find(c => String(c.instance_id) === prefInst);
+      if (byId) {
+        consumedDrawHandIds.add(String(byId.instance_id));
+        return byId;
+      }
+    }
+    const available = newMyHandCards.filter(c => !consumedDrawHandIds.has(String(c.instance_id)));
+    const byCard = preferredCardId
+      ? available.find(c => c.card_id === preferredCardId)
+      : null;
+    const chosen = byCard || available[0] || null;
+    if (chosen) consumedDrawHandIds.add(String(chosen.instance_id));
+    return chosen;
+  };
+  const isDrawAnimationEvent = (ev) => {
+    if (!ev || !ev.type) return false;
+    if (ev.type === "steal_card") return true;
+    return String(ev.type).startsWith("draw")
+      && ev.type !== "draw_highest_revealed_tie"
+      && ev.type !== "draw_failed";
+  };
+
   // Eventos do log: ataques, summons, draws (de qualquer jogador) e cartas
   // jogadas pelo oponente.
   for (const ev of newEvents) {
@@ -3284,20 +3316,33 @@ function animateFromDelta(oldS, newS) {
       }
     }
     // === Compra de carta (qualquer jogador) ===
-    if (ev.type === "draw" || ev.type === "draw_minion" ||
-        ev.type === "draw_spell" || ev.type === "steal_card") {
-      // Identifica o jogador que comprou
-      const player = ev.player ?? ev.to;
-      // Para uma compra normal, ev.instance_id é o id da carta nova
-      const inst = ev.instance_id;
-      // Se SOU eu que comprei, preciso descobrir o card_id pra mostrar a
-      // imagem da carta. Se foi o oponente, mostro só o card-back voando.
-      let cardIdRevealed = null;
-      if (player === myPid && inst) {
-        // newS.you.hand já tem a carta nova (último item ou pelo instance_id)
-        const handCard = (newS.you.hand || []).find(c => c.instance_id === inst);
-        if (handCard) cardIdRevealed = handCard.card_id;
+    if (isDrawAnimationEvent(ev)) {
+      // Identifica o jogador que comprou. Eventos de roubo usam `to`; os
+      // demais usam `player`.
+      let player = ev.player ?? ev.to;
+      if ((player === undefined || player === null) && ev.card_id) {
+        const hasMatchingOwnDraw = newMyHandCards.some(c =>
+          !consumedDrawHandIds.has(String(c.instance_id)) && c.card_id === ev.card_id
+        );
+        if (hasMatchingOwnDraw) player = myPid;
       }
+      let inst = ev.instance_id || null;
+      let cardIdRevealed = null;
+
+      // Se SOU eu que comprei, a animação deve mostrar a carta real e pousar
+      // exatamente no slot criado na mão. Quando o backend não envia
+      // instance_id (caso comum em compras rápidas/filtradas), o diff entre a
+      // mão antiga e a nova recupera o instance_id recém-criado.
+      if (player === myPid) {
+        const handCard = claimNewMyHandCard(inst, ev.card_id || null);
+        if (handCard) {
+          inst = handCard.instance_id;
+          cardIdRevealed = handCard.card_id;
+        } else if (ev.card_id) {
+          cardIdRevealed = ev.card_id;
+        }
+      }
+
       scheduleDrawAnimation(player, cardIdRevealed, ev.reason || "effect", inst || null);
     }
     // === Anúncio de carta jogada pelo oponente ===
