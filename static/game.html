@@ -251,8 +251,14 @@ function fitArenaToViewport() {
   // Margem para não encostar nos cantos (deixa um respiro decorativo).
   const padX = 12;
   const padY = 12;
-  const sx = (window.innerWidth - padX * 2) / ARENA_W;
-  const sy = (window.innerHeight - padY * 2) / ARENA_H;
+  // Usa o tamanho externo real da arena (incluindo a moldura/borda). Antes o
+  // scale era calculado só pelo canvas lógico 1800x1000; como a borda de 14px
+  // fica fora desse tamanho em CSS, a parte de baixo podia ser cortada pelo
+  // overflow do viewport justamente na área da mão do jogador.
+  const outerW = arena.offsetWidth || ARENA_W;
+  const outerH = arena.offsetHeight || ARENA_H;
+  const sx = (window.innerWidth - padX * 2) / outerW;
+  const sy = (window.innerHeight - padY * 2) / outerH;
   arenaScale = Math.min(sx, sy, 1.6); // não passa de 1.6 em telas gigantes
   arena.style.transform = `scale(${arenaScale})`;
   document.body.style.setProperty("--arena-scale", String(arenaScale));
@@ -659,20 +665,13 @@ function renderBoard() {
     handCards.push({ el, c, card });
     myHand.appendChild(el);
   }
-  // Curvatura: espalha cartas em um arco leve. Cada carta recebe rotação
-  // proporcional à distância do centro e um pequeno offset vertical.
-  // O dy é pequeno (até 4px) pra que os cantos do leque NÃO transbordem
-  // por baixo do container e fiquem cortados pelo overflow da arena.
-  const total = handCards.length;
-  if (total > 1) {
-    handCards.forEach(({ el }, i) => {
-      const t = (i - (total - 1) / 2) / Math.max(1, (total - 1) / 2); // -1..1
-      const rot = t * 6;             // até ±6° nas pontas
-      const dy = Math.abs(t) * 4;    // até 4px abaixando nas pontas
-      el.style.transformOrigin = "50% 110%";
-      el.style.transform = `translateY(${dy}px) rotate(${rot}deg)`;
-    });
-  }
+  // Mão em linha reta: sem arco, sem rotação e sem queda nas pontas.
+  // Mantemos as variáveis para que o CSS de hover/estados continue compondo
+  // transforms sem precisar reintroduzir estilos inline por carta.
+  handCards.forEach(({ el }) => {
+    el.style.setProperty("--hand-fan-y", "0px");
+    el.style.setProperty("--hand-rot", "0deg");
+  });
   arena.appendChild(myHand);
 
   // Decks à direita da mesa (absoluto, dentro do arena)
