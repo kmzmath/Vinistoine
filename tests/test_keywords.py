@@ -287,9 +287,43 @@ def test_silence_remove_buffs():
     assert m.attack == base_atk
     assert m.max_health == base_hp
     assert m.divine_shield is False
-    # Tags resetadas para originais (não tem TAUNT/DIVINE_SHIELD na carta original)
+    # Tags/keywords existentes são removidas; buffs futuros ainda podem aplicar.
     assert "TAUNT" not in m.tags
     assert "DIVINE_SHIELD" not in m.tags
+
+
+
+def test_silenced_minion_recebe_buffs_e_keywords_depois():
+    """Silence remove efeitos atuais, mas não bloqueia encantamentos futuros."""
+    state = _new_blank_match()
+    pid = state.current_player
+    m = _force_minion(state, pid, card_id="vini_zumbi", attack=2, health=3,
+                      tags=["TAUNT", "DIVINE_SHIELD"])
+    m.divine_shield = True
+
+    silence = {"action": "SILENCE", "target": {"mode": "CHOSEN", "valid": ["ANY_MINION"]}}
+    effects.resolve_effect(state, silence, pid, None, {"chosen_target": m.instance_id})
+
+    buff = {"action": "BUFF_STATS", "attack": 2, "health": 2,
+            "target": {"mode": "CHOSEN", "valid": ["ANY_MINION"]}}
+    effects.resolve_effect(state, buff, pid, None, {"chosen_target": m.instance_id})
+    add_taunt = {"action": "ADD_TAG", "tag": "TAUNT",
+                 "target": {"mode": "CHOSEN", "valid": ["ANY_MINION"]}}
+    effects.resolve_effect(state, add_taunt, pid, None, {"chosen_target": m.instance_id})
+    add_shield = {"action": "ADD_TAG", "tag": "DIVINE_SHIELD",
+                  "target": {"mode": "CHOSEN", "valid": ["ANY_MINION"]}}
+    effects.resolve_effect(state, add_shield, pid, None, {"chosen_target": m.instance_id})
+
+    assert m.silenced is True
+    assert (m.attack, m.health, m.max_health) == (4, 5, 5)
+    assert m.has_tag("TAUNT") is True
+    assert m.divine_shield is True
+    assert "TAUNT" in m.to_dict()["keywords"]
+    assert "DIVINE_SHIELD" in m.to_dict()["keywords"]
+
+    effects.damage_character(state, m, 3, source_owner=1 - pid)
+    assert m.divine_shield is False
+    assert m.health == 5
 
 
 def test_silence_mantem_dano_proporcional():
