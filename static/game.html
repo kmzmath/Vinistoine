@@ -1095,45 +1095,46 @@ function appendKeywordHelpPreview(root, card, runtimeKeywords = []) {
   root.insertBefore(wrap, root.firstChild);
 }
 
-function getMinionSummonPreviewCards(card) {
+const CARD_RELATED_PREVIEW_IDS = {
+  gusnabo_sagrado: ["pera_sagrada"],
+  traficante: ["substancias_ilicitas"],
+};
+
+function getRelatedPreviewCards(card) {
   const previews = [];
   const seen = new Set();
-  for (const effect of (card.effects || [])) {
-    // O caso mais importante é o Último Suspiro que evoca outro lacaio
-    // (ex: Pizzaiolo -> Pizza). Mantemos as ações genéricas de evocação
-    // para que outros lacaios com fichas/cópias também revelem o resultado.
-    const action = effect.action || "";
-    if (!action.includes("SUMMON")) continue;
-
-    let previewCard = null;
-    const previewId = effect.card_id || effect.summon_card_id;
-    if (previewId) {
-      previewCard = allCards[previewId] || null;
-    } else if (effect.token) {
-      previewCard = normalizeTokenPreviewCard(effect.token);
-    }
-    if (!previewCard || previewCard.type !== "MINION") continue;
-
+  const addPreview = (previewCard, amount = null, trigger = "") => {
+    if (!previewCard) return;
     const key = previewCard.id || previewCard.name;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return;
     seen.add(key);
-    previews.push({
-      card: previewCard,
-      amount: effect.amount || effect.summon_count || effect.summon_count_source || null,
-      trigger: effect.trigger || "",
-    });
+    previews.push({ card: previewCard, amount, trigger });
+  };
+
+  for (const relatedId of (CARD_RELATED_PREVIEW_IDS[card.id] || [])) {
+    addPreview(allCards[relatedId] || null);
+  }
+
+  for (const effect of (card.effects || [])) {
+    const action = effect.action || "";
+    const previewId = effect.card_id || effect.summon_card_id;
+    if (previewId && (action.includes("SUMMON") || action.includes("CAST_CARD") || action.includes("DRAW_SPELL"))) {
+      addPreview(allCards[previewId] || null, effect.amount || effect.summon_count || effect.summon_count_source || null, effect.trigger || "");
+    } else if (action.includes("SUMMON") && effect.token) {
+      addPreview(normalizeTokenPreviewCard(effect.token), effect.amount || effect.summon_count || effect.summon_count_source || null, effect.trigger || "");
+    }
   }
   return previews;
 }
 
 function appendRelatedSummonPreviews(root, card) {
-  const relatedSummons = getMinionSummonPreviewCards(card);
+  const relatedSummons = getRelatedPreviewCards(card);
   if (!relatedSummons.length) return;
 
   root.classList.add("has-related");
   const relatedWrap = document.createElement("div");
   relatedWrap.className = "related-summon-preview";
-  relatedWrap.innerHTML = `<div class="related-summon-label">Evoca</div>`;
+  relatedWrap.innerHTML = `<div class="related-summon-label">Relacionadas</div>`;
 
   for (const related of relatedSummons) {
     const relatedItem = document.createElement("div");
@@ -1169,6 +1170,13 @@ function showMinionCardPreview(m, ev) {
   root.appendChild(previewCard);
   if (!m.silenced) appendKeywordHelpPreview(root, card, m.keywords || []);
   if (!m.silenced) appendRelatedSummonPreviews(root, card);
+  if (!m.silenced && (m.related_card_ids || []).length) {
+    const oldIds = CARD_RELATED_PREVIEW_IDS[card.id];
+    CARD_RELATED_PREVIEW_IDS[card.id] = [...(oldIds || []), ...(m.related_card_ids || [])];
+    appendRelatedSummonPreviews(root, { ...card, id: card.id });
+    if (oldIds) CARD_RELATED_PREVIEW_IDS[card.id] = oldIds;
+    else delete CARD_RELATED_PREVIEW_IDS[card.id];
+  }
 
   root.classList.add("visible");
   moveMinionCardPreview(ev);
@@ -1492,6 +1500,10 @@ function renderMinion(m, isOpponent) {
         ? `✦${abilityRemaining}`
         : (firstAbility.trigger === "ACTIVATED_ABILITY" ? `✦${abilityCost}` : "↯"))
     : "";
+  const linked = m.linked_minion || null;
+  const linkedImg = linked && cardImages[linked.card_id]
+    ? `<span class="linked-minion-portrait has-image" title="Vinculado a ${escapeHtml(linked.name || cardName(linked.card_id, linked.card_id))}" style="background-image:url('${cardImages[linked.card_id]}')"></span>`
+    : (linked ? `<span class="linked-minion-portrait" title="Vinculado a ${escapeHtml(linked.name || linked.card_id)}">${escapeHtml((linked.name || '?').charAt(0))}</span>` : "");
 
   div.innerHTML = `
     <div class="${nameClass}">${escapeHtml(m.name)}</div>
@@ -1503,7 +1515,7 @@ function renderMinion(m, isOpponent) {
     ${!isDormant ? divineOverlay : ""}
     ${!isDormant ? frozenOverlay : ""}
     ${silenceOverlay}
-    ${!isDormant ? `<div class="atk-badge ${atkChanged}">${m.attack}</div><div class="hp-badge ${hpChanged}">${m.health}</div>` : `<div class="dormant-label">DORMENTE</div>`}
+    ${!isDormant ? `<div class="atk-badge ${atkChanged}">${m.attack}</div><div class="hp-badge ${hpChanged}">${m.health}</div>${linkedImg}` : `<div class="dormant-label">DORMENTE</div>`}
     ${primarySeal && !isDormant ? `<div class="keyword-seal" data-kw="${primarySeal}" title="${KW_NAME[primarySeal] || primarySeal}"></div>` : ""}
     ${isSick && !isDormant ? `<div class="zzz-anim"><span class="z z1">z</span><span class="z z2">z</span><span class="z z3">Z</span></div>` : ""}
   `;
@@ -2432,6 +2444,86 @@ function renderPendingChoiceOverlay() {
       }
     }
 
+    overlay.appendChild(row);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "heal_opponent_and_draw_scaling") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha quanto curar o adversário para comprar cartas.";
+    overlay.appendChild(msg);
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    row.style.flexWrap = "wrap";
+    (choice.options || []).forEach((opt, index) => {
+      const btn = document.createElement("button");
+      btn.className = "btn primary";
+      btn.textContent = `Curar ${opt.heal_amount}, comprar ${opt.draw_amount}`;
+      btn.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { index } });
+        clearPendingChoiceOverlay();
+      };
+      row.appendChild(btn);
+    });
+    overlay.appendChild(row);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "heal_or_revive_friendly") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = `Escolha um aliado para curar em ${choice.amount || 0}, ou um lacaio morto para reviver.`;
+    overlay.appendChild(msg);
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    row.style.flexWrap = "wrap";
+    (choice.options || []).forEach(opt => {
+      const id = opt.id || opt.instance_id;
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      if (opt.kind === "dead_minion") {
+        const hpText = opt.revived_health ? ` com ${opt.revived_health} de vida` : "";
+        btn.textContent = `Reviver: ${opt.name || cardName(opt.card_id, opt.card_id)}${hpText}`;
+      } else if (opt.kind === "hero") {
+        btn.textContent = `Herói (${opt.health}/${opt.max_health})`;
+      } else {
+        btn.textContent = `${opt.name || cardName(opt.card_id, opt.card_id)} (${opt.health}/${opt.max_health})`;
+      }
+      btn.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { target_id: id } });
+        clearPendingChoiceOverlay();
+      };
+      row.appendChild(btn);
+    });
+    overlay.appendChild(row);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "choose_friendly_minion_to_devour") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "Escolha qual lacaio aliado será devorado.";
+    overlay.appendChild(msg);
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.justifyContent = "center";
+    row.style.flexWrap = "wrap";
+    (choice.minions || []).forEach(m => {
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = `${m.name || cardName(m.card_id, m.card_id)} (${m.attack}/${m.health})`;
+      btn.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { target_id: m.instance_id } });
+        clearPendingChoiceOverlay();
+      };
+      row.appendChild(btn);
+    });
     overlay.appendChild(row);
     document.getElementById("overlay-root").appendChild(overlay);
     return;
