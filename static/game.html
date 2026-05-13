@@ -395,6 +395,21 @@ function renderMulligan() {
 
   const myDone = (state.mulligan_done || [])[myPid] === true;
   const oppDone = (state.mulligan_done || [])[1 - myPid] === true;
+  const playIntro = !matchIntroPlayed && !myDone;
+  if (playIntro) matchIntroPlayed = true;
+
+  const layout = document.createElement("div");
+  layout.className = "arena-layout mulligan-arena" + (playIntro ? " intro-playing" : "");
+
+  const stage = document.createElement("div");
+  stage.className = "mulligan-stage";
+  stage.innerHTML = `
+    <div class="match-intro-ambient" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    ${renderVersusPortrait(state.you, "player-a")}
+    ${renderVersusPortrait(state.opponent, "player-b")}
+    <div class="match-intro-vs" aria-hidden="true">VS</div>
+  `;
+  layout.appendChild(stage);
 
   const overlay = document.createElement("div");
   overlay.className = "mulligan-overlay" + (myDone ? " confirmed" : "");
@@ -402,12 +417,16 @@ function renderMulligan() {
   let headerHtml;
   if (myDone) {
     headerHtml = `
-      <h2 style="color: var(--gold-bright);">Cartas confirmadas</h2>
-      <div class="muted">Aguarde o oponente terminar a troca de cartas.</div>`;
+      <div class="mulligan-banner confirmed-banner">
+        <h2 style="color: var(--gold-bright);">Cartas confirmadas</h2>
+        <div class="muted">Aguarde o oponente terminar a troca de cartas.</div>
+      </div>`;
   } else {
     headerHtml = `
-      <h2>Selecione cartas para descartar</h2>
-      <div class="muted">Clique nas cartas que NÃO quer manter. Elas voltam ao baralho e você compra novas.</div>`;
+      <div class="mulligan-banner">
+        <h2>Mão Inicial</h2>
+        <div class="muted">Mantenha ou substitua cartas</div>
+      </div>`;
   }
 
   overlay.innerHTML = `
