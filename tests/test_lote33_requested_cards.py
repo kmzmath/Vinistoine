@@ -252,7 +252,7 @@ def test_rei_arvore_corrompido_replaces_all_minions_with_trunks_without_deaths()
 
     _play_from_hand(state, pid, "rei_arvore_corrompido")
 
-    assert [m.card_id for m in state.players[pid].board] == ["tronco", "tronco"]
+    assert [m.card_id for m in state.players[pid].board] == ["tronco", "rei_arvore_corrompido"]
     assert [m.card_id for m in state.players[foe].board] == ["tronco"]
     assert state.graveyard == []
     assert not any(ev.get("type") == "death" for ev in state.event_log)
@@ -306,6 +306,46 @@ def test_sastv_draws_three_and_manual_choice_plays_one_for_free():
 
     assert [m.card_id for m in p.board] == ["tres_fuscas"]
     assert sorted(c.card_id for c in p.hand) == ["vini", "vinish"]
+
+
+def test_sastv_allows_free_play_choice_when_only_two_cards_are_drawn():
+    state = _new_game(seed=48, manual_choices=True)
+    pid = state.current_player
+    p = state.players[pid]
+    p.hand.clear()
+    p.deck = ["vini", "vinish"]
+    p.mana = 10
+    ch = _add_hand(state, pid, "sastv")
+
+    ok, msg = engine.play_card(state, pid, ch.instance_id)
+    assert ok, msg
+    choice = state.pending_choice
+
+    assert choice["kind"] == "choose_drawn_card_to_play_free"
+    assert [opt["card_id"] for opt in choice["cards"]] == ["vini", "vinish"]
+    ok, msg = engine.resolve_choice(state, pid, choice["choice_id"], {"index": 0})
+    assert ok, msg
+    assert [m.card_id for m in p.board] == ["vini"]
+    assert [c.card_id for c in p.hand] == ["vinish"]
+
+
+def test_sastv_does_nothing_when_no_cards_are_drawn():
+    state = _new_game(seed=49, manual_choices=True)
+    pid = state.current_player
+    p = state.players[pid]
+    p.hand.clear()
+    p.deck = []
+    p.mana = 10
+    ch = _add_hand(state, pid, "sastv")
+
+    ok, msg = engine.play_card(state, pid, ch.instance_id)
+    assert ok, msg
+
+    assert state.pending_choice is None
+    assert p.hand == []
+    assert p.board == []
+    assert any(ev.get("type") == "free_play_choice_skipped" and ev.get("reason") == "no_drawn_cards"
+               for ev in state.event_log)
 
 
 def test_vinish_deathrattle_wins_when_owner_has_no_cards_anywhere():

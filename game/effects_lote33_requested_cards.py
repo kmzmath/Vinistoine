@@ -367,6 +367,9 @@ def register_lote33_requested_cards_handlers(handler):
         for player in state.players:
             new_board = []
             for old in list(player.board):
+                if source_minion is not None and old is source_minion:
+                    new_board.append(old)
+                    continue
                 trunk = _minion_from_card_id("tronco", player.player_id)
                 if trunk:
                     new_board.append(trunk)
@@ -412,6 +415,13 @@ def register_lote33_requested_cards_handlers(handler):
         draw_card(state, p, amount)
         drawn = [c for c in p.hand if c.instance_id not in before]
         if not drawn:
+            state.log_event({
+                "type": "free_play_choice_skipped",
+                "player": source_owner,
+                "reason": "no_drawn_cards",
+                "drawn": 0,
+                "required": amount,
+            })
             return
         if getattr(state, "manual_choices", False):
             state.pending_choice = {

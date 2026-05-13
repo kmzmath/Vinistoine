@@ -2245,6 +2245,40 @@ function renderPendingChoiceOverlay() {
     return;
   }
 
+  if (choice.kind === "choose_drawn_card_to_play_free") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = "SAS TV: escolha uma das cartas compradas para jogar de graça.";
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.cards || []).forEach((ch, idx) => {
+      const card = allCards[ch.card_id];
+      if (!card) return;
+      const col = document.createElement("div");
+      col.style.textAlign = "center";
+      const el = renderCard(card, card.cost ?? 0, { show_hand_stats: true });
+      el.onclick = () => {
+        send("choice_response", {
+          choice_id: choice.choice_id,
+          response: { index: idx }
+        });
+        clearPendingChoiceOverlay();
+      };
+      col.appendChild(el);
+      const btn = document.createElement("button");
+      btn.className = "btn primary small";
+      btn.textContent = "Jogar grátis";
+      btn.onclick = el.onclick;
+      col.appendChild(btn);
+      cardsBox.appendChild(col);
+    });
+    overlay.appendChild(cardsBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
   if (choice.kind === "reveal_card_from_hand" || choice.kind === "move_hand_card_to_opponent_deck_top") {
     const msg = document.createElement("div");
     msg.className = "muted";
