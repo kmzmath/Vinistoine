@@ -212,6 +212,13 @@ def start_turn(state: GameState):
 
     state.pending_modifiers = [pm for pm in state.pending_modifiers if pm not in sot_to_remove]
 
+    # Resolve transformações programadas para o começo do turno (ex: Rei Árvore).
+    try:
+        from .effects_lote33_requested_cards import process_start_turn_transforms
+        process_start_turn_transforms(state, p.player_id)
+    except Exception:
+        pass
+
     # Dispara ON_TURN_START dos lacaios ANTES da compra, pois Portal precisa
     # registrar o "pending: substituir compra por play_top_card" antes de
     # acontecer a compra.
@@ -645,6 +652,11 @@ def apply_continuous_effects(state: GameState):
             atk = int(eff.get("amount", 1) or 1) * n
             for t in targets:
                 _mark_stat(t, source, atk, 0)
+        elif action == "HALVE_STATS_ROUNDED_DOWN":
+            for t in targets:
+                new_atk = max(0, t.attack // 2)
+                new_hp = max(1, t.max_health // 2)
+                _mark_stat(t, source, new_atk - t.attack, new_hp - t.max_health)
         elif action == "ADD_TAG":
             tag = eff.get("tag")
             for t in targets:
@@ -1047,7 +1059,18 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
                 pay_with_health = True
                 pending_to_consume.append(pm)
 
+    is_minion = card.get("type") == "MINION"
+    is_spell_card = card.get("type") == "SPELL"
+    if chosen_targets is None:
+        chosen_targets = [chosen_target] if chosen_target is not None else []
+    chosen_target = chosen_targets[0] if chosen_targets else None
+
     cost = max(0, compute_dynamic_cost(state, p, card_in_hand, card) - extra_reduction)
+    if card.get("id") == "reflexo" and chosen_target:
+        found = state.find_minion(chosen_target)
+        if found:
+            target_card = get_card(found[0].card_id) or {}
+            cost = max(0, int(target_card.get("cost", 0) or 0) - extra_reduction)
     # Fortalecer: feitiço fortalecido custa 1 de mana a mais.
     if empowered and card.get("type") == "SPELL" and main_triggers != ["ON_PLAY"]:
         cost += 1
@@ -1058,14 +1081,10 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
     elif p.mana < cost:
         return False, f"Mana insuficiente ({p.mana}/{cost})"
 
-    is_minion = card.get("type") == "MINION"
-    is_spell_card = card.get("type") == "SPELL"
     if is_minion and len(p.board) >= MAX_BOARD_SIZE:
         return False, "Campo cheio"
 
     # Valida alvo(s) antes de gastar mana/remover carta.
-    if chosen_targets is None:
-        chosen_targets = [chosen_target] if chosen_target is not None else []
     chosen_descs = targeting.chosen_targets_for_card(card, chose_index=chose_index,
                                                     triggers=main_triggers)
     for idx, chosen_desc in enumerate(chosen_descs):
@@ -1084,8 +1103,6 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
             return False, "Esta carta exige um alvo"
         if not targeting.resolve_targets(state, chosen_desc, player_id, None, target_id, is_spell=is_spell_card):
             return False, "Alvo inválido"
-    chosen_target = chosen_targets[0] if chosen_targets else None
-
     # paga custo e remove da mão
     if pay_with_health:
         p.hero_health -= cost
@@ -1756,6 +1773,27 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
                          "player": player_id,
                          "choose_revealed": choose_revealed})
         _resume_choice_effects(state, choice)
+        return True, "OK"
+
+    if kind == "choose_drawn_card_to_play_free":
+        selected = response.get("card_id") or response.get("instance_id")
+        if selected is None and response.get("index") is not None:
+            try:
+                idx = int(response.get("index"))
+                selected = (choice.get("cards") or [])[idx].get("instance_id")
+            except Exception:
+                return False, "Carta inválida"
+        allowed = {c.get("instance_id") for c in (choice.get("cards") or [])}
+        if selected not in allowed:
+            return False, "Carta inválida"
+        if not any(c.instance_id == selected for c in p.hand):
+            return False, "Carta não está mais na mão"
+        state.pending_choice = None
+        from .effects_lote33_requested_cards import _play_hand_card_instance_free
+        _play_hand_card_instance_free(state, player_id, selected)
+        state.log_event({"type": "choice_resolved", "kind": kind, "player": player_id})
+        _resume_choice_effects(state, choice)
+        cleanup(state)
         return True, "OK"
 
     if kind == "build_replacement_deck":

@@ -96,6 +96,107 @@ def handle_return_spell_on_death(state, minion: Minion, owner: int):
     state.pending_modifiers = keep
 
 
+
+def _make_minion_copy(template: Minion, owner: int, attack: int | None = None, health: int | None = None) -> Minion:
+    copy_health = template.health if health is None else health
+    copy_attack = template.attack if attack is None else attack
+    return Minion(
+        instance_id=gen_id("m_"),
+        card_id=template.card_id,
+        name=template.name,
+        attack=max(0, int(copy_attack)),
+        health=max(1, int(copy_health)),
+        max_health=max(1, int(template.max_health if health is None else health)),
+        tags=[t for t in list(template.tags or []) if not str(t).startswith("_AURA_")],
+        tribes=list(template.tribes or []),
+        effects=[dict(e) for e in (template.effects or [])],
+        owner=owner,
+        divine_shield=bool(template.divine_shield),
+        frozen=bool(template.frozen),
+        freeze_pending=bool(template.freeze_pending),
+        silenced=bool(template.silenced),
+        cant_attack=bool(template.cant_attack),
+        immune=bool(template.immune),
+        skip_next_attack=bool(template.skip_next_attack),
+        summoning_sick=True,
+    )
+
+
+def _minion_from_card_id(card_id: str, owner: int, attack: int | None = None, health: int | None = None) -> Minion | None:
+    card = get_card(card_id) or {}
+    if card.get("type") != "MINION":
+        return None
+    hp = int(card.get("health") or 1) if health is None else int(health)
+    atk = int(card.get("attack") or 0) if attack is None else int(attack)
+    tags = list(card.get("tags") or [])
+    return Minion(
+        instance_id=gen_id("m_"),
+        card_id=card_id,
+        name=card.get("name", card_id),
+        attack=max(0, atk),
+        health=max(1, hp),
+        max_health=max(1, hp),
+        tags=tags,
+        tribes=list(card.get("tribes") or []),
+        effects=[dict(e) for e in (card.get("effects") or [])],
+        owner=owner,
+        divine_shield="DIVINE_SHIELD" in tags,
+        summoning_sick=True,
+    )
+
+
+def _has_deathrattle(card: dict) -> bool:
+    return "DEATHRATTLE" in (card.get("tags") or []) or any(
+        e.get("trigger") == "ON_DEATH" for e in (card.get("effects") or [])
+    )
+
+
+def _play_hand_card_instance_free(state, owner: int, hand_instance_id: str):
+    p = state.players[owner]
+    hand_card = next((c for c in p.hand if c.instance_id == hand_instance_id), None)
+    if not hand_card:
+        return
+    card = get_card(hand_card.card_id) or {}
+    p.hand.remove(hand_card)
+    from .effects_lote3_familia1 import _play_card_free
+    _play_card_free(state, owner, card)
+    state.log_event({"type": "play_drawn_card_free", "player": owner, "card_id": hand_card.card_id})
+
+
+def process_start_turn_transforms(state, player_id: int):
+    keep = []
+    for pm in list(state.pending_modifiers):
+        if pm.get("kind") != "transform_trunk_into_rei_arvore_start_turn":
+            keep.append(pm)
+            continue
+        if int(pm.get("owner", -1)) != player_id:
+            keep.append(pm)
+            continue
+        found = state.find_minion(pm.get("minion_id"))
+        if not found:
+            continue
+        trunk, owner = found
+        if trunk.card_id != "tronco":
+            continue
+        board = state.players[owner].board
+        try:
+            idx = board.index(trunk)
+        except ValueError:
+            continue
+        new_m = _minion_from_card_id("rei_arvore", owner)
+        if not new_m:
+            continue
+        board[idx] = new_m
+        state.log_event({
+            "type": "transform",
+            "player": owner,
+            "old_card_id": "tronco",
+            "new_card_id": "rei_arvore",
+            "old_minion_id": trunk.instance_id,
+            "new_minion": new_m.to_dict(),
+        })
+    state.pending_modifiers = keep
+
 def register_lote33_requested_cards_handlers(handler):
     @handler("BUILD_REPLACEMENT_DECK_DISCOVER")
     def _build_replacement_deck_discover(state, eff, source_owner, source_minion, ctx):
@@ -255,6 +356,126 @@ def register_lote33_requested_cards_handlers(handler):
         from .effects import draw_card
         for p in state.players:
             draw_card(state, p, draw_amount)
+
+    @handler("HALVE_STATS_ROUNDED_DOWN")
+    def _halve_stats_rounded_down_marker(state, eff, source_owner, source_minion, ctx):
+        # Efeito contínuo aplicado por engine.apply_continuous_effects.
+        return
+
+    @handler("REPLACE_ALL_MINIONS_WITH_TRUNKS_NO_DEATH")
+    def _replace_all_minions_with_trunks_no_death(state, eff, source_owner, source_minion, ctx):
+        for player in state.players:
+            new_board = []
+            for old in list(player.board):
+                trunk = _minion_from_card_id("tronco", player.player_id)
+                if trunk:
+                    new_board.append(trunk)
+                    state.log_event({
+                        "type": "replace_minion_no_death",
+                        "owner": player.player_id,
+                        "old_minion_id": old.instance_id,
+                        "old_card_id": old.card_id,
+                        "new_card_id": "tronco",
+                        "new_minion": trunk.to_dict(),
+                    })
+            player.board = new_board
+
+    @handler("SUMMON_TRUNK_THEN_TRANSFORM_NEXT_OWNER_TURN")
+    def _summon_trunk_then_transform_next_owner_turn(state, eff, source_owner, source_minion, ctx):
+        p = state.players[source_owner]
+        if len(p.board) >= MAX_BOARD_SIZE:
+            return
+        position = ctx.get("death_index")
+        if position is None:
+            position = len(p.board)
+        position = max(0, min(int(position), len(p.board)))
+        trunk = _minion_from_card_id("tronco", source_owner)
+        if not trunk:
+            return
+        p.board.insert(position, trunk)
+        state.pending_modifiers.append({
+            "kind": "transform_trunk_into_rei_arvore_start_turn",
+            "owner": source_owner,
+            "minion_id": trunk.instance_id,
+            "card_id": "rei_arvore",
+        })
+        state.log_event({"type": "summon", "owner": source_owner, "minion": trunk.to_dict()})
+        state.log_event({"type": "scheduled_transform", "owner": source_owner,
+                         "minion": trunk.instance_id, "new_card_id": "rei_arvore"})
+
+    @handler("DRAW_THREE_CHOOSE_ONE_PLAY_FREE")
+    def _draw_three_choose_one_play_free(state, eff, source_owner, source_minion, ctx):
+        from .effects import draw_card
+        amount = int(eff.get("amount", 3) or 3)
+        p = state.players[source_owner]
+        before = {c.instance_id for c in p.hand}
+        draw_card(state, p, amount)
+        drawn = [c for c in p.hand if c.instance_id not in before]
+        if not drawn:
+            return
+        if getattr(state, "manual_choices", False):
+            state.pending_choice = {
+                "choice_id": gen_id("choice_"),
+                "kind": "choose_drawn_card_to_play_free",
+                "owner": source_owner,
+                "cards": [{"instance_id": c.instance_id, "card_id": c.card_id} for c in drawn],
+            }
+            state.log_event({"type": "choice_required", "kind": "choose_drawn_card_to_play_free",
+                             "player": source_owner})
+            return
+        chosen = drawn[0]
+        _play_hand_card_instance_free(state, source_owner, chosen.instance_id)
+
+    @handler("VINISH_EMPTY_WIN")
+    def _vinish_empty_win(state, eff, source_owner, source_minion, ctx):
+        p = state.players[source_owner]
+        if p.hand or p.deck or p.board:
+            return
+        state.phase = "ENDED"
+        state.winner = source_owner
+        state.log_event({"type": "game_end", "winner": source_owner, "reason": "vinish"})
+
+    @handler("SUMMON_DEATHRATTLE_COPIES_FROM_DECK_AND_GRAVEYARD")
+    def _summon_deathrattle_copies_from_deck_and_graveyard(state, eff, source_owner, source_minion, ctx):
+        p = state.players[source_owner]
+        card_ids = []
+        for cid in list(p.deck):
+            card = get_card(cid) or {}
+            if card.get("type") == "MINION" and _has_deathrattle(card):
+                card_ids.append(cid)
+        for rec in state.graveyard:
+            if rec.get("owner") != source_owner:
+                continue
+            cid = rec.get("card_id")
+            card = get_card(cid) or {}
+            if card.get("type") == "MINION" and _has_deathrattle(card):
+                card_ids.append(cid)
+        for cid in card_ids:
+            if len(p.board) >= MAX_BOARD_SIZE:
+                break
+            m = _minion_from_card_id(cid, source_owner, attack=1, health=1)
+            if not m:
+                continue
+            if "TAUNT" not in m.tags:
+                m.tags.append("TAUNT")
+            m.divine_shield = "DIVINE_SHIELD" in m.tags
+            p.board.append(m)
+            state.log_event({"type": "summon_deathrattle_copy", "owner": source_owner,
+                             "card_id": cid, "minion": m.to_dict()})
+
+    @handler("SUMMON_EXACT_COPY_OF_CHOSEN_MINION")
+    def _summon_exact_copy_of_chosen_minion(state, eff, source_owner, source_minion, ctx):
+        targets = targeting.resolve_targets(state, eff.get("target") or {}, source_owner,
+                                            source_minion, ctx.get("chosen_target"),
+                                            is_spell=bool(ctx.get("is_spell")))
+        p = state.players[source_owner]
+        for t in targets:
+            if not isinstance(t, Minion) or len(p.board) >= MAX_BOARD_SIZE:
+                continue
+            new_m = _make_minion_copy(t, source_owner)
+            p.board.append(new_m)
+            state.log_event({"type": "summon_exact_copy", "owner": source_owner,
+                             "source": t.instance_id, "copy": new_m.to_dict()})
 
     @handler("SUMMON_FIRST_FRIENDLY_MINION_FROM_GRAVEYARD_AS_BEAST_9_9_CHARGE")
     def _alias_dinomancia(state, eff, source_owner, source_minion, ctx):

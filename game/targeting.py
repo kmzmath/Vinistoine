@@ -40,6 +40,14 @@ def _passes_extra_filters(target_desc: dict, candidate, source_owner: int,
             required_tribes.append(required_tribe)
         if required_tribes and not any(candidate.has_tribe(t) for t in required_tribes):
             return False
+        required_card_ids = target_desc.get("required_card_ids") or target_desc.get("card_ids") or []
+        if isinstance(required_card_ids, str):
+            required_card_ids = [required_card_ids]
+        if required_card_ids and candidate.card_id not in required_card_ids:
+            return False
+        card_id_prefix = target_desc.get("card_id_prefix")
+        if card_id_prefix and not str(candidate.card_id).startswith(str(card_id_prefix)):
+            return False
         required_tag = target_desc.get("required_tag")
         if required_tag and not candidate.has_tag(required_tag):
             return False

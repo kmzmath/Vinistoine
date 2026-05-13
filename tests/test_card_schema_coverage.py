@@ -18,8 +18,8 @@ EXPECTED_UNSUPPORTED_TRIGGERS = set()
 def test_card_actions_are_tracked():
     report = build_coverage_report()
     assert report.missing_actions == EXPECTED_MISSING_ACTIONS
-    assert report.supported_action_occurrences == 311
-    assert report.total_action_occurrences == 311
+    assert report.supported_action_occurrences == 321
+    assert report.total_action_occurrences == 321
 
 
 def test_card_triggers_are_tracked():
