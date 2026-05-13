@@ -1500,9 +1500,11 @@ function renderMinion(m, isOpponent) {
         : (firstAbility.trigger === "ACTIVATED_ABILITY" ? `✦${abilityCost}` : "↯"))
     : "";
   const linked = m.linked_minion || null;
-  const linkedImg = linked && cardImages[linked.card_id]
-    ? `<span class="linked-minion-portrait has-image" title="Vinculado a ${escapeHtml(linked.name || cardName(linked.card_id, linked.card_id))}" style="background-image:url('${cardImages[linked.card_id]}')"></span>`
-    : (linked ? `<span class="linked-minion-portrait" title="Vinculado a ${escapeHtml(linked.name || linked.card_id)}">${escapeHtml((linked.name || '?').charAt(0))}</span>` : "");
+  const linkedCard = m.linked_card || null;
+  const linkedData = linked || linkedCard;
+  const linkedImg = linkedData && cardImages[linkedData.card_id]
+    ? `<span class="linked-minion-portrait has-image" title="Vinculado a ${escapeHtml(linkedData.name || cardName(linkedData.card_id, linkedData.card_id))}" style="background-image:url('${cardImages[linkedData.card_id]}')"></span>`
+    : (linkedData ? `<span class="linked-minion-portrait" title="Vinculado a ${escapeHtml(linkedData.name || linkedData.card_id)}">${escapeHtml((linkedData.name || '?').charAt(0))}</span>` : "");
 
   div.innerHTML = `
     <div class="${nameClass}">${escapeHtml(m.name)}</div>
@@ -2697,6 +2699,29 @@ function renderPendingChoiceOverlay() {
     btnBox.appendChild(bottom);
 
     overlay.appendChild(btnBox);
+    document.getElementById("overlay-root").appendChild(overlay);
+    return;
+  }
+
+  if (choice.kind === "build_replacement_deck") {
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.textContent = `Carvalho: escolha ${choice.step || 1}/${choice.total || 10} para o novo deck.`;
+    overlay.appendChild(msg);
+
+    const cardsBox = document.createElement("div");
+    cardsBox.className = "mulligan-cards";
+    (choice.options || []).forEach((opt, idx) => {
+      const card = allCards[opt.card_id];
+      if (!card) return;
+      const el = renderCard(card, card.cost ?? 0);
+      el.onclick = () => {
+        send("choice_response", { choice_id: choice.choice_id, response: { index: idx } });
+        clearPendingChoiceOverlay();
+      };
+      cardsBox.appendChild(el);
+    });
+    overlay.appendChild(cardsBox);
     document.getElementById("overlay-root").appendChild(overlay);
     return;
   }

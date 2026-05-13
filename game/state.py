@@ -378,6 +378,18 @@ class GameState:
                             "name": target_minion.name,
                         }
 
+            elif kind == "return_spell_to_deck_on_minion_death":
+                found = self.find_minion(pm.get("minion_id"))
+                if found:
+                    minion_view = _minion_view(found[1], pm.get("minion_id"))
+                    if minion_view is not None:
+                        from .cards import get_card
+                        card = get_card(pm.get("card_id") or "sub") or {}
+                        minion_view["linked_card"] = {
+                            "card_id": pm.get("card_id") or "sub",
+                            "name": card.get("name", pm.get("card_id") or "sub"),
+                        }
+
         # Previews dinâmicos de hover: Fusca Medicinal mostra qual lacaio o
         # próximo fim de turno ressuscitará, quando houver cemitério conhecido.
         last_dead_by_owner = {}
