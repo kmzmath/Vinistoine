@@ -55,6 +55,8 @@ const ATTACK_STATE_RENDER_DELAY_MS = 170;
 const ATTACK_IMPACT_MS = 105;
 const DAMAGE_BUBBLE_MS = 300;
 const DEATH_ANIMATION_MS = 300;
+const SPARK_BURST_MS = 300;
+const IMPACT_RING_MS = 220;
 
 function scheduleStateRender(delay = 0) {
   if (myPid === null) return;
@@ -3524,7 +3526,7 @@ function spawnSpark(el) {
   s.style.left = (r.left + r.width / 2 - 35) + "px";
   s.style.top  = (r.top  + r.height / 2 - 35) + "px";
   fx.appendChild(s);
-  setTimeout(() => s.remove(), 460);
+  setTimeout(() => s.remove(), SPARK_BURST_MS);
 }
 
 // Anima o ATAQUE: o atacante caminha até o alvo, tromba nele e volta.
@@ -3603,7 +3605,7 @@ function spawnImpactRing(el) {
   ring.style.left = (r.left + r.width / 2 - 45) + "px";
   ring.style.top = (r.top + r.height / 2 - 45) + "px";
   fx.appendChild(ring);
-  setTimeout(() => ring.remove(), 360);
+  setTimeout(() => ring.remove(), IMPACT_RING_MS);
 }
 
 // Após cada render, dispara animações pendentes

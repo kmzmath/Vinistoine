@@ -2131,7 +2131,7 @@ input:focus { border-color: var(--gold); }
   width: 70px; height: 70px;
   pointer-events: none;
   z-index: 22;
-  animation: sparkBurst 0.45s ease-out forwards;
+  animation: sparkBurst 0.3s ease-out forwards;
 }
 .spark-burst::before {
   content: ""; position: absolute; inset: 0;
