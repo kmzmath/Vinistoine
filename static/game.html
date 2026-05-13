@@ -2487,8 +2487,7 @@ function renderPendingChoiceOverlay() {
       const btn = document.createElement("button");
       btn.className = "btn";
       if (opt.kind === "dead_minion") {
-        const hpText = opt.revived_health ? ` com ${opt.revived_health} de vida` : "";
-        btn.textContent = `Reviver: ${opt.name || cardName(opt.card_id, opt.card_id)}${hpText}`;
+        btn.textContent = `Reviver: ${opt.name || cardName(opt.card_id, opt.card_id)}`;
       } else if (opt.kind === "hero") {
         btn.textContent = `Herói (${opt.health}/${opt.max_health})`;
       } else {

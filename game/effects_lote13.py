@@ -108,33 +108,6 @@ def _recent_friendly_graveyard(state, owner: int, pool_size: int | None = None):
     return out
 
 
-
-def _dead_this_turn_heal_health(rec: dict, amount: int, current_turn: int) -> int | None:
-    """Retorna a vida pós-cura para um lacaio morto neste turno, se reviver.
-
-    Para registros antigos/testes sem metadados de morte, mantém o fallback
-    histórico de reviver com ``amount`` de vida.
-    """
-    rec_turn = rec.get("turn_number")
-    if rec_turn is not None and int(rec_turn) != int(current_turn):
-        return None
-    if "health_at_death" not in rec:
-        return max(1, int(amount or 0)) if amount > 0 else None
-    revived_health = int(rec.get("health_at_death", 0) or 0) + int(amount or 0)
-    return revived_health if revived_health > 0 else None
-
-
-def _recent_friendly_dead_this_turn_for_heal(state, owner: int, amount: int, pool_size: int | None = None):
-    out = []
-    for idx, rec in _recent_friendly_graveyard(state, owner, None):
-        revived_health = _dead_this_turn_heal_health(rec, amount, state.turn_number)
-        if revived_health is None:
-            continue
-        out.append((idx, rec, revived_health))
-        if pool_size is not None and len(out) >= pool_size:
-            break
-    return out
-
 def register_lote13_handlers(handler):
     @handler("RECRUIT_FIRST_MINION_WITH_COST")
     def _recruit_first_minion_with_cost(state, eff, source_owner, source_minion, ctx):
@@ -363,9 +336,8 @@ def register_lote13_handlers(handler):
                 idx = -1
             if eff.get("can_revive_dead_this_turn") and 0 <= idx < len(state.graveyard):
                 rec = state.graveyard[idx]
-                revived_health = _dead_this_turn_heal_health(rec, amount, state.turn_number)
-                if rec.get("owner") == source_owner and revived_health is not None:
-                    _resurrect_card(state, source_owner, rec.get("card_id"), health=revived_health)
+                if rec.get("owner") == source_owner:
+                    _resurrect_card(state, source_owner, rec.get("card_id"), health=amount)
                     return
 
         targets = targeting.resolve_targets(state, eff.get("target") or {}, source_owner,
@@ -390,12 +362,11 @@ def register_lote13_handlers(handler):
                         "max_health": me.hero_max_health}]
             options.extend(m.to_dict() for m in me.board)
             if eff.get("can_revive_dead_this_turn"):
-                for idx, rec, revived_health in _recent_friendly_dead_this_turn_for_heal(state, source_owner, amount, 3):
+                for idx, rec in _recent_friendly_graveyard(state, source_owner, 3):
                     card = get_card(rec.get("card_id")) or {}
                     options.append({"id": f"dead:{idx}", "kind": "dead_minion",
                                     "card_id": rec.get("card_id"),
-                                    "name": rec.get("name") or card.get("name") or rec.get("card_id"),
-                                    "revived_health": revived_health})
+                                    "name": rec.get("name") or card.get("name") or rec.get("card_id")})
             state.pending_choice = {
                 "choice_id": gen_id("choice_"),
                 "kind": "heal_or_revive_friendly",
@@ -426,10 +397,9 @@ def register_lote13_handlers(handler):
             return
 
         if eff.get("can_revive_dead_this_turn"):
-            options = _recent_friendly_dead_this_turn_for_heal(state, source_owner, amount, 1)
+            options = _recent_friendly_graveyard(state, source_owner, 1)
             if options:
-                _, rec, revived_health = options[0]
-                _resurrect_card(state, source_owner, rec.get("card_id"), health=revived_health)
+                _resurrect_card(state, source_owner, options[0][1].get("card_id"), health=amount)
 
     @handler("HEAL_OPPONENT_AND_DRAW_SCALING")
     def _heal_opponent_and_draw_scaling(state, eff, source_owner, source_minion, ctx):

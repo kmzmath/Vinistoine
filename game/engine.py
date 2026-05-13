@@ -305,47 +305,26 @@ def _advance_attack_locks_for_player(state: GameState, player_id: int):
     state.pending_modifiers = keep
 
 
-END_TURN_TRIGGERS = ("END_OF_TURN", "END_OF_YOUR_TURN", "ON_END_TURN")
-
-
-def _run_end_turn_triggers(state: GameState, player_id: int,
-                           start_minion_index: int = 0,
-                           start_trigger_index: int = 0,
-                           board_ids: list[str] | None = None) -> bool:
-    """Dispara gatilhos de fim de turno e pausa se algum abrir escolha.
-
-    Quando um efeito como Viní, o Iluminado abre ``pending_choice``, guardamos
-    o próximo ponto de execução. Após a resposta do jogador, a engine continua
-    dali em vez de reiniciar todos os gatilhos e criar escolhas infinitas.
-    """
+def end_turn(state: GameState, player_id: int):
+    if state.pending_choice is not None:
+        return False
+    if state.current_player != player_id or state.phase != "PLAYING":
+        return False
     p = state.players[player_id]
-    board_ids = list(board_ids) if board_ids is not None else [m.instance_id for m in p.board]
-    for i in range(start_minion_index, len(board_ids)):
-        found = state.find_minion(board_ids[i])
-        if not found or found[1] != player_id:
-            continue
-        m = found[0]
-        first_trigger = start_trigger_index if i == start_minion_index else 0
-        for j in range(first_trigger, len(END_TURN_TRIGGERS)):
-            effects.fire_minion_trigger(state, m, END_TURN_TRIGGERS[j])
-            if state.pending_choice is not None:
-                next_j = j + 1
-                next_i = i
-                if next_j >= len(END_TURN_TRIGGERS):
-                    next_i += 1
-                    next_j = 0
-                state.pending_choice["resume_end_turn"] = {
-                    "player_id": player_id,
-                    "next_minion_index": next_i,
-                    "next_trigger_index": next_j,
-                    "board_ids": board_ids,
-                }
-                return False
-    return True
+    # dispara END_OF_TURN nos lacaios do jogador. Alguns efeitos de fim de
+    # turno podem abrir uma escolha manual; nesse caso pausamos a virada até o
+    # cliente responder, em vez de avançar o turno e resolver por heurística.
+    for m in list(p.board):
+        effects.fire_minion_trigger(state, m, "END_OF_TURN")
+        if state.pending_choice is not None:
+            return True
+        effects.fire_minion_trigger(state, m, "END_OF_YOUR_TURN")
+        if state.pending_choice is not None:
+            return True
+        effects.fire_minion_trigger(state, m, "ON_END_TURN")
+        if state.pending_choice is not None:
+            return True
 
-
-def _finish_end_turn_after_triggers(state: GameState, player_id: int) -> bool:
-    p = state.players[player_id]
     # Descongela no FIM do turno do dono, mas APENAS se o lacaio veio
     # congelado de antes (não foi congelado AGORA durante este turno).
     # Marcamos congelados "frescos" com freeze_pending. No fim do turno:
@@ -431,32 +410,6 @@ def _finish_end_turn_after_triggers(state: GameState, player_id: int) -> bool:
     start_turn(state)
     return True
 
-
-def _continue_end_turn_after_choice(state: GameState, resume: dict | None) -> bool:
-    if not resume:
-        return False
-    player_id = int(resume.get("player_id"))
-    if state.current_player != player_id or state.phase != "PLAYING":
-        return False
-    if not _run_end_turn_triggers(
-        state,
-        player_id,
-        int(resume.get("next_minion_index", 0) or 0),
-        int(resume.get("next_trigger_index", 0) or 0),
-        list(resume.get("board_ids") or []),
-    ):
-        return True
-    return _finish_end_turn_after_triggers(state, player_id)
-
-
-def end_turn(state: GameState, player_id: int):
-    if state.pending_choice is not None:
-        return False
-    if state.current_player != player_id or state.phase != "PLAYING":
-        return False
-    if not _run_end_turn_triggers(state, player_id):
-        return True
-    return _finish_end_turn_after_triggers(state, player_id)
 
 def _remove_temporary_tags_at_end_of_turn(state: GameState, player_id: int):
     """Remove efeitos temporários no fim do turno do dono/turno-alvo."""
@@ -1634,13 +1587,11 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
         from .effects import heal_character, draw_card
         heal_character(state, state.opponent_of(player_id), int(opt.get("heal_amount", 0) or 0))
         draw_card(state, state.players[player_id], int(opt.get("draw_amount", 0) or 0))
-        resume_end_turn = choice.get("resume_end_turn")
         state.pending_choice = None
         state.log_event({"type": "choice_resolved", "kind": kind,
                          "player": player_id, "index": idx})
         _resume_choice_effects(state, choice)
-        if resume_end_turn and state.pending_choice is None:
-            _continue_end_turn_after_choice(state, resume_end_turn)
+        cleanup(state)
         return True, "OK"
 
     if kind == "heal_or_revive_friendly":
@@ -1660,11 +1611,8 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
             rec = state.graveyard[idx]
             if rec.get("owner") != player_id:
                 return False, "Lacaio inválido"
-            from .effects_lote13 import _dead_this_turn_heal_health, _resurrect_card
-            revived_health = _dead_this_turn_heal_health(rec, amount, state.turn_number)
-            if revived_health is None:
-                return False, "Este lacaio não pode ser revivido por esta cura"
-            _resurrect_card(state, player_id, rec.get("card_id"), health=revived_health)
+            from .effects_lote13 import _resurrect_card
+            _resurrect_card(state, player_id, rec.get("card_id"), health=amount)
         else:
             targets = targeting.resolve_targets(
                 state, {"mode": "CHOSEN", "valid": ["FRIENDLY_CHARACTER"]},
@@ -1673,13 +1621,11 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
             if not targets:
                 return False, "Alvo inválido"
             heal_character(state, targets[0], amount)
-        resume_end_turn = choice.get("resume_end_turn")
         state.pending_choice = None
         state.log_event({"type": "choice_resolved", "kind": kind,
                          "player": player_id, "target_id": selected})
         _resume_choice_effects(state, choice)
-        if resume_end_turn and state.pending_choice is None:
-            _continue_end_turn_after_choice(state, resume_end_turn)
+        cleanup(state)
         return True, "OK"
 
     if kind == "choose_friendly_minion_to_devour":
@@ -1699,14 +1645,12 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
             "copy_text": True,
             "target": {"mode": "CHOSEN", "valid": ["FRIENDLY_MINION"]},
         }
-        resume_end_turn = choice.get("resume_end_turn")
         state.pending_choice = None
         effects.resolve_effect(state, eff, player_id, source_minion, {"victim_id": selected})
         state.log_event({"type": "choice_resolved", "kind": kind,
                          "player": player_id, "target_id": selected})
         _resume_choice_effects(state, choice)
-        if resume_end_turn and state.pending_choice is None:
-            _continue_end_turn_after_choice(state, resume_end_turn)
+        cleanup(state)
         return True, "OK"
 
 
@@ -2229,9 +2173,6 @@ def cleanup(state: GameState):
                 "card_id": minion.card_id,
                 "owner": owner,
                 "name": minion.name,
-                "turn_number": state.turn_number,
-                "health_at_death": minion.health,
-                "max_health_at_death": minion.max_health,
             })
             state.log_event({"type": "death", "minion": minion.instance_id,
                              "name": minion.name, "card_id": minion.card_id,
