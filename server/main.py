@@ -334,6 +334,23 @@ def save_deck(payload: DeckIn, request: Request):
         return {"id": d.id, "name": d.name, "cards": payload.cards}
 
 
+@app.put("/api/decks/{deck_id}")
+def update_deck(deck_id: int, payload: DeckIn, request: Request):
+    user = require_user(request)
+    err = validate_deck(payload.cards)
+    if err:
+        raise HTTPException(400, err)
+    with get_session() as s:
+        d = s.query(Deck).filter(Deck.id == deck_id, Deck.user_id == user.id).first()
+        if d is None:
+            raise HTTPException(404, "Deck não encontrado")
+        d.name = payload.name.strip()[:60] or "Deck"
+        d.cards_json = json.dumps(payload.cards)
+        s.commit()
+        s.refresh(d)
+        return {"id": d.id, "name": d.name, "cards": d.card_ids()}
+
+
 @app.get("/api/decks")
 def list_decks(request: Request):
     user = require_user(request)

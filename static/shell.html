@@ -662,10 +662,15 @@ function setupDecksHandlers() {
   document.getElementById("save-btn").onclick = async () => {
     if (currentDeck.length !== 30) { toast(`Deck precisa de 30 cartas (tem ${currentDeck.length})`); return; }
     const name = document.getElementById("deck-name").value.trim() || "Deck Sem Nome";
-    const r = await api("/api/decks", { method: "POST", body: JSON.stringify({ name, cards: currentDeck }) });
+    const path = currentDeckId ? `/api/decks/${currentDeckId}` : "/api/decks";
+    const method = currentDeckId ? "PUT" : "POST";
+    const r = await api(path, { method, body: JSON.stringify({ name, cards: currentDeck }) });
     if (!r) return;
     const data = await r.json();
     if (!r.ok) { toast(data.detail || "Erro ao salvar"); return; }
+    currentDeckId = data.id;
+    document.getElementById("deck-name").value = data.name;
+    syncDeckTitleFromInput();
     toast("Deck salvo!");
     await refreshDecksEverywhere();
   };
