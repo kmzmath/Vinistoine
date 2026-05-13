@@ -260,6 +260,29 @@ def start_turn(state: GameState):
 
 
 
+def _would_be_able_to_attack_without_attack_skip(minion: Minion) -> bool:
+    """True se o lacaio teria uma oportunidade real de ataque agora.
+
+    Ignora apenas as travas que representam "perder o próximo ataque"
+    (congelado/Vinagra). Todas as outras restrições continuam contando: já ter
+    atacado, enjoo de invocação sem Investida/Rapidez, ataque 0, Dormente etc.
+    """
+    if minion.has_tag("DORMANT"):
+        return False
+    if minion.cant_attack or minion.attack <= 0:
+        return False
+    if (minion.has_tag("CANT_ATTACK")
+            or minion.has_tag("ATTACK_LOCKED")
+            or minion.has_tag("CANT_ATTACK_ONLY_FRIENDLY")):
+        return False
+    max_attacks = 2 if minion.has_tag("WINDFURY") else 1
+    if minion.attacks_this_turn >= max_attacks:
+        return False
+    if minion.summoning_sick:
+        return minion.has_tag("CHARGE") or minion.has_tag("RUSH")
+    return True
+
+
 def _has_active_freeze_until_source(state: GameState, target_id: str) -> bool:
     """True se o alvo está congelado por uma fonte ainda viva."""
     keep = []
@@ -334,24 +357,22 @@ def end_turn(state: GameState, player_id: int):
         if state.pending_choice is not None:
             return True
 
-    # Descongela no FIM do turno do dono, mas APENAS se o lacaio veio
-    # congelado de antes (não foi congelado AGORA durante este turno).
-    # Marcamos congelados "frescos" com freeze_pending. No fim do turno:
-    #   - freeze_pending=True  → vira freeze "antigo" (será descongelado no
-    #                            próximo end_turn do dono).
-    #   - freeze_pending=False → de fato perdeu o turno, descongela.
+    # Congelar e Vinagra fazem o lacaio perder o próximo ataque de verdade.
+    # Portanto só consumimos essas travas no fim de um turno em que o lacaio
+    # ainda teria uma oportunidade legal de atacar se não estivesse travado.
+    # Se ele já atacou antes de ser congelado/Vinagrado, a penalidade fica para
+    # a próxima oportunidade (normalmente o próximo turno do dono).
     for m in p.board:
+        had_attack_opportunity = _would_be_able_to_attack_without_attack_skip(m)
         if m.frozen:
             if _has_active_freeze_until_source(state, m.instance_id):
                 # Congelamento sustentado por outro lacaio: não descongela pelo fluxo normal.
                 pass
-            elif m.freeze_pending:
-                m.freeze_pending = False  # marcou como "esperando o turno"
-            else:
-                m.frozen = False  # já passou um turno congelado, descongela
-        # SKIP_NEXT_ATTACK consome a próxima oportunidade de ataque. No fim do
-        # turno do dono, essa oportunidade já passou, então limpamos.
-        if m.skip_next_attack:
+            elif had_attack_opportunity:
+                m.frozen = False
+                m.freeze_pending = False
+                state.log_event({"type": "freeze_consumed", "minion": m.instance_id})
+        if m.skip_next_attack and had_attack_opportunity:
             m.skip_next_attack = False
             state.log_event({"type": "skip_next_attack_consumed", "minion": m.instance_id})
     if p.hero_frozen:
@@ -360,10 +381,10 @@ def end_turn(state: GameState, player_id: int):
         else:
             p.hero_frozen = False
 
-    # Congelados aplicados DURANTE este turno (no inimigo) ficam com
-    # freeze_pending=True. No fim do nosso turno marcamos esses como
-    # "amadurecidos" (pending=False) para que descongelem no fim do
-    # próximo turno do dono - assim o lacaio perde apenas UM ataque.
+    # Mantém compatibilidade com efeitos antigos que ainda marcam
+    # freeze_pending em congelamentos recém-aplicados no inimigo. A limpeza
+    # real do congelamento não depende mais deste marcador; ela só acontece
+    # quando o dono encerra um turno em que teria uma oportunidade de ataque.
     # IMPORTANTE: não tocar em alvos sustentados por FREEZE_UNTIL_SELF_DIES
     # (Viní Geladinho), que dependem de freeze_pending continuar True
     # enquanto a fonte está viva.

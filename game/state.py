@@ -37,15 +37,15 @@ class Minion:
     summoning_sick: bool = True  # acabou de entrar em campo, não pode atacar
     divine_shield: bool = False
     frozen: bool = False
-    # Quando o lacaio é congelado, freeze_pending começa True. No primeiro
-    # end_turn do dono, vira False (significando "passou um turno congelado").
-    # No segundo end_turn (sem ter atacado), descongela completamente.
+    # Marcador histórico usado por alguns efeitos de congelamento sustentado.
+    # A regra principal do congelamento é consumida pela próxima oportunidade
+    # real de ataque (ver engine._would_be_able_to_attack_without_attack_skip).
     freeze_pending: bool = False
     silenced: bool = False
     cant_attack: bool = False
     immune: bool = False
-    # SKIP_NEXT_ATTACK: perde a próxima oportunidade de ataque; limpo no fim
-    # do turno do dono, depois que essa oportunidade foi consumida.
+    # SKIP_NEXT_ATTACK: perde a próxima oportunidade real de ataque; só é
+    # limpo quando o lacaio teria conseguido atacar sem esta restrição.
     skip_next_attack: bool = False
     # Habilidades ativadas / ações especiais de "durante seu turno".
     # Por padrão: uma ativação por turno enquanto o lacaio estiver em campo.

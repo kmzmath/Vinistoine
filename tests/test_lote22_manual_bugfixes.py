@@ -120,6 +120,31 @@ def test_vinagra_buffs_and_skips_next_attack():
     assert target.skip_next_attack is True
 
 
+def test_vinagra_after_target_already_attacked_skips_next_turn_attack():
+    state = _new_blank_match()
+    pid = state.current_player
+    foe = 1 - pid
+    p = state.players[pid]
+    p.mana = 10
+    p.hand.clear()
+    target = _force_minion(state, pid, card_id="pizza", attack=1, health=2, ready=True)
+    target.attacks_this_turn = 1
+    ch = _add_hand(state, pid, "vinagra")
+
+    ok, msg = engine.play_card(state, pid, ch.instance_id, chosen_target=target.instance_id)
+    assert ok, msg
+
+    engine.end_turn(state, pid)
+    assert target.skip_next_attack is True
+
+    engine.end_turn(state, foe)
+    assert target.skip_next_attack is True
+    assert target.can_attack() is False
+
+    engine.end_turn(state, pid)
+    assert target.skip_next_attack is False
+
+
 def test_igleba_deathrattle_summons_three_rush_tokens_without_deathrattle():
     state = _new_blank_match()
     pid = state.current_player
