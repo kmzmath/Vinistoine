@@ -6831,5 +6831,250 @@
         }
       }
     ]
+  },
+  {
+    "id": "carvalho",
+    "name": "Carvalho",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 7,
+    "health": 7,
+    "durability": null,
+    "text": "Ao ser jogado, destrua seu deck atual. Monte um deck de 10 cartas escolhendo 1 entre 3 cartas aleatórias dez vezes; ao final, embaralhe essas 10 cartas como seu novo deck.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUILD_REPLACEMENT_DECK_DISCOVER",
+        "amount": 10
+      }
+    ]
+  },
+  {
+    "id": "dede_santana",
+    "name": "Dedé Santana",
+    "type": "MINION",
+    "cost": 8,
+    "attack": 5,
+    "health": 5,
+    "durability": null,
+    "text": "Ao ser jogado, revele as 4 primeiras cartas do deck do oponente e coloque-as no topo do seu deck.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "STEAL_OPPONENT_TOP_DECK_CARDS",
+        "amount": 4
+      }
+    ]
+  },
+  {
+    "id": "sub",
+    "name": "Sub",
+    "type": "SPELL",
+    "cost": 8,
+    "durability": null,
+    "text": "Conceda +7/+9 a um lacaio aliado. Quando ele morrer, este feitiço volta para o topo do seu deck.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "BUFF_AND_RETURN_SPELL_ON_DEATH",
+        "attack": 7,
+        "health": 9,
+        "card_id": "sub",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "FRIENDLY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "capitao_graga",
+    "name": "Capitão Gragá",
+    "type": "MINION",
+    "cost": 9,
+    "attack": 3,
+    "health": 7,
+    "durability": null,
+    "text": "Habilidade (2): Cause 3 de dano. Receba Escudo Divino.",
+    "tags": [
+      "ACTIVATED_ABILITY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "action": "SEQUENCE",
+        "activation_cost": 0,
+        "activation_uses": 2,
+        "effects": [
+          {
+            "action": "DAMAGE",
+            "amount": 3,
+            "target": {
+              "mode": "CHOSEN",
+              "valid": [
+                "ANY_CHARACTER"
+              ]
+            }
+          },
+          {
+            "action": "ADD_TAG",
+            "tag": "DIVINE_SHIELD",
+            "target": {
+              "mode": "SELF"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "a_grande_muralha_da_china",
+    "name": "A grande muralha da china",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 0,
+    "health": 20,
+    "durability": null,
+    "text": "Provocar. Seus lacaios Chineses custam 3 a menos.",
+    "tags": [
+      "TAUNT"
+    ],
+    "tribes": [
+      "CHINA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "REDUCE_COST",
+        "amount": 3,
+        "target": {
+          "mode": "FRIENDLY_HAND_AND_DECK",
+          "valid": [
+            "MINION"
+          ],
+          "tribe": "CHINA"
+        }
+      }
+    ]
+  },
+  {
+    "id": "dinomancia",
+    "name": "Dinomancia",
+    "type": "SPELL",
+    "cost": 10,
+    "durability": null,
+    "text": "Reviva o seu primeiro lacaio morto. Agora ele é uma Fera 9/9 com Investida.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REVIVE_FIRST_FRIENDLY_DEAD_AS_BEAST"
+      }
+    ]
+  },
+  {
+    "id": "fusca_tunado",
+    "name": "Fusca Tunado",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 4,
+    "health": 5,
+    "durability": null,
+    "text": "Rapidez. Fúria dos ventos. Não recebe dano ao atacar.",
+    "tags": [
+      "RUSH",
+      "WINDFURY",
+      "ATTACK_DAMAGE_IMMUNE"
+    ],
+    "tribes": [
+      "VEICULO"
+    ],
+    "effects": []
+  },
+  {
+    "id": "lagd",
+    "name": "LAGD",
+    "type": "SPELL",
+    "cost": 10,
+    "durability": null,
+    "text": "Recrute 5 lacaios do seu deck. Eles viram 2/2 e recebem Escudo Divino e Rapidez.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "RECRUIT_MINIONS_SET_2_2_WITH_TAGS",
+        "amount": 5,
+        "tags": [
+          "DIVINE_SHIELD",
+          "RUSH"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "maldicao_do_vini_sombrio",
+    "name": "Maldição do Viní Sombrio",
+    "type": "SPELL",
+    "cost": 10,
+    "durability": null,
+    "text": "Destrua todos os lacaios. Descarte ambas as mãos. Cada jogador compra 5 cartas.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DESTROY_ALL_DISCARD_HANDS_DRAW",
+        "draw": 5
+      }
+    ]
+  },
+  {
+    "id": "mussolini",
+    "name": "Mussolini",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 6,
+    "health": 2,
+    "durability": null,
+    "text": "Seus outros lacaios italianos têm +1/+1. Ao ser jogado, evoque 2 Soldados Italianos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "BUFF_STATS",
+        "attack": 1,
+        "health": 1,
+        "target": {
+          "mode": "OTHER_FRIENDLY_MINIONS",
+          "tribe": "ITALIA"
+        }
+      },
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON",
+        "card_id": "soldado_italiano",
+        "amount": 2
+      }
+    ]
   }
 ]
