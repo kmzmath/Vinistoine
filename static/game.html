@@ -251,8 +251,14 @@ function fitArenaToViewport() {
   // Margem para não encostar nos cantos (deixa um respiro decorativo).
   const padX = 12;
   const padY = 12;
-  const sx = (window.innerWidth - padX * 2) / ARENA_W;
-  const sy = (window.innerHeight - padY * 2) / ARENA_H;
+  // Usa o tamanho externo real da arena (incluindo a moldura/borda). Antes o
+  // scale era calculado só pelo canvas lógico 1800x1000; como a borda de 14px
+  // fica fora desse tamanho em CSS, a parte de baixo podia ser cortada pelo
+  // overflow do viewport justamente na área da mão do jogador.
+  const outerW = arena.offsetWidth || ARENA_W;
+  const outerH = arena.offsetHeight || ARENA_H;
+  const sx = (window.innerWidth - padX * 2) / outerW;
+  const sy = (window.innerHeight - padY * 2) / outerH;
   arenaScale = Math.min(sx, sy, 1.6); // não passa de 1.6 em telas gigantes
   arena.style.transform = `scale(${arenaScale})`;
   document.body.style.setProperty("--arena-scale", String(arenaScale));
