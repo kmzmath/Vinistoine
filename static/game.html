@@ -34,6 +34,8 @@ let heroImages = {};   // username (lower) -> url
 let state = null;
 let prevState = null;  // pra detectar deltas e animar
 let myPid = null;
+let waitingRoomInfo = null;
+let cancellingRoom = false;
 let ws = null;
 let mulliganSelections = new Set();
 let targetingMode = null;  // { hand_id, card }
@@ -156,10 +158,11 @@ function connect() {
     if (!msg || typeof msg !== "object") return;
     if (msg.type === "joined") {
       myPid = msg.your_player_id;
+      waitingRoomInfo = msg;
       syncSurrenderAvailability();
-      // Se o primeiro state chegou ANTES de joined, agora finalmente sabemos
-      // quem somos - re-renderiza com a perspectiva certa
-      if (state) render();
+      // Renderiza também quando ainda não há estado. Antes o host ficava com
+      // a tela vazia/preta até algum evento posterior forçar um render.
+      render();
     }
     if (msg.type === "state") {
       const newState = msg.state;
@@ -281,10 +284,7 @@ function render() {
 
   const root = document.getElementById("board-root");
   if (!state) {
-    root.innerHTML = `<div style="margin: auto; text-align: center;">
-      <h2>Aguardando oponente entrar...</h2>
-      <div class="faint">Compartilhe o código da sala para que um amigo entre.</div>
-    </div>`;
+    renderWaitingRoom(root);
     return;
   }
   if (state.phase === "MULLIGAN") { renderMulligan(); fitArenaToViewport(); return; }
@@ -293,6 +293,66 @@ function render() {
   renderPendingChoiceOverlay();
   if (state.phase === "ENDED") renderEndOverlay();
   fitArenaToViewport();
+}
+
+
+function renderWaitingRoom(root) {
+  const isHost = myPid === 0;
+  const code = waitingRoomInfo?.code ? escapeHtml(waitingRoomInfo.code) : null;
+  const cancelButton = isHost ? `
+    <button class="btn danger" id="cancel-room-btn" ${cancellingRoom ? "disabled" : ""}>
+      ${cancellingRoom ? "Cancelando..." : "Cancelar sala e voltar ao menu"}
+    </button>
+  ` : "";
+  const backButton = isHost ? "" : `<button class="btn small" id="back-to-lobby-btn">Voltar ao menu</button>`;
+  root.innerHTML = `
+    <div class="waiting-room-card">
+      <h2>Aguardando oponente entrar...</h2>
+      <div class="faint">Compartilhe o código da sala para que um amigo entre.</div>
+      ${code ? `<div class="room-code-box" aria-label="Código da sala">${code}</div>` : ""}
+      <div class="pulse-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      ${cancelButton}
+      ${backButton}
+    </div>
+  `;
+
+  const backBtn = document.getElementById("back-to-lobby-btn");
+  if (backBtn) backBtn.onclick = () => { window.location.href = "/lobby"; };
+
+  const cancelBtn = document.getElementById("cancel-room-btn");
+  if (cancelBtn) cancelBtn.onclick = cancelWaitingRoom;
+}
+
+async function cancelWaitingRoom() {
+  if (cancellingRoom) return;
+  cancellingRoom = true;
+  render();
+  try {
+    const r = await fetch(`/api/match/${encodeURIComponent(matchId)}/cancel`, {
+      method: "POST",
+      headers: { "X-Auth-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (!r.ok) {
+      let msg = "Não foi possível cancelar a sala.";
+      try {
+        const data = await r.json();
+        msg = data.detail || msg;
+      } catch (err) {}
+      toast(msg);
+      cancellingRoom = false;
+      render();
+      return;
+    }
+    try { if (ws) ws.close(); } catch (err) {}
+    localStorage.removeItem("current_match");
+    window.location.href = "/lobby";
+  } catch (err) {
+    console.warn("Falha ao cancelar sala:", err);
+    toast("Conexão indisponível");
+    cancellingRoom = false;
+    render();
+  }
 }
 
 // Snapshot da mão usado pra detectar cartas novas chegando após confirmar
@@ -4237,7 +4297,10 @@ function renderEndOverlay() {
 // ============ Init ============
 Promise.all([loadCards(), loadCardImages()])
   .then(preloadAllAssets)
-  .then(connect)
+  .then(() => {
+    render();
+    connect();
+  })
   .catch((err) => {
     console.error("Erro ao inicializar partida:", err);
     const overlay = document.getElementById("asset-loading-overlay");

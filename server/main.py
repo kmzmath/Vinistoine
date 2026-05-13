@@ -366,6 +366,14 @@ def list_matches():
     return lobby.list_open_matches()
 
 
+@app.post("/api/match/{match_id}/cancel")
+def cancel_match(match_id: str, request: Request):
+    user = require_user(request)
+    if not lobby.cancel_match(match_id, user.id):
+        raise HTTPException(400, "Sala não encontrada, já iniciada ou criada por outro usuário")
+    return {"ok": True}
+
+
 # ============================ WebSocket de partida ============================
 def _is_origin_allowed(websocket: WebSocket) -> bool:
     """Bloqueia Cross-Site WebSocket Hijacking sem quebrar deploy.
@@ -430,6 +438,7 @@ async def match_ws(websocket: WebSocket, match_id: str, token: str):
         "your_player_id": player_id,
         "host_nickname": match.host_nickname,
         "guest_nickname": match.guest_nickname,
+        "code": match.code,
     }))
 
     await start_match_if_ready(match)
