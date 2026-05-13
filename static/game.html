@@ -775,20 +775,24 @@ function renderDeckPile(player, isOpponent) {
   wrap.dataset.pileOwner = String(player.player_id);
 
   const handCount = isOpponent ? (player.hand_size ?? 0) : (player.hand?.length ?? 0);
-  const deckCount = player.deck_size ?? 0;
+  const deckCount = Math.max(0, player.deck_size ?? 0);
+  wrap.dataset.deckSize = String(deckCount);
+  if (deckCount <= 0) wrap.classList.add("empty");
   wrap.title = `${isOpponent ? "Deck do oponente" : "Seu deck"}: ${deckCount} carta${deckCount === 1 ? "" : "s"} restante${deckCount === 1 ? "" : "s"}. Mão: ${handCount} carta${handCount === 1 ? "" : "s"}.`;
   wrap.setAttribute("aria-label", wrap.title);
 
   const stack = document.createElement("div");
   stack.className = "deck-stack";
-  const visibleCards = Math.min(10, Math.max(deckCount, 0));
-  for (let i = 0; i < visibleCards; i++) {
+  // Renderiza uma carta visual para cada carta restante no deck. Como o deck
+  // padrão tem 30 cartas, isso deixa a pilha realmente afinar a cada compra
+  // em vez de ficar travada em uma quantidade fixa de backs.
+  for (let i = 0; i < deckCount; i++) {
     const back = document.createElement("div");
     back.className = "deck-back";
     back.style.setProperty("--deck-i", String(i));
-    back.style.setProperty("--deck-depth", `${i * 2}px`);
-    back.style.setProperty("--deck-lift", `${i * -1.4}px`);
-    back.style.setProperty("--deck-rot", `${(i - (visibleCards - 1) / 2) * 0.75}deg`);
+    back.style.setProperty("--deck-depth", `${i * 0.72}px`);
+    back.style.setProperty("--deck-lift", `${i * -0.42}px`);
+    back.style.setProperty("--deck-rot", `${(i - (deckCount - 1) / 2) * 0.12}deg`);
     stack.appendChild(back);
   }
   wrap.appendChild(stack);
