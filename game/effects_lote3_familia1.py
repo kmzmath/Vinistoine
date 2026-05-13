@@ -275,7 +275,7 @@ def register_familia1_handlers(handler):
         if winner.deck and winner.deck[0] == winner_cid:
             winner.deck.pop(0)
             if len(winner.hand) < MAX_HAND_SIZE:
-                winner.hand.append(CardInHand(instance_id=gen_id("h_"), card_id=winner_cid))
+                winner.hand.append(CardInHand(instance_id=gen_id("h_"), card_id=winner_cid, revealed=True))
                 state.log_event({
                     "type": "draw_highest_revealed",
                     "winner": winner_pid, "card_id": winner_cid,
@@ -310,7 +310,7 @@ def register_familia1_handlers(handler):
             # Compra a revelada e descarta Mario
             p.deck.pop(0)
             if len(p.hand) < MAX_HAND_SIZE:
-                p.hand.append(CardInHand(instance_id=gen_id("h_"), card_id=revealed_cid))
+                p.hand.append(CardInHand(instance_id=gen_id("h_"), card_id=revealed_cid, revealed=True))
                 state.log_event({
                     "type": "reveal_choose_draw_picked_revealed",
                     "card_id": revealed_cid,

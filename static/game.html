@@ -618,7 +618,31 @@ function renderBoard() {
   // 1) Mão do oponente (back das cartas)
   const oppHandBox = document.createElement("div");
   oppHandBox.className = "zone zone-opp-hand";
-  for (let i = 0; i < opp.hand_size; i++) {
+  const oppHandCards = Array.isArray(opp.hand) ? opp.hand : [];
+  const oppHandSize = opp.hand_size ?? oppHandCards.length;
+  for (let i = 0; i < oppHandSize; i++) {
+    const handCard = oppHandCards[i];
+    const isRevealed = handCard && !handCard.hidden && handCard.card_id;
+    if (isRevealed) {
+      const card = allCards[handCard.card_id];
+      if (card) {
+        const el = renderCard(card, handCard.effective_cost ?? handCard.cost_override ?? card.cost ?? 0, {
+          echo_temporary: handCard.echo_temporary,
+          effective_attack: handCard.effective_attack,
+          effective_health: handCard.effective_health,
+          stats_modified: handCard.stats_modified,
+          cost_modified: handCard.cost_modified,
+          show_hand_stats: true,
+        });
+        el.classList.add("opponent-revealed-hand-card");
+        el.dataset.handId = handCard.instance_id;
+        el.setAttribute("aria-label", `Carta revelada na mão do oponente: ${card.name || handCard.card_id}`);
+        el.title = `${card.name || handCard.card_id} (revelada)`;
+        attachHandHoverPreview(el, handCard);
+        oppHandBox.appendChild(el);
+        continue;
+      }
+    }
     const back = document.createElement("div");
     back.className = "card-back";
     back.setAttribute("aria-label", "Carta virada para baixo na mão do oponente");

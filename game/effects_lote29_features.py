@@ -96,7 +96,11 @@ def register_lote29_features_handlers(handler):
         if winner.deck and winner.deck[0] == winner_cid:
             winner.deck.pop(0)
             if len(winner.hand) < MAX_HAND_SIZE:
-                ch = CardInHand(instance_id=__import__("game.state", fromlist=["gen_id"]).gen_id("h_"), card_id=winner_cid)
+                ch = CardInHand(
+                    instance_id=__import__("game.state", fromlist=["gen_id"]).gen_id("h_"),
+                    card_id=winner_cid,
+                    revealed=True,
+                )
                 winner.hand.append(ch)
                 state.log_event({
                     "type": "draw_highest_revealed",

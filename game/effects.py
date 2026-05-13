@@ -326,6 +326,7 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
         })
 
         if getattr(player, "reveal_next_draw", False):
+            new_card.revealed = True
             state.log_event({
                 "type": "reveal_drawn_card",
                 "player": player.player_id,

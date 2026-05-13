@@ -664,6 +664,7 @@ def register_lote22_bugfix_handlers(handler):
                 draw_card(state, t, amount)
                 if eff.get("reveal"):
                     for ch in t.hand[before:]:
+                        ch.revealed = True
                         state.log_event({"type": "reveal_drawn_card",
                                          "player": t.player_id,
                                          "card_id": ch.card_id,
