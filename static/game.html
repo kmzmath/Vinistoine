@@ -1586,6 +1586,7 @@ function renderMinion(m, isOpponent) {
   const abilityRemaining = firstAbility ? getAbilityUsesRemaining(m, firstAbility, 0) : null;
   const abilityCost = firstAbility ? getAbilityCost(m, firstAbility, 0) : 0;
   const canAbility = firstAbility && !isOpponent && canUseMinionAbility(m, firstAbility, 0);
+  const abilityReadOnly = !!(firstAbility && isOpponent);
   const abilityLabel = firstAbility
     ? (abilityRemaining !== null
         ? `✦${abilityRemaining}`
@@ -1600,7 +1601,7 @@ function renderMinion(m, isOpponent) {
 
   div.innerHTML = `
     <div class="${nameClass}">${escapeHtml(m.name)}</div>
-    ${firstAbility && !isOpponent && !isDormant ? `<button class="ability-btn ${canAbility ? "ready" : "disabled"}" title="Usos/custo da habilidade">${abilityLabel}</button>` : ""}
+    ${firstAbility && !isDormant ? `<button class="ability-btn ${canAbility ? "ready" : "disabled"}" title="${abilityReadOnly ? "Habilidade do lacaio inimigo (somente visualização)" : "Usos/custo da habilidade"}" aria-disabled="${canAbility ? "false" : "true"}" data-readonly="${abilityReadOnly ? "true" : "false"}">${abilityLabel}</button>` : ""}
     ${!isDormant ? tauntOverlay : ""}
     ${!isDormant ? windOverlay : ""}
     <div class="${ringClass}" style="${portraitStyle}">${initial}</div>
@@ -1632,7 +1633,11 @@ function renderMinion(m, isOpponent) {
 
   const abilityBtn = div.querySelector(".ability-btn");
   if (abilityBtn && firstAbility) {
-    abilityBtn.onclick = (e) => onAbilityButtonClick(e, m, firstAbility, 0);
+    abilityBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (isOpponent) return;
+      onAbilityButtonClick(e, m, firstAbility, 0);
+    };
   }
 
   if (isOpponent) {
