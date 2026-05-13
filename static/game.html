@@ -840,7 +840,7 @@ function renderHero(player, isActive, isOpponent) {
   div.dataset.heroOwner = player.player_id;
 
   const key = (player.name || "").toLowerCase();
-  const heroImg = heroImages[key];
+  const heroImg = player.portrait_url || heroImages[key];
   const initial = (player.name || "?").charAt(0).toUpperCase();
   const portraitStyle = heroImg ? `background-image: url('${heroImg}');` : "";
   const portraitContent = heroImg ? "" : initial;

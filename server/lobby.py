@@ -62,10 +62,12 @@ class Match:
     host_nickname: str
     host_deck: list[str]
     game_mode: str = "constructed"
+    host_portrait: Optional[str] = None
     state: Optional[GameState] = None
     guest_user_id: Optional[int] = None
     guest_nickname: Optional[str] = None
     guest_deck: Optional[list[str]] = None
+    guest_portrait: Optional[str] = None
     sockets: dict[int, WebSocket] = field(default_factory=dict)  # player_id -> ws
     user_to_player: dict[int, int] = field(default_factory=dict)  # user_id -> player_id (0/1)
     started: bool = False
@@ -78,7 +80,8 @@ class LobbyManager:
         self.codes: dict[str, str] = {}      # code -> match_id
 
     def create_match(self, host_user_id: int, host_nickname: str,
-                     host_deck: list[str], game_mode: str = "constructed") -> Match:
+                     host_deck: list[str], game_mode: str = "constructed",
+                     host_portrait: str | None = None) -> Match:
         match_id = secrets.token_hex(8)
         code = secrets.token_hex(3).upper()
         mode = normalize_game_mode(game_mode)
@@ -89,6 +92,7 @@ class LobbyManager:
             host_nickname=host_nickname,
             host_deck=host_deck,
             game_mode=mode,
+            host_portrait=host_portrait,
         )
         self.matches[match_id] = match
         self.codes[code] = match_id
@@ -104,7 +108,7 @@ class LobbyManager:
         return self.matches.get(match_id)
 
     def join(self, code: str, guest_user_id: int, guest_nickname: str,
-             guest_deck: list[str]) -> Optional[Match]:
+             guest_deck: list[str], guest_portrait: str | None = None) -> Optional[Match]:
         m = self.get_by_code(code)
         if m is None or m.guest_user_id is not None:
             return None
@@ -116,6 +120,7 @@ class LobbyManager:
         m.guest_user_id = guest_user_id
         m.guest_nickname = guest_nickname
         m.guest_deck = guest_deck
+        m.guest_portrait = guest_portrait
         return m
 
     def remove_match(self, match_id: str):
@@ -205,7 +210,10 @@ async def start_match_if_ready(match: Match):
     match.state = engine.new_game(
         match.host_nickname, host_deck,
         match.guest_nickname, guest_deck,
+        seed=None,
         manual_choices=True,
+        player_a_portrait=match.host_portrait,
+        player_b_portrait=match.guest_portrait,
     )
     match.started = True
     await broadcast_state(match)
