@@ -51,6 +51,14 @@ def _passes_extra_filters(target_desc: dict, candidate, source_owner: int,
         required_tag = target_desc.get("required_tag")
         if required_tag and not candidate.has_tag(required_tag):
             return False
+        excluded_tribe = target_desc.get("excluded_tribe")
+        if excluded_tribe and candidate.has_tribe(excluded_tribe):
+            return False
+        excluded_tribes = target_desc.get("excluded_tribes") or []
+        if isinstance(excluded_tribes, str):
+            excluded_tribes = [excluded_tribes]
+        if excluded_tribes and any(candidate.has_tribe(t) for t in excluded_tribes):
+            return False
         exclude_self = target_desc.get("exclude_self", False)
         if exclude_self and source_minion is not None and candidate is source_minion:
             return False
@@ -223,7 +231,15 @@ def resolve_targets(state: GameState, target_desc: dict, source_owner: int,
         return _target_by_id(state, played_id, source_owner, target_desc, source_minion, is_spell=is_spell) if played_id else []
     if mode == "DAMAGE_SOURCE":
         source_id = (target_desc.get("id") or chosen_target_id)
-        return _target_by_id(state, source_id, source_owner, target_desc, source_minion, is_spell=is_spell) if source_id else []
+        if not source_id:
+            return []
+        found = state.find_minion(source_id)
+        if found:
+            return [found[0]]
+        for player in state.players:
+            if source_id == f"hero:{player.player_id}":
+                return [player]
+        return []
     if mode == "DAMAGED_MINION":
         damaged_id = target_desc.get("id") or chosen_target_id
         if damaged_id:
@@ -335,6 +351,7 @@ def _chosen_targets_in_effect(eff: dict, chose_index: Optional[int] = None) -> l
             for _ in range(max(1, n)):
                 desc = dict(tgt)
                 desc["mode"] = "CHOSEN"
+                desc["_multi_target"] = True
                 out.append(desc)
         elif mode == "CHOSEN_ADJACENT_DIRECTION":
             desc = dict(tgt)
@@ -357,11 +374,27 @@ def chosen_targets_for_card(card: dict, chose_index: Optional[int] = None,
     if triggers is None:
         triggers = ("ON_PLAY",)
     triggers = set(triggers)
-    out: list[dict] = []
+    raw: list[dict] = []
     for eff in card.get("effects") or []:
         if eff.get("trigger") not in triggers:
             continue
-        out.extend(_chosen_targets_in_effect(eff, chose_index=chose_index))
+        raw.extend(_chosen_targets_in_effect(eff, chose_index=chose_index))
+
+    # Muitos battlecries têm vários efeitos sobre o MESMO alvo escolhido
+    # (ex.: curar totalmente e conceder Provocar). Nesses casos a UI/engine
+    # deve pedir uma seleção só; o ctx mantém chosen_target como previous_target
+    # para os efeitos seguintes. Efeitos CHOSEN_EACH continuam pedindo múltiplos
+    # alvos porque são marcados como _multi_target ao serem expandidos.
+    out: list[dict] = []
+    for desc in raw:
+        if not desc.get("_multi_target") and any(
+            ({k: v for k, v in desc.items() if k != "_multi_target"}
+             == {k: v for k, v in existing.items() if k != "_multi_target"})
+            for existing in out
+            if not existing.get("_multi_target")
+        ):
+            continue
+        out.append(desc)
     return out
 
 

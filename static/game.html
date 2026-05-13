@@ -1207,6 +1207,12 @@ function appendKeywordHelpPreview(root, card, runtimeKeywords = []) {
 const CARD_RELATED_PREVIEW_IDS = {
   gusnabo_sagrado: ["pera_sagrada"],
   traficante: ["substancias_ilicitas"],
+  frifas: ["saudades"],
+};
+
+const MINION_PORTRAIT_ART_FOCUS = {
+  vini_sertanejo: { size: "320% auto", position: "center 8%" },
+  el_luca: { size: "320% auto", position: "center 10%" },
 };
 
 function getRelatedPreviewCards(card) {
@@ -1552,8 +1558,9 @@ function renderMinion(m, isOpponent) {
 
   // Imagem do retrato
   const hasImg = !!cardImages[m.card_id];
+  const portraitFocus = MINION_PORTRAIT_ART_FOCUS[m.card_id] || null;
   const portraitStyle = hasImg
-    ? `background-image: url('${cardImages[m.card_id]}');`
+    ? `background-image: url('${cardImages[m.card_id]}');${portraitFocus ? `background-size:${portraitFocus.size};background-position:${portraitFocus.position};` : ""}`
     : "";
   const initial = hasImg ? "" : `<span class="initial">${(m.name || "?").charAt(0)}</span>`;
   const ringClass = "portrait-ring" + (hasImg ? " has-image" : "");
@@ -3257,7 +3264,12 @@ function animateFromDelta(oldS, newS) {
   const attackImpactIds = new Set();
   const damageAmountByMinion = new Map();
   let hasAttackAnimation = false;
+  let hasVinishAnimation = false;
   for (const ev of newEvents) {
+    if (ev.type === "vinish_deathrattle_success") {
+      hasVinishAnimation = true;
+      queueVinishDeathrattleAnimation(ev);
+    }
     if (ev.type === "attack" || ev.type === "forced_attack") {
       hasAttackAnimation = true;
       const attackerId = normalizeImpactId(ev.attacker);
@@ -3270,7 +3282,8 @@ function animateFromDelta(oldS, newS) {
       damageAmountByMinion.set(id, (damageAmountByMinion.get(id) || 0) + (Number(ev.amount) || 0));
     }
   }
-  const renderDelay = hasAttackAnimation ? ATTACK_STATE_RENDER_DELAY_MS : 0;
+  const renderDelay = Math.max(hasAttackAnimation ? ATTACK_STATE_RENDER_DELAY_MS : 0,
+                               hasVinishAnimation ? 1150 : 0);
   const impactDelayFor = (id) => {
     const impactId = normalizeImpactId(id);
     return impactId && attackImpactIds.has(impactId) ? ATTACK_IMPACT_MS : 0;
@@ -4375,6 +4388,32 @@ function buildLogIcon(item) {
 }
 
 // ============ End overlay ============
+function queueVinishDeathrattleAnimation(ev) {
+  const sourceOwner = ev.player;
+  const targetOwner = ev.target_player ?? (1 - sourceOwner);
+  window.setTimeout(() => {
+    const from = document.querySelector(`.hero[data-hero-owner='${sourceOwner}'] .portrait-wrap`)
+      || document.querySelector(`.hero[data-hero-owner='${sourceOwner}']`);
+    const to = document.querySelector(`.hero[data-hero-owner='${targetOwner}'] .portrait-wrap`)
+      || document.querySelector(`.hero[data-hero-owner='${targetOwner}']`);
+    if (!from || !to) return;
+    const a = from.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    const orb = document.createElement("div");
+    orb.className = "vinish-death-orb";
+    const startX = a.left + a.width / 2;
+    const startY = a.top + a.height / 2;
+    const endX = b.left + b.width / 2;
+    const endY = b.top + b.height / 2;
+    orb.style.setProperty("--from-x", `${startX}px`);
+    orb.style.setProperty("--from-y", `${startY}px`);
+    orb.style.setProperty("--to-x", `${endX}px`);
+    orb.style.setProperty("--to-y", `${endY}px`);
+    document.body.appendChild(orb);
+    window.setTimeout(() => orb.remove(), 1200);
+  }, 40);
+}
+
 function renderEndOverlay() {
   const root = document.getElementById("overlay-root");
   root.innerHTML = "";
