@@ -384,6 +384,19 @@ class GameState:
                             "name": target_minion.name,
                         }
 
+            elif kind == "cannot_attack_target":
+                found_src = self.find_minion(pm.get("source_minion_id"))
+                found_attacker = self.find_minion(pm.get("attacker_id"))
+                if found_src and found_attacker:
+                    src_view = _minion_view(found_src[1], pm.get("source_minion_id"))
+                    if src_view is not None:
+                        attacker = found_attacker[0]
+                        src_view["linked_minion"] = {
+                            "instance_id": attacker.instance_id,
+                            "card_id": attacker.card_id,
+                            "name": attacker.name,
+                        }
+
             elif kind == "return_spell_to_deck_on_minion_death":
                 found = self.find_minion(pm.get("minion_id"))
                 if found:
@@ -409,6 +422,12 @@ class GameState:
                 if m.get("card_id") == "fusca_medicinal":
                     m["related_card_ids"] = [rec.get("card_id")]
                     m["related_label"] = "Ressuscita"
+                if m.get("card_id") == "frifas":
+                    existing = list(m.get("related_card_ids") or [])
+                    if "saudades" not in existing:
+                        existing.append("saudades")
+                    m["related_card_ids"] = existing
+                    m["related_label"] = "Compra se possível"
         return {
             "game_id": self.game_id,
             "current_player": self.current_player,

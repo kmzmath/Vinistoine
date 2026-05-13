@@ -441,6 +441,9 @@ def register_lote33_requested_cards_handlers(handler):
         p = state.players[source_owner]
         if p.hand or p.deck or p.board:
             return
+        state.log_event({"type": "vinish_deathrattle_success",
+                         "player": source_owner,
+                         "target_player": 1 - source_owner})
         state.phase = "ENDED"
         state.winner = source_owner
         state.log_event({"type": "game_end", "winner": source_owner, "reason": "vinish"})

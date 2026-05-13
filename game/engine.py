@@ -574,7 +574,7 @@ def apply_continuous_effects(state: GameState):
         old_max_health = target.max_health
         old_health = target.health
         target.attack = max(0, target.attack + atk)
-        target.max_health = max(1, target.max_health + hp)
+        target.max_health = max(0, target.max_health + hp)
         # Auras de vida não devem curar novamente em cada recálculo (ataques,
         # dano e cleanup chamam apply_continuous_effects várias vezes). O delta
         # de vida atual aplicado é exatamente o delta de vida máxima efetivo;
@@ -840,7 +840,7 @@ def compute_dynamic_cost(state: GameState, p: PlayerState, card_in_hand: CardInH
             if eff.get("trigger") != "AURA" or eff.get("action") not in ("INCREASE_COST", "REDUCE_COST"):
                 continue
             target_desc = eff.get("target") or {}
-            if target_desc.get("mode") not in (None, "FRIENDLY_HAND", "FRIENDLY_DECK", "FRIENDLY_HAND_AND_DECK"):
+            if target_desc.get("mode") not in (None, "SELF_HAND", "FRIENDLY_HAND", "FRIENDLY_DECK", "FRIENDLY_HAND_AND_DECK"):
                 continue
             valid = target_desc.get("valid") or []
             applies = not valid or ("MINION" in valid and card.get("type") == "MINION") or ("SPELL" in valid and card.get("type") == "SPELL")

@@ -1166,7 +1166,8 @@
         "amount": 2,
         "target": {
           "mode": "SELF_PLAYER"
-        }
+        },
+        "suppress_on_draw_triggers": true
       }
     ]
   },
@@ -2553,7 +2554,7 @@
         "trigger": "AFTER_ATTACK",
         "action": "CHOOSE_ONE",
         "condition": {
-          "type": "ATTACKED_ENEMY"
+          "type": "ATTACKED_OPPONENT_HERO"
         },
         "choices": [
           {
@@ -2979,7 +2980,7 @@
     "attack": 4,
     "health": 3,
     "durability": null,
-    "text": "Todos os outros lacaios possuem -1/1. Brasileiros possuem -2/2.",
+    "text": "Todos os outros lacaios possuem -1/-1. Brasileiros possuem -2/-2 em vez disso.",
     "tags": [
       "AURA"
     ],
@@ -2993,7 +2994,8 @@
         "attack_bonus": -1,
         "health_bonus": -1,
         "target": {
-          "mode": "ALL_OTHER_MINIONS"
+          "mode": "ALL_OTHER_MINIONS",
+          "excluded_tribe": "BRASIL"
         }
       },
       {

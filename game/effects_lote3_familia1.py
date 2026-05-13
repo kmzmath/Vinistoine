@@ -521,6 +521,8 @@ def _play_card_free(state: GameState, owner: int, card: dict):
         )
         p.board.append(new_minion)
         state.log_event({"type": "summon", "owner": owner, "minion": new_minion.to_dict()})
+        state.log_event({"type": "play_card", "player": owner, "card_id": card.get("id"),
+                         "card_name": card.get("name"), "cost": 0, "free_from_deck": True})
         # Battlecry: tenta auto-resolver, com chosen_target=None
         # (handlers tratam alvo ausente como no-op)
         # MAS pra disparar é precisamos um chosen_target apropriado se ON_PLAY tem CHOSEN.
@@ -532,8 +534,25 @@ def _play_card_free(state: GameState, owner: int, card: dict):
             if tgt.get("mode") == "CHOSEN":
                 continue  # pula efeitos que precisam de alvo escolhido
             effects.resolve_effect(state, eff, owner, new_minion,
-                                    {"chosen_target": None, "is_spell": False})
+                                    {"chosen_target": None, "is_spell": False,
+                                     "source_card_id": card.get("id"),
+                                     "played_card_id": card.get("id")})
+        for m in list(p.board):
+            if m is new_minion:
+                continue
+            ctx = {"played_minion": new_minion.instance_id,
+                   "chosen_target": new_minion.instance_id,
+                   "played_card_id": card.get("id"),
+                   "source_card_id": card.get("id"),
+                   "card_type": "MINION"}
+            effects.fire_minion_trigger(state, m, "AFTER_FRIENDLY_MINION_PLAY", extra_ctx=ctx)
+            effects.fire_minion_trigger(state, m, "ON_FRIENDLY_MINION_PLAYED", extra_ctx=ctx)
+            effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_MINION", extra_ctx=ctx)
+            effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_CARD", extra_ctx=ctx)
+            effects.fire_minion_trigger(state, m, "ON_PLAY_CARD", extra_ctx=ctx)
     else:
+        state.log_event({"type": "play_card", "player": owner, "card_id": card.get("id"),
+                         "card_name": card.get("name"), "cost": 0, "free_from_deck": True})
         # SPELL: aplica efeitos, pulando os que pedem CHOSEN sem alvo
         for eff in card.get("effects") or []:
             if eff.get("trigger") != "ON_PLAY":
@@ -542,4 +561,10 @@ def _play_card_free(state: GameState, owner: int, card: dict):
             if tgt.get("mode") == "CHOSEN":
                 continue
             effects.resolve_effect(state, eff, owner, None,
-                                    {"chosen_target": None, "is_spell": True})
+                                    {"chosen_target": None, "is_spell": True,
+                                     "source_card_id": card.get("id"),
+                                     "played_card_id": card.get("id")})
+        ctx = {"card_type": "SPELL", "played_card_id": card.get("id"), "source_card_id": card.get("id")}
+        for m in list(p.board):
+            effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_CARD", extra_ctx=ctx)
+            effects.fire_minion_trigger(state, m, "ON_PLAY_CARD", extra_ctx=ctx)

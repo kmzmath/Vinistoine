@@ -336,7 +336,7 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
 
         # === ON_DRAW: dispara efeitos da carta que acabou de ser comprada ===
         card = get_card(card_id)
-        if card:
+        if card and not getattr(state, "_suppress_on_draw_triggers", False):
             ctx = {"chosen_target": None, "is_spell": False,
                    "just_drawn_card": new_card,
                    "source_card_id": card_id}
@@ -543,10 +543,14 @@ def _draw(state, eff, source_owner, source_minion, ctx):
             old_reveal = getattr(t, "reveal_next_draw", False)
             if eff.get("reveal"):
                 t.reveal_next_draw = True
+            old_suppress = getattr(state, "_suppress_on_draw_triggers", False)
+            if eff.get("suppress_on_draw_triggers"):
+                state._suppress_on_draw_triggers = True
             try:
                 draw_card(state, t, n)
             finally:
                 t.reveal_next_draw = old_reveal
+                state._suppress_on_draw_triggers = old_suppress
 
 
 @handler("BUFF_ATTACK")
@@ -1388,6 +1392,8 @@ def check_condition(state, cond: dict, source_owner: int,
         return bool(source_minion and source_minion.health < source_minion.max_health)
     if ctype == "ATTACKED_ENEMY":
         return bool(ctx.get("attack_target_owner") is not None and ctx.get("attack_target_owner") != source_owner)
+    if ctype in ("ATTACKED_OPPONENT_HERO", "ATTACKED_ENEMY_HERO"):
+        return ctx.get("attack_target_id") == f"hero:{1 - source_owner}"
     if ctype == "DIED_DURING_OPPONENT_TURN":
         return state.current_player != source_owner
     if ctype == "SELF_COULD_ATTACK_BUT_DID_NOT":

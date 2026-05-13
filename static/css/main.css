@@ -3792,3 +3792,63 @@ input:focus { border-color: var(--gold); }
   border-color: var(--gold-bright);
   background: rgba(106, 58, 26, 0.52);
 }
+
+/* Vinish: Último Suspiro vitorioso antes do overlay de fim de jogo. */
+.vinish-death-orb {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 60000;
+  transform: translate(calc(var(--from-x) - 17px), calc(var(--from-y) - 17px)) scale(0.75);
+  background:
+    radial-gradient(circle at 35% 32%, rgba(187, 255, 167, 0.98) 0 12%, rgba(34, 214, 90, 0.92) 24%, rgba(12, 20, 16, 0.96) 58%, rgba(0, 0, 0, 0) 72%),
+    radial-gradient(circle, rgba(43, 255, 107, 0.8), rgba(0, 0, 0, 0.05) 68%);
+  box-shadow:
+    0 0 18px rgba(71, 255, 92, 0.95),
+    0 0 34px rgba(23, 12, 32, 0.95),
+    inset 0 0 12px rgba(0, 0, 0, 0.9);
+  animation: vinishDeathOrbFly 1.05s cubic-bezier(.16,.82,.24,1) forwards;
+}
+
+.vinish-death-orb::before,
+.vinish-death-orb::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 2px solid rgba(71, 255, 92, 0.55);
+  filter: blur(0.2px);
+  animation: vinishDeathOrbPulse 0.34s ease-in-out infinite alternate;
+}
+
+.vinish-death-orb::after {
+  inset: 7px -54px 7px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(19, 255, 91, 0.5), rgba(7, 5, 12, 0));
+  transform-origin: left center;
+  transform: rotate(180deg);
+  filter: blur(5px);
+}
+
+@keyframes vinishDeathOrbFly {
+  0% {
+    opacity: 0;
+    transform: translate(calc(var(--from-x) - 17px), calc(var(--from-y) - 17px)) scale(0.45);
+  }
+  12% { opacity: 1; transform: translate(calc(var(--from-x) - 17px), calc(var(--from-y) - 17px)) scale(1); }
+  78% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--to-x) - 17px), calc(var(--to-y) - 17px)) scale(1.75);
+  }
+}
+
+@keyframes vinishDeathOrbPulse {
+  from { transform: scale(0.82) rotate(0deg); opacity: 0.5; }
+  to { transform: scale(1.18) rotate(18deg); opacity: 0.95; }
+}

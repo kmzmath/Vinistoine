@@ -661,7 +661,13 @@ def register_lote22_bugfix_handlers(handler):
         for t in targets:
             if isinstance(t, PlayerState):
                 before = len(t.hand)
-                draw_card(state, t, amount)
+                old_suppress = getattr(state, "_suppress_on_draw_triggers", False)
+                if eff.get("suppress_on_draw_triggers"):
+                    state._suppress_on_draw_triggers = True
+                try:
+                    draw_card(state, t, amount)
+                finally:
+                    state._suppress_on_draw_triggers = old_suppress
                 if eff.get("reveal"):
                     for ch in t.hand[before:]:
                         ch.revealed = True
