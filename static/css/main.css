@@ -2167,15 +2167,24 @@ input:focus { border-color: var(--gold); }
 .hand-row .card {
   width: 132px; height: 184px;
   margin-left: -22px;
+  /* A mão precisa ficar visualmente acima da moldura inferior. O leque é
+     composto por variáveis porque o JS calcula a rotação/offset de cada carta,
+     e os estados de hover/unaffordable podem somar seus próprios movimentos
+     sem perder essa curvatura. */
+  --hand-base-y: -72px;
+  --hand-fan-y: 0px;
+  --hand-rot: 0deg;
+  transform: translateY(calc(var(--hand-base-y) + var(--hand-fan-y))) rotate(var(--hand-rot));
+  transform-origin: 50% 110%;
   transition: transform 0.22s, margin-top 0.22s, box-shadow 0.22s;
 }
 .hand-row .card:first-child { margin-left: 0; }
 .hand-row .card:hover {
-  transform: translateY(-40px) scale(1.18);
+  transform: translateY(calc(var(--hand-base-y) + var(--hand-fan-y) - 40px)) rotate(var(--hand-rot)) scale(1.18);
   z-index: 10;
 }
 .hand-row .card.unaffordable { filter: grayscale(0.7) brightness(0.55); }
-.hand-row .card.unaffordable:hover { transform: translateY(-8px) scale(1.04); }
+.hand-row .card.unaffordable:hover { transform: translateY(calc(var(--hand-base-y) + var(--hand-fan-y) - 8px)) rotate(var(--hand-rot)) scale(1.04); }
 .hand-row .card.playable { box-shadow: 0 -8px 14px rgba(102,255,122,0.25); }
 .hand-row .card.effect-ready {
   border-color: #75ff8a;
