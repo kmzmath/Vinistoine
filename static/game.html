@@ -30,6 +30,7 @@ if (!matchId) window.location.href = "/lobby";
 
 let allCards = {};
 let cardImages = {};   // card_id -> url
+const CARDBACK_URL = "/static/cards/00AA.Cardback.png";
 let heroImages = {};   // username (lower) -> url
 let state = null;
 let prevState = null;  // pra detectar deltas e animar
@@ -118,7 +119,7 @@ function preloadImage(url) {
 
 async function preloadAllAssets() {
   try {
-    const urls = [...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
+    const urls = [CARDBACK_URL, ...Object.values(cardImages || {}), ...Object.values(heroImages || {})];
     // Sem URLs (ex: API de imagens falhou) não devemos travar em 0% nem
     // mostrar "NaN%": vai direto para 100%.
     if (!urls.length) {
@@ -620,6 +621,8 @@ function renderBoard() {
   for (let i = 0; i < opp.hand_size; i++) {
     const back = document.createElement("div");
     back.className = "card-back";
+    back.setAttribute("aria-label", "Carta virada para baixo na mão do oponente");
+    back.title = "Carta na mão do oponente";
     oppHandBox.appendChild(back);
   }
   arena.appendChild(oppHandBox);
@@ -764,31 +767,32 @@ function renderBoard() {
   }
 }
 
-// Renderiza pilha do deck à direita, estilo Hearthstone: 3-4 cartas
-// empilhadas, com contador grande no centro e identificação de qual jogador
+// Renderiza pilha do deck à direita como um amontoado físico de cardbacks.
+// A contagem detalhada fica no tooltip para preservar o visual da pilha.
 function renderDeckPile(player, isOpponent) {
   const wrap = document.createElement("div");
   wrap.className = "deck-pile " + (isOpponent ? "opp" : "you");
   wrap.dataset.pileOwner = String(player.player_id);
 
-  // 3 backs empilhados sob o contador (visualmente sugere espessura)
+  const handCount = isOpponent ? (player.hand_size ?? 0) : (player.hand?.length ?? 0);
+  const deckCount = player.deck_size ?? 0;
+  wrap.title = `${isOpponent ? "Deck do oponente" : "Seu deck"}: ${deckCount} carta${deckCount === 1 ? "" : "s"} restante${deckCount === 1 ? "" : "s"}. Mão: ${handCount} carta${handCount === 1 ? "" : "s"}.`;
+  wrap.setAttribute("aria-label", wrap.title);
+
   const stack = document.createElement("div");
   stack.className = "deck-stack";
-  for (let i = 0; i < Math.min(4, player.deck_size); i++) {
+  const visibleCards = Math.min(10, Math.max(deckCount, 0));
+  for (let i = 0; i < visibleCards; i++) {
     const back = document.createElement("div");
     back.className = "deck-back";
-    back.style.transform = `translate(${i*1.5}px, ${-i*1.5}px)`;
+    back.style.setProperty("--deck-i", String(i));
+    back.style.setProperty("--deck-depth", `${i * 2}px`);
+    back.style.setProperty("--deck-lift", `${i * -1.4}px`);
+    back.style.setProperty("--deck-rot", `${(i - (visibleCards - 1) / 2) * 0.75}deg`);
     stack.appendChild(back);
   }
   wrap.appendChild(stack);
 
-  // Contador
-  const count = document.createElement("div");
-  count.className = "deck-count";
-  count.textContent = player.deck_size;
-  wrap.appendChild(count);
-
-  // Etiqueta
   const label = document.createElement("div");
   label.className = "deck-label";
   label.textContent = isOpponent ? "Deck do oponente" : "Seu deck";
@@ -3463,6 +3467,7 @@ function buildAnimatedCard(cardId, faceDown = false) {
   wrap.className = "animated-card-wrap";
   if (faceDown || !cardId) {
     wrap.classList.add("card-back-large");
+    wrap.setAttribute("aria-label", "Carta virada para baixo");
     return wrap;
   }
   const card = allCards[cardId] || {};

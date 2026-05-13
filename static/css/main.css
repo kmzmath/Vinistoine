@@ -868,56 +868,47 @@ input:focus { border-color: var(--gold); }
 .deck-sidebar > * { pointer-events: auto; }
 .deck-pile {
   position: relative;
-  width: 96px;
-  height: 130px;
+  width: 106px;
+  height: 142px;
   display: flex;
   align-items: center;
   justify-content: center;
+  perspective: 520px;
+  cursor: help;
 }
 .deck-stack {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  transform-style: preserve-3d;
+  transform: rotateX(10deg) rotateY(-8deg);
 }
 .deck-back {
   position: absolute;
+  left: 11px;
+  top: 12px;
   width: 76px;
   height: 108px;
-  border-radius: 6px;
-  background:
-    radial-gradient(circle at 50% 50%,
-      rgba(232, 200, 130, 0.55) 6%,
-      transparent 9%),
-    radial-gradient(circle at 30% 30%, rgba(255, 220, 150, 0.22), transparent 50%),
-    linear-gradient(135deg, #6a4626, #2a1812 55%, #150904);
-  border: 2px solid #a87a36;
+  border-radius: 7px;
+  background-image: url('/static/cards/00AA.Cardback.png');
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(232, 200, 120, 0.78);
   box-shadow:
-    2px 3px 6px rgba(0,0,0,0.7),
-    inset 0 0 12px rgba(255, 200, 130, 0.2);
+    3px 5px 9px rgba(0,0,0,0.78),
+    0 0 0 1px rgba(0,0,0,0.45),
+    inset 0 0 10px rgba(255, 220, 150, 0.16);
+  transform: translate3d(var(--deck-depth), var(--deck-lift), calc(var(--deck-i) * 1px)) rotate(var(--deck-rot));
+  transform-origin: 50% 70%;
 }
-.deck-back:nth-child(1) { top: 0; left: 0; transform: rotate(-2deg); }
-.deck-back:nth-child(2) { top: 2px; left: 4px; transform: rotate(0deg); }
-.deck-back:nth-child(3) { top: 4px; left: 8px; transform: rotate(2deg); }
-.deck-back:nth-child(4) { top: 6px; left: 12px; transform: rotate(3deg); }
-
-.deck-count {
-  position: relative;
-  z-index: 5;
-  font-family: 'Cinzel'; font-weight: 900; font-size: 1.55rem;
-  color: #fff;
-  background: radial-gradient(circle at 35% 30%, #6a553a, #281606);
-  border: 3px solid #e8c878;
-  border-radius: 50%;
-  width: 44px; height: 44px;
-  display: flex; align-items: center; justify-content: center;
-  text-shadow:
-    0 2px 4px rgba(0,0,0,0.9),
-    0 0 10px rgba(0,0,0,0.75);
+.deck-pile:hover .deck-stack {
+  transform: rotateX(13deg) rotateY(-13deg) translateY(-3px);
+}
+.deck-pile:hover .deck-back {
   box-shadow:
-    0 3px 8px rgba(0,0,0,0.85),
-    inset 0 0 10px rgba(0,0,0,0.55),
-    inset 0 0 0 2px rgba(255, 220, 150, 0.36);
-  margin-left: 8px;
+    5px 8px 13px rgba(0,0,0,0.82),
+    0 0 10px rgba(245,201,105,0.28),
+    inset 0 0 10px rgba(255, 220, 150, 0.18);
 }
 .deck-label {
   position: absolute;
@@ -2245,12 +2236,11 @@ input:focus { border-color: var(--gold); }
 .card-back {
   width: 60px; height: 84px;
   border-radius: 6px;
-  background:
-    radial-gradient(circle at 50% 50%, var(--gold-dim) 8%, transparent 9%),
-    radial-gradient(circle at 0% 0%, rgba(212,166,74,0.2), transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(181,62,44,0.15), transparent 50%),
-    linear-gradient(135deg, #2a1812, #0c0806);
-  border: 2px solid var(--gold-dim);
+  background-image: url('/static/cards/00AA.Cardback.png');
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(232, 200, 120, 0.78);
+  box-shadow: 0 3px 7px rgba(0,0,0,0.72), inset 0 0 8px rgba(255, 220, 150, 0.14);
   margin-left: -16px;
   flex-shrink: 0;
 }
@@ -3027,11 +3017,9 @@ input:focus { border-color: var(--gold); }
   height: 310px;
   border-radius: 14px;
   border: 4px solid var(--gold);
-  background:
-    radial-gradient(circle at 50% 50%, var(--gold-dim) 8%, transparent 9%),
-    radial-gradient(circle at 0% 0%, rgba(212,166,74,0.3), transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(181,62,44,0.2), transparent 50%),
-    linear-gradient(135deg, #2a1812, #0c0806);
+  background-image: url('/static/cards/00AA.Cardback.png');
+  background-size: cover;
+  background-position: center;
   box-shadow: 0 0 28px rgba(245,201,105,0.5), 0 0 70px rgba(0,0,0,0.95);
 }
 
@@ -3172,11 +3160,9 @@ input:focus { border-color: var(--gold); }
   height: 310px;
   border-radius: 14px;
   border: 4px solid var(--gold);
-  background:
-    radial-gradient(circle at 50% 50%, var(--gold-dim) 8%, transparent 9%),
-    radial-gradient(circle at 0% 0%, rgba(212,166,74,0.3), transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(181,62,44,0.2), transparent 50%),
-    linear-gradient(135deg, #2a1812, #0c0806);
+  background-image: url('/static/cards/00AA.Cardback.png');
+  background-size: cover;
+  background-position: center;
   box-shadow: 0 0 28px rgba(245,201,105,0.5), 0 0 70px rgba(0,0,0,0.95);
 }
 .draw-fly-v2.opponent-draw .card-back-large {
