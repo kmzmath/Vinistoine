@@ -802,8 +802,15 @@ function renderDeckPile(player, isOpponent) {
   const deckCount = Math.max(0, player.deck_size ?? 0);
   wrap.dataset.deckSize = String(deckCount);
   if (deckCount <= 0) wrap.classList.add("empty");
-  wrap.title = `${isOpponent ? "Deck do oponente" : "Seu deck"}: ${deckCount} carta${deckCount === 1 ? "" : "s"} restante${deckCount === 1 ? "" : "s"}. Mão: ${handCount} carta${handCount === 1 ? "" : "s"}.`;
-  wrap.setAttribute("aria-label", wrap.title);
+
+  const ownerLabel = isOpponent ? "Deck do oponente" : "Seu deck";
+  const handText = `${handCount} carta${handCount === 1 ? "" : "s"}`;
+  const deckText = `${deckCount} carta${deckCount === 1 ? "" : "s"}`;
+  const tooltipId = `deck-info-${player.player_id}`;
+  const accessibleText = `${ownerLabel}: ${deckText} restante${deckCount === 1 ? "" : "s"}. Mão: ${handText}.`;
+  wrap.setAttribute("aria-label", accessibleText);
+  wrap.setAttribute("aria-describedby", tooltipId);
+  wrap.tabIndex = 0;
 
   const stack = document.createElement("div");
   stack.className = "deck-stack";
@@ -823,8 +830,19 @@ function renderDeckPile(player, isOpponent) {
 
   const label = document.createElement("div");
   label.className = "deck-label";
-  label.textContent = isOpponent ? "Deck do oponente" : "Seu deck";
+  label.textContent = ownerLabel;
   wrap.appendChild(label);
+
+  const info = document.createElement("div");
+  info.id = tooltipId;
+  info.className = "deck-info-tooltip";
+  info.setAttribute("role", "tooltip");
+  info.innerHTML = `
+    <div class="deck-info-title">${escapeHtml(ownerLabel)}</div>
+    <div><b>${escapeHtml(deckText)}</b> faltando</div>
+    <div>Mão: <b>${escapeHtml(handText)}</b></div>
+  `;
+  wrap.appendChild(info);
 
   return wrap;
 }

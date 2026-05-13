@@ -933,6 +933,54 @@ input:focus { border-color: var(--gold); }
   font-weight: 700;
 }
 
+.deck-info-tooltip {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  min-width: 150px;
+  transform: translate(4px, -50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  padding: 9px 11px;
+  border: 1px solid rgba(232, 200, 120, 0.92);
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(42, 24, 8, 0.96), rgba(20, 12, 5, 0.96));
+  box-shadow: 0 8px 18px rgba(0,0,0,0.48), inset 0 0 10px rgba(255,220,150,0.08);
+  color: #f4e1ad;
+  font-family: 'Cinzel';
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+  z-index: 40;
+}
+.deck-info-tooltip::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%) rotate(45deg);
+  border-right: 1px solid rgba(232, 200, 120, 0.92);
+  border-top: 1px solid rgba(232, 200, 120, 0.92);
+  background: rgba(20, 12, 5, 0.96);
+}
+.deck-info-title {
+  margin-bottom: 4px;
+  color: var(--gold);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.deck-pile:hover .deck-info-tooltip,
+.deck-pile:focus-visible .deck-info-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+}
+
 /* === ZONAS: mão do oponente (cards-back) e do jogador === */
 .zone {
   display: flex; justify-content: center; align-items: center;
