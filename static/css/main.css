@@ -3072,6 +3072,30 @@ input:focus { border-color: var(--gold); }
   height: 520px;
 }
 
+.waiting-room-card {
+  width: min(560px, calc(100vw - 2rem));
+  text-align: center;
+  padding: 2rem;
+  border: 1px solid var(--gold-dim);
+  background: rgba(12, 8, 6, 0.88);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.75), inset 0 0 24px rgba(245,201,105,0.08);
+  position: relative;
+  z-index: 1;
+}
+.waiting-room-card h2 { margin-top: 0; }
+.waiting-room-card .btn { margin: 0.35rem; }
+.room-code-box {
+  display: inline-block;
+  margin: 1rem 0 0.6rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--gold-dim);
+  background: rgba(0,0,0,0.35);
+  color: var(--gold-bright);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.18em;
+}
+
 
 /* Lote 28: tela de carregamento de imagens */
 .asset-loading-overlay {

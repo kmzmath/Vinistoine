@@ -123,6 +123,14 @@ class LobbyManager:
         if m:
             self.codes.pop(m.code, None)
 
+    def cancel_match(self, match_id: str, user_id: int) -> bool:
+        """Cancela uma sala ainda não iniciada criada pelo próprio usuário."""
+        m = self.matches.get(match_id)
+        if m is None or m.started or m.host_user_id != user_id:
+            return False
+        self.remove_match(match_id)
+        return True
+
     def list_open_matches(self) -> list[dict]:
         out = []
         for m in self.matches.values():
