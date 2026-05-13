@@ -1072,14 +1072,14 @@ input:focus { border-color: var(--gold); }
 }
 .hero .portrait-wrap {
   position: relative;
-  width: 96px; height: 114px;
+  width: 101px; height: 120px;
 }
 .hero .portrait {
-  width: 88px; height: 106px;
+  width: 93px; height: 112px;
   position: absolute;
   left: 4px; top: 4px;
   /* Arco gótico: topo arredondado, base reta */
-  border-radius: 44px 44px 4px 4px;
+  border-radius: 46px 46px 4px 4px;
   background:
     radial-gradient(ellipse at 50% 30%, rgba(255,210,140,0.5), transparent 50%),
     linear-gradient(180deg, #5a3a22, #1a0c08);
@@ -1097,7 +1097,7 @@ input:focus { border-color: var(--gold); }
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 48px 48px 6px 6px;
+  border-radius: 51px 51px 6px 6px;
   background:
     /* Borda externa em "metal velho" */
     linear-gradient(180deg, #f5c969, #b88d35 30%, #8a5e1c 60%, #5a3e10);
@@ -1111,7 +1111,7 @@ input:focus { border-color: var(--gold); }
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 48px 48px 6px 6px;
+  border-radius: 51px 51px 6px 6px;
   pointer-events: none;
   /* Faixa de brilho no topo do arco */
   background:
@@ -2178,12 +2178,11 @@ input:focus { border-color: var(--gold); }
 }
 .hand-row .card {
   width: 132px; height: 184px;
-  margin-left: -22px;
-  /* A mão precisa ficar visualmente acima da moldura inferior. O leque é
-     composto por variáveis porque o JS calcula a rotação/offset de cada carta,
-     e os estados de hover/unaffordable podem somar seus próprios movimentos
-     sem perder essa curvatura. */
-  --hand-base-y: -42px;
+  margin-left: 10px;
+  /* Mão em linha reta: sem elevação base, sem arco e sem sobreposição.
+     O JS ainda alimenta as variáveis, mas agora elas ficam zeradas para
+     preservar a composição com hover/estados sem entortar a fileira. */
+  --hand-base-y: 0px;
   --hand-fan-y: 0px;
   --hand-rot: 0deg;
   transform: translateY(calc(var(--hand-base-y) + var(--hand-fan-y))) rotate(var(--hand-rot));

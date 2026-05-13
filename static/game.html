@@ -665,19 +665,12 @@ function renderBoard() {
     handCards.push({ el, c, card });
     myHand.appendChild(el);
   }
-  // Curvatura: espalha cartas em um arco leve. Cada carta recebe rotação
-  // proporcional à distância do centro e um pequeno offset vertical.
-  // A elevação base da mão fica no CSS (--hand-base-y); aqui só alimentamos
-  // as variáveis do leque para não sobrescrever hover/estados visuais.
-  const total = handCards.length;
-  handCards.forEach(({ el }, i) => {
-    const t = total > 1
-      ? (i - (total - 1) / 2) / Math.max(1, (total - 1) / 2) // -1..1
-      : 0;
-    const rot = t * 6;             // até ±6° nas pontas
-    const dy = Math.abs(t) * 4;    // até 4px abaixando nas pontas
-    el.style.setProperty("--hand-fan-y", `${dy}px`);
-    el.style.setProperty("--hand-rot", `${rot}deg`);
+  // Mão em linha reta: sem arco, sem rotação e sem queda nas pontas.
+  // Mantemos as variáveis para que o CSS de hover/estados continue compondo
+  // transforms sem precisar reintroduzir estilos inline por carta.
+  handCards.forEach(({ el }) => {
+    el.style.setProperty("--hand-fan-y", "0px");
+    el.style.setProperty("--hand-rot", "0deg");
   });
   arena.appendChild(myHand);
 
