@@ -95,7 +95,14 @@ def test_dede_santana_reveals_and_moves_four_opponent_top_cards_to_your_deck_top
 
     assert state.players[pid].deck[:4] == ["pizza", "soldado_italiano", "vini_zumbi", "fusca_tunado"]
     assert state.players[foe].deck == ["maca"]
-    assert any(ev.get("type") == "reveal_and_steal_top_deck_cards" for ev in state.event_log)
+    event = next(ev for ev in state.event_log if ev.get("type") == "reveal_and_steal_top_deck_cards")
+    assert event["card_ids"] == ["pizza", "soldado_italiano", "vini_zumbi", "fusca_tunado"]
+    assert event["cards"] == [
+        {"owner": foe, "card_id": "pizza"},
+        {"owner": foe, "card_id": "soldado_italiano"},
+        {"owner": foe, "card_id": "vini_zumbi"},
+        {"owner": foe, "card_id": "fusca_tunado"},
+    ]
 
 
 def test_sub_buffs_minion_marks_portrait_and_returns_to_deck_top_on_death():

@@ -133,6 +133,7 @@ def register_lote33_requested_cards_handlers(handler):
             "type": "reveal_and_steal_top_deck_cards",
             "player": source_owner,
             "opponent": opp.player_id,
+            "cards": [{"owner": opp.player_id, "card_id": cid} for cid in stolen],
             "card_ids": list(stolen),
             "amount": len(stolen),
         })

@@ -3291,7 +3291,7 @@ input:focus { border-color: var(--gold); }
   to { opacity: 1; transform: scale(1.05) translateY(-3px); }
 }
 
-/* Lote 29: anúncio de duas cartas reveladas */
+/* Lote 29/33: anúncio de cartas reveladas */
 .opp-play-announce.pair {
   display: flex;
   flex-direction: column;
@@ -3300,9 +3300,11 @@ input:focus { border-color: var(--gold); }
 }
 .reveal-pair-cards {
   display: flex;
-  gap: 2rem;
+  flex-wrap: wrap;
+  gap: 1.1rem;
   align-items: center;
   justify-content: center;
+  max-width: min(92vw, 54rem);
 }
 .reveal-pair-card {
   position: relative;

@@ -3218,6 +3218,17 @@ function animateFromDelta(oldS, newS) {
         reveal_label: "Cartas reveladas",
       });
     }
+    if (ev.type === "reveal_and_steal_top_deck_cards") {
+      const cards = (ev.cards || (ev.card_ids || []).map(cid => ({ owner: ev.opponent, card_id: cid })));
+      if (cards.length) {
+        enqueueOpponentPlay({
+          type: "reveal_pair",
+          player: ev.player,
+          cards,
+          reveal_label: `${playerName(ev.player)} roubou ${cards.length} carta(s) revelada(s)`,
+        });
+      }
+    }
     if (ev.type === "discard_lowest_revealed" && ev.card_id) {
       enqueueOpponentPlay({
         type: "burn",
@@ -3785,7 +3796,7 @@ const LOG_DETAIL_TYPES = new Set([
   "discard", "discard_from_deck_choice", "discard_lowest_revealed",
   "burn", "burn_delayed_draw", "burn_returned_minion", "burn_stolen",
   "return_to_hand", "return_to_hand_burned", "return_to_hand_modify_cost",
-  "reveal_top_card", "reveal_top_each_deck", "reveal_drawn_card", "reveal_hand_card", "reveal_hand_edges",
+  "reveal_top_card", "reveal_top_each_deck", "reveal_and_steal_top_deck_cards", "reveal_drawn_card", "reveal_hand_card", "reveal_hand_edges",
   "silence", "freeze", "freeze_hero",
 ]);
 
@@ -3889,6 +3900,11 @@ function detailForEvent(ev, ctx, sourceName = null) {
     if (ev.type === "reveal_hand_edges") {
       const cards = (ev.cards || []).map(c => cardName(c.card_id, c.card_id)).join(" e ");
       return `${playerName(ev.player)} revelou ${cards || "cartas da mão"}${sourceName ? ` por ${sourceName}` : ""}.`;
+    }
+    if (ev.type === "reveal_and_steal_top_deck_cards") {
+      const ids = ev.card_ids || (ev.cards || []).map(c => c.card_id);
+      const cards = ids.map(cid => cardName(cid, cid)).join(", ");
+      return `${playerName(ev.player)} revelou e colocou no topo do próprio deck ${cards || "cartas do deck do oponente"}${sourceName ? ` por ${sourceName}` : ""}.`;
     }
     return `${playerName(ev.player)} revelou ${cardName(ev.card_id, "uma carta")}${sourceName ? ` por ${sourceName}` : ""}.`;
   }
