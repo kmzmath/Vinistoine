@@ -113,6 +113,10 @@ def is_valid_target(state: GameState, target_desc: dict, candidate, source_owner
                 return True
             if v == "ENEMY_HERO" and candidate.player_id != source_owner:
                 return True
+            if v == "FRIENDLY_CHARACTER" and candidate.player_id == source_owner:
+                return True
+            if v == "ENEMY_CHARACTER" and candidate.player_id != source_owner:
+                return True
             if v in ("ANY_HERO", "ANY_CHARACTER"):
                 return True
             if v == "FRIENDLY_CHARACTER" and candidate.player_id == source_owner:

@@ -52,10 +52,10 @@ def test_ramoninho_activated_ability_uses_charge_and_damages_enemy_minion():
 
     assert state.players[pid].mana == 6
     assert enemy.health == 2
-    assert ramon.ability_uses_remaining.get('0') == 2
+    assert ramon.ability_uses_remaining.get('0') == 3
 
 
-def test_ramoninho_activated_ability_has_three_total_free_uses():
+def test_ramoninho_activated_ability_has_four_total_free_uses():
     state = _new_blank_match()
     pid = state.current_player
     foe = 1 - pid
@@ -63,11 +63,11 @@ def test_ramoninho_activated_ability_has_three_total_free_uses():
     enemy = _force_minion(state, foe, card_id="pizza", health=20)
     state.players[pid].mana = 0
 
-    for _ in range(3):
+    for _ in range(4):
         ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
         assert ok, msg
 
-    assert enemy.health == 11
+    assert enemy.health == 8
     assert ramon.ability_uses_remaining.get("0") == 0
 
     ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
@@ -96,7 +96,7 @@ def test_activated_ability_resets_next_turn():
 
     ok, msg = engine.activate_ability(state, pid, ramon.instance_id, chosen_target=enemy.instance_id)
     assert ok, msg
-    assert ramon.ability_uses_remaining.get('0') == 2
+    assert ramon.ability_uses_remaining.get('0') == 3
 
     engine.end_turn(state, pid)
     engine.end_turn(state, foe)

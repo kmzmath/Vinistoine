@@ -348,6 +348,13 @@ class GameState:
         you = self.players[viewer_id].to_dict(hide_hand=False)
         opponent = self.players[1 - viewer_id].to_dict(hide_hand=True)
         # Anexa flags por-jogador derivados de pending_modifiers para a UI.
+        def _visible_player_dict(pid: int):
+            return you if pid == viewer_id else opponent
+
+        def _minion_view(pid: int, minion_id: str):
+            pdata = _visible_player_dict(pid)
+            return next((m for m in pdata.get("board", []) if m.get("instance_id") == minion_id), None)
+
         for pm in self.pending_modifiers:
             if pm.get("consumed"):
                 continue
@@ -358,6 +365,32 @@ class GameState:
                     you["next_spell_costs_health"] = True
                 else:
                     opponent["next_spell_costs_health"] = True
+            elif kind == "buff_source_if_target_killed_by_opponent":
+                found_src = self.find_minion(pm.get("source_minion_id"))
+                found_target = self.find_minion(pm.get("target_id"))
+                if found_src and found_target:
+                    src_view = _minion_view(found_src[1], pm.get("source_minion_id"))
+                    if src_view is not None:
+                        target_minion = found_target[0]
+                        src_view["linked_minion"] = {
+                            "instance_id": target_minion.instance_id,
+                            "card_id": target_minion.card_id,
+                            "name": target_minion.name,
+                        }
+
+        # Previews dinâmicos de hover: Fusca Medicinal mostra qual lacaio o
+        # próximo fim de turno ressuscitará, quando houver cemitério conhecido.
+        last_dead_by_owner = {}
+        for rec in self.graveyard:
+            last_dead_by_owner[rec.get("owner")] = rec
+        for pdata, pid in ((you, viewer_id), (opponent, 1 - viewer_id)):
+            rec = last_dead_by_owner.get(pid)
+            if not rec:
+                continue
+            for m in pdata.get("board", []):
+                if m.get("card_id") == "fusca_medicinal":
+                    m["related_card_ids"] = [rec.get("card_id")]
+                    m["related_label"] = "Ressuscita"
         return {
             "game_id": self.game_id,
             "current_player": self.current_player,

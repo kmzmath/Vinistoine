@@ -311,11 +311,19 @@ def end_turn(state: GameState, player_id: int):
     if state.current_player != player_id or state.phase != "PLAYING":
         return False
     p = state.players[player_id]
-    # dispara END_OF_TURN nos lacaios do jogador
+    # dispara END_OF_TURN nos lacaios do jogador. Alguns efeitos de fim de
+    # turno podem abrir uma escolha manual; nesse caso pausamos a virada até o
+    # cliente responder, em vez de avançar o turno e resolver por heurística.
     for m in list(p.board):
         effects.fire_minion_trigger(state, m, "END_OF_TURN")
+        if state.pending_choice is not None:
+            return True
         effects.fire_minion_trigger(state, m, "END_OF_YOUR_TURN")
+        if state.pending_choice is not None:
+            return True
         effects.fire_minion_trigger(state, m, "ON_END_TURN")
+        if state.pending_choice is not None:
+            return True
 
     # Descongela no FIM do turno do dono, mas APENAS se o lacaio veio
     # congelado de antes (não foi congelado AGORA durante este turno).
@@ -491,19 +499,14 @@ def apply_continuous_effects(state: GameState):
                         atk = _parse_int(parts[-2])
                         hp = _parse_int(parts[-1])
                         m.attack = max(0, m.attack - atk)
-                        if hp > 0:
-                            # Aura removida que dava +X de vida: NÃO subtrair de
-                            # health, só recortar pelo novo max. Subtrair matava
-                            # lacaios já machucados quando a fonte da aura morria.
-                            new_max = max(1, m.max_health - hp)
-                            m.health = min(m.health, new_max)
-                            m.max_health = new_max
-                        else:
-                            # Aura debuff (-hp): devolve hp ao retirar.
-                            m.max_health = max(1, m.max_health - hp)
-                            m.health = m.health - hp
-                            if m.health > m.max_health:
-                                m.health = m.max_health
+                        # Retira exatamente o delta de vida máxima/vida atual
+                        # aplicado por _mark_stat. Isso evita que auras de +vida
+                        # curem o lacaio a cada recálculo e também evita que
+                        # debuffs negativos voltem como cura indevida.
+                        m.max_health = max(1, m.max_health - hp)
+                        m.health = m.health - hp
+                        if m.health > m.max_health:
+                            m.health = m.max_health
                     m.tags.remove(tag)
                 elif tag.startswith("_AURA_TAG:"):
                     parts = tag.split(":", 2)
@@ -534,10 +537,24 @@ def apply_continuous_effects(state: GameState):
     def _mark_stat(target: Minion, source: Minion, atk: int, hp: int):
         if atk == 0 and hp == 0:
             return
+        old_attack = target.attack
+        old_max_health = target.max_health
+        old_health = target.health
         target.attack = max(0, target.attack + atk)
         target.max_health = max(1, target.max_health + hp)
-        target.health += hp
-        marker = f"_AURA_STAT:{source.instance_id}:{atk}:{hp}"
+        # Auras de vida não devem curar novamente em cada recálculo (ataques,
+        # dano e cleanup chamam apply_continuous_effects várias vezes). O delta
+        # de vida atual aplicado é exatamente o delta de vida máxima efetivo;
+        # ao retirar e reaplicar a aura, o dano pré-existente fica preservado.
+        health_delta = target.max_health - old_max_health
+        target.health = max(0, old_health + health_delta)
+        # Guarde o delta efetivamente aplicado após clamps. Sem isso, uma aura
+        # -1 de ataque em lacaio 0/1 seria removida como +1 de ataque.
+        applied_atk = target.attack - old_attack
+        applied_hp = target.max_health - old_max_health
+        if applied_atk == 0 and applied_hp == 0:
+            return
+        marker = f"_AURA_STAT:{source.instance_id}:{applied_atk}:{applied_hp}"
         target.tags.append(marker)
 
     def _mark_tag(target: Minion, source: Minion, tag: str):
@@ -1105,6 +1122,23 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
         )
         if board_position is None or board_position < 0 or board_position > len(p.board):
             board_position = len(p.board)
+        if "DORMANT" in new_minion.tags:
+            new_minion.cant_attack = True
+            new_minion.immune = True
+            new_minion.summoning_sick = True
+            fms_threshold = next((
+                int(e.get("amount", 2) or 2)
+                for e in (new_minion.effects or [])
+                if e.get("trigger") == "FRIENDLY_MINIONS_SUMMONED"
+            ), None)
+            if fms_threshold is not None:
+                state.pending_modifiers.append({
+                    "kind": "friendly_summons_awaken_counter",
+                    "target_id": new_minion.instance_id,
+                    "owner": player_id,
+                    "count": 0,
+                    "required": fms_threshold,
+                })
         p.board.insert(board_position, new_minion)
         state.log_event({"type": "summon", "owner": player_id, "minion": new_minion.to_dict()})
 
@@ -1539,6 +1573,84 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
         state.log_event({"type": "choice_resolved", "kind": kind,
                          "player": player_id, "x": x, "position": position})
         _resume_choice_effects(state, choice)
+        return True, "OK"
+
+    if kind == "heal_opponent_and_draw_scaling":
+        try:
+            idx = int(response.get("index", response.get("chose_index", 0)))
+        except Exception:
+            return False, "Opção inválida"
+        options = list(choice.get("options") or [])
+        if idx < 0 or idx >= len(options):
+            return False, "Opção inválida"
+        opt = options[idx]
+        from .effects import heal_character, draw_card
+        heal_character(state, state.opponent_of(player_id), int(opt.get("heal_amount", 0) or 0))
+        draw_card(state, state.players[player_id], int(opt.get("draw_amount", 0) or 0))
+        state.pending_choice = None
+        state.log_event({"type": "choice_resolved", "kind": kind,
+                         "player": player_id, "index": idx})
+        _resume_choice_effects(state, choice)
+        cleanup(state)
+        return True, "OK"
+
+    if kind == "heal_or_revive_friendly":
+        selected = response.get("target_id") or response.get("id") or response.get("minion_id")
+        allowed = {o.get("id") or o.get("instance_id") for o in (choice.get("options") or [])}
+        if selected not in allowed:
+            return False, "Alvo inválido"
+        amount = int(choice.get("amount", 0) or 0)
+        from .effects import heal_character
+        if isinstance(selected, str) and selected.startswith("dead:"):
+            try:
+                idx = int(selected.split(":", 1)[1])
+            except Exception:
+                return False, "Lacaio inválido"
+            if idx < 0 or idx >= len(state.graveyard):
+                return False, "Lacaio inválido"
+            rec = state.graveyard[idx]
+            if rec.get("owner") != player_id:
+                return False, "Lacaio inválido"
+            from .effects_lote13 import _resurrect_card
+            _resurrect_card(state, player_id, rec.get("card_id"), health=amount)
+        else:
+            targets = targeting.resolve_targets(
+                state, {"mode": "CHOSEN", "valid": ["FRIENDLY_CHARACTER"]},
+                player_id, None, selected
+            )
+            if not targets:
+                return False, "Alvo inválido"
+            heal_character(state, targets[0], amount)
+        state.pending_choice = None
+        state.log_event({"type": "choice_resolved", "kind": kind,
+                         "player": player_id, "target_id": selected})
+        _resume_choice_effects(state, choice)
+        cleanup(state)
+        return True, "OK"
+
+    if kind == "choose_friendly_minion_to_devour":
+        selected = response.get("target_id") or response.get("minion_id") or response.get("id")
+        allowed = {m.get("instance_id") for m in (choice.get("minions") or [])}
+        if selected not in allowed:
+            return False, "Lacaio inválido"
+        mid = choice.get("source_minion_id")
+        found = state.find_minion(mid) if mid else None
+        if not found:
+            return False, "Lacaio fonte não está mais em campo"
+        source_minion = found[0]
+        eff = {
+            "action": "DEVOUR_FRIENDLY_MINION_GAIN_ATTRIBUTES",
+            "bonus_attack": 1,
+            "bonus_health": 1,
+            "copy_text": True,
+            "target": {"mode": "CHOSEN", "valid": ["FRIENDLY_MINION"]},
+        }
+        state.pending_choice = None
+        effects.resolve_effect(state, eff, player_id, source_minion, {"victim_id": selected})
+        state.log_event({"type": "choice_resolved", "kind": kind,
+                         "player": player_id, "target_id": selected})
+        _resume_choice_effects(state, choice)
+        cleanup(state)
         return True, "OK"
 
 
