@@ -4,11 +4,11 @@ Relatório gerado por `python scripts/card_coverage.py`.
 
 ## Resumo
 
-- Cartas carregadas: **251**
-- Actions distintas usadas no JSON: **163**
-- Handlers registrados na engine: **165**
+- Cartas carregadas: **261**
+- Actions distintas usadas no JSON: **170**
+- Handlers registrados na engine: **172**
 - Actions usadas pelo JSON sem handler: **0**
-- Ocorrências de action cobertas: **311/311** (100.0%)
+- Ocorrências de action cobertas: **321/321** (100.0%)
 - Triggers distintas: **34**
 - Triggers ainda não disparadas pela engine: **0**
 - Target modes distintos: **52**

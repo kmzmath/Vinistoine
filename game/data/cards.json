@@ -7044,6 +7044,229 @@
     ]
   },
   {
+    "id": "mussovini",
+    "name": "Mussovini",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 4,
+    "health": 4,
+    "durability": null,
+    "text": "Ao ser jogado, evoque 6 Vinís 3 Anos. Seus Vinís também são Italianos.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON",
+        "card_id": "vini_3_anos",
+        "amount": 6
+      },
+      {
+        "trigger": "AURA",
+        "action": "ADD_TRIBE",
+        "tribe": "ITALIA",
+        "target": {
+          "mode": "FRIENDLY_MINIONS",
+          "card_id_prefix": "vini"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rei_arvore_corrompido",
+    "name": "Rei Árvore Corrompido",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 4,
+    "health": 16,
+    "durability": null,
+    "text": "Ao ser jogado, substitua todos os lacaios em campo por Troncos. Lacaios substituídos não morrem nem vão para o cemitério.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "REPLACE_ALL_MINIONS_WITH_TRUNKS_NO_DEATH"
+      }
+    ]
+  },
+  {
+    "id": "rei_arvore",
+    "name": "Rei Árvore",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 6,
+    "health": 6,
+    "durability": null,
+    "text": "Provocar. Último Suspiro: Evoque um Tronco; no começo do seu turno, transforme-o em Rei Árvore.",
+    "tags": [
+      "TAUNT",
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "SUMMON_TRUNK_THEN_TRANSFORM_NEXT_OWNER_TURN"
+      }
+    ]
+  },
+  {
+    "id": "tres_fuscas",
+    "name": "Três Fuscas",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 12,
+    "health": 13,
+    "durability": null,
+    "text": "Provocar. Escudo Divino. Não pode atacar.",
+    "tags": [
+      "TAUNT",
+      "DIVINE_SHIELD",
+      "CANT_ATTACK"
+    ],
+    "tribes": [
+      "VEICULO"
+    ],
+    "effects": []
+  },
+  {
+    "id": "sastv",
+    "name": "SAS TV",
+    "type": "SPELL",
+    "cost": 10,
+    "durability": null,
+    "text": "Compre 3 cartas, escolha uma delas para jogar de graça.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "DRAW_THREE_CHOOSE_ONE_PLAY_FREE",
+        "amount": 3
+      }
+    ]
+  },
+  {
+    "id": "veneza",
+    "name": "Veneza",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 11,
+    "health": 11,
+    "durability": null,
+    "text": "Enquanto este lacaio está vivo, veículos não podem atacar e têm ataque e vida reduzidos pela metade (arredondados para baixo).",
+    "tags": [],
+    "tribes": [
+      "ITALIA"
+    ],
+    "effects": [
+      {
+        "trigger": "AURA",
+        "action": "HALVE_STATS_ROUNDED_DOWN",
+        "target": {
+          "mode": "MINIONS_WITH_TRIBE",
+          "tribe": "VEICULO"
+        }
+      },
+      {
+        "trigger": "AURA",
+        "action": "ADD_TAG",
+        "tag": "CANT_ATTACK",
+        "target": {
+          "mode": "MINIONS_WITH_TRIBE",
+          "tribe": "VEICULO"
+        }
+      }
+    ]
+  },
+  {
+    "id": "vini",
+    "name": "Viní",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 4,
+    "health": 12,
+    "durability": null,
+    "text": "Provocar, Escudo Divino, Rapidez, Fúria dos Ventos.",
+    "tags": [
+      "TAUNT",
+      "DIVINE_SHIELD",
+      "RUSH",
+      "WINDFURY"
+    ],
+    "tribes": [],
+    "effects": []
+  },
+  {
+    "id": "vinish",
+    "name": "Vinish",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 12,
+    "health": 12,
+    "durability": null,
+    "text": "Último Suspiro: se você não tiver cartas na mão, no campo e no deck, destrua o inimigo.",
+    "tags": [
+      "DEATHRATTLE"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_DEATH",
+        "action": "VINISH_EMPTY_WIN"
+      }
+    ]
+  },
+  {
+    "id": "vinisombrio",
+    "name": "Viní Sombrio",
+    "type": "MINION",
+    "cost": 10,
+    "attack": 6,
+    "health": 8,
+    "durability": null,
+    "text": "Ao ser jogado, evoque uma cópia 1/1 com Provocar de todos os lacaios com Último Suspiro do seu deck e cemitério.",
+    "tags": [
+      "BATTLECRY"
+    ],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_DEATHRATTLE_COPIES_FROM_DECK_AND_GRAVEYARD"
+      }
+    ]
+  },
+  {
+    "id": "reflexo",
+    "name": "Reflexo",
+    "type": "SPELL",
+    "cost": 0,
+    "durability": null,
+    "text": "Mire em um lacaio. Evoque uma cópia exata atual desse lacaio. Este feitiço custa o mesmo que o lacaio escolhido.",
+    "tags": [],
+    "tribes": [],
+    "effects": [
+      {
+        "trigger": "ON_PLAY",
+        "action": "SUMMON_EXACT_COPY_OF_CHOSEN_MINION",
+        "target": {
+          "mode": "CHOSEN",
+          "valid": [
+            "ANY_MINION"
+          ]
+        }
+      }
+    ]
+  },
+  {
     "id": "mussolini",
     "name": "Mussolini",
     "type": "MINION",
