@@ -10,7 +10,7 @@ from .state import (
     STARTING_HEALTH, MAX_MANA, MAX_HAND_SIZE, MAX_BOARD_SIZE, DECK_SIZE,
     STARTING_HAND_FIRST, STARTING_HAND_SECOND,
 )
-from .cards import get_card, load_cards
+from .cards import get_card, load_cards, card_has_tribe
 from . import effects
 from . import targeting
 
@@ -802,12 +802,22 @@ def compute_dynamic_cost(state: GameState, p: PlayerState, card_in_hand: CardInH
         if aura_source.silenced:
             continue
         for eff in aura_source.effects or []:
-            if eff.get("trigger") != "AURA" or eff.get("action") != "INCREASE_COST":
+            if eff.get("trigger") != "AURA" or eff.get("action") not in ("INCREASE_COST", "REDUCE_COST"):
                 continue
-            valid = (eff.get("target") or {}).get("valid") or []
+            target_desc = eff.get("target") or {}
+            if target_desc.get("mode") not in (None, "FRIENDLY_HAND", "FRIENDLY_DECK", "FRIENDLY_HAND_AND_DECK"):
+                continue
+            valid = target_desc.get("valid") or []
             applies = not valid or ("MINION" in valid and card.get("type") == "MINION") or ("SPELL" in valid and card.get("type") == "SPELL")
+            tribe = target_desc.get("tribe") or target_desc.get("required_tribe")
+            if tribe and not card_has_tribe(card, tribe):
+                applies = False
             if applies:
-                discount -= int(eff.get("amount", 0) or 0)
+                amount = int(eff.get("amount", 0) or 0)
+                if eff.get("action") == "INCREASE_COST":
+                    discount -= amount
+                else:
+                    discount += amount
 
     for eff in card.get("effects") or []:
         if eff.get("trigger") != "IN_HAND":
@@ -1748,6 +1758,14 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
         _resume_choice_effects(state, choice)
         return True, "OK"
 
+    if kind == "build_replacement_deck":
+        from .effects_lote33_requested_cards import resolve_build_replacement_deck_choice
+        ok, msg = resolve_build_replacement_deck_choice(state, player_id, choice, response)
+        if ok and state.pending_choice is None:
+            _resume_choice_effects(state, choice)
+            cleanup(state)
+        return ok, msg
+
     if kind == "choose_one_effect":
         try:
             idx = int(response.get("index", response.get("chose_index", 0)))
@@ -2183,6 +2201,8 @@ def cleanup(state: GameState):
             state.log_event({"type": "death", "minion": minion.instance_id,
                              "name": minion.name, "card_id": minion.card_id,
                              "owner": owner, "death_index": death_index})
+            from .effects_lote33_requested_cards import handle_return_spell_on_death
+            handle_return_spell_on_death(state, minion, owner)
             # ON_DEATH com death_index disponível em ctx.
             effects.fire_minion_trigger(
                 state, minion, "ON_DEATH",
