@@ -771,13 +771,25 @@ def _devour_friendly_minion_gain_attributes(state, eff, source_owner, source_min
     if not source_minion:
         return
     target_desc = eff.get("target") or {"mode": "CHOSEN", "valid": ["FRIENDLY_MINION"]}
+    chosen = ctx.get("chosen_target") or ctx.get("victim_id")
     targets = targeting.resolve_targets(state, target_desc, source_owner,
-                                        source_minion, ctx.get("chosen_target"))
-    # Triggers de fim de turno ainda não têm UI de escolha. Fallback determinístico:
-    # escolhe o primeiro aliado diferente do Spiid.
+                                        source_minion, chosen)
+    candidates = [m for m in state.player_at(source_owner).board if m is not source_minion]
+    if getattr(state, "manual_choices", False) and chosen is None and candidates:
+        state.pending_choice = {
+            "choice_id": gen_id("choice_"),
+            "kind": "choose_friendly_minion_to_devour",
+            "owner": source_owner,
+            "source_minion_id": source_minion.instance_id,
+            "minions": [m.to_dict() for m in candidates],
+        }
+        state.log_event({"type": "choice_required",
+                         "kind": "choose_friendly_minion_to_devour",
+                         "player": source_owner})
+        return
     victim = next((t for t in targets if isinstance(t, Minion) and t is not source_minion), None)
     if victim is None:
-        victim = next((m for m in state.player_at(source_owner).board if m is not source_minion), None)
+        victim = candidates[0] if candidates else None
     if victim is None:
         return
 

@@ -2276,7 +2276,17 @@
           "target": {
             "mode": "SELF"
           },
-          "health": 1
+          "health": 1,
+          "modifications": [
+            {
+              "action": "REMOVE_TAG",
+              "tag": "DEATHRATTLE"
+            },
+            {
+              "action": "REMOVE_TRIGGER",
+              "trigger": "ON_DEATH"
+            }
+          ]
         }
       }
     ]
@@ -6184,7 +6194,7 @@
     "attack": 3,
     "health": 3,
     "durability": null,
-    "text": "Habilidade (3 usos): Atire em um lacaio inimigo, causando 3 de dano.",
+    "text": "Habilidade (4 usos): Atire em um lacaio inimigo, causando 3 de dano.",
     "tags": [
       "ACTIVATED_ABILITY"
     ],
@@ -6201,7 +6211,7 @@
             "ENEMY_MINION"
           ]
         },
-        "activation_uses": 3
+        "activation_uses": 4
       }
     ]
   },

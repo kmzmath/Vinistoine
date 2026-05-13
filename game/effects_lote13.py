@@ -258,7 +258,20 @@ def register_lote13_handlers(handler):
             return
         fallback = eff.get("fallback") or {}
         health = fallback.get("health")
-        _resurrect_card(state, source_owner, source_card_id, health=health)
+        m = _resurrect_card(state, source_owner, source_card_id, health=health)
+        if m:
+            for mod in fallback.get("modifications") or []:
+                if mod.get("action") == "REMOVE_TAG":
+                    tag = mod.get("tag")
+                    m.tags = [t for t in m.tags if t != tag]
+                    if tag == "DIVINE_SHIELD":
+                        m.divine_shield = False
+                elif mod.get("action") == "REMOVE_TRIGGER":
+                    trig = mod.get("trigger")
+                    m.effects = [e for e in (m.effects or []) if e.get("trigger") != trig]
+            state.log_event({"type": "resurrect_self_modified",
+                             "card_id": source_card_id,
+                             "minion": m.instance_id})
 
     @handler("DRAW_HIGHEST_COST_SPELL_AND_SET_COST")
     def _draw_highest_cost_spell_and_set_cost(state, eff, source_owner, source_minion, ctx):
@@ -314,16 +327,57 @@ def register_lote13_handlers(handler):
     def _heal_or_revive_friendly(state, eff, source_owner, source_minion, ctx):
         from .effects import heal_character
         amount = int(eff.get("amount", 0) or 0)
-        # Se um alvo concreto foi passado, respeita.
+        chosen_id = ctx.get("chosen_target") or ctx.get("heal_target_id")
+        dead_prefix = "dead:"
+        if isinstance(chosen_id, str) and chosen_id.startswith(dead_prefix):
+            try:
+                idx = int(chosen_id[len(dead_prefix):])
+            except Exception:
+                idx = -1
+            if eff.get("can_revive_dead_this_turn") and 0 <= idx < len(state.graveyard):
+                rec = state.graveyard[idx]
+                if rec.get("owner") == source_owner:
+                    _resurrect_card(state, source_owner, rec.get("card_id"), health=amount)
+                    return
+
         targets = targeting.resolve_targets(state, eff.get("target") or {}, source_owner,
-                                            source_minion, ctx.get("chosen_target"))
+                                            source_minion, chosen_id)
         if targets:
-            # Prefere alvos danificados; se veio lista ampla, escolhe o mais ferido.
-            damaged = [t for t in targets
-                       if (isinstance(t, Minion) and t.health < t.max_health)
-                       or (isinstance(t, PlayerState) and t.hero_health < t.hero_max_health)]
-            chosen = damaged[0] if damaged else targets[0]
+            # Quando o jogador escolheu manualmente, respeite exatamente esse
+            # alvo; caso contrário mantenha o fallback histórico do mais ferido.
+            if chosen_id:
+                chosen = targets[0]
+            else:
+                damaged = [t for t in targets
+                           if (isinstance(t, Minion) and t.health < t.max_health)
+                           or (isinstance(t, PlayerState) and t.hero_health < t.hero_max_health)]
+                chosen = damaged[0] if damaged else targets[0]
             heal_character(state, chosen, amount)
+            return
+
+        if getattr(state, "manual_choices", False):
+            me = state.players[source_owner]
+            options = [{"id": f"hero:{source_owner}", "kind": "hero",
+                        "name": me.name, "health": me.hero_health,
+                        "max_health": me.hero_max_health}]
+            options.extend(m.to_dict() for m in me.board)
+            if eff.get("can_revive_dead_this_turn"):
+                for idx, rec in _recent_friendly_graveyard(state, source_owner, 3):
+                    card = get_card(rec.get("card_id")) or {}
+                    options.append({"id": f"dead:{idx}", "kind": "dead_minion",
+                                    "card_id": rec.get("card_id"),
+                                    "name": rec.get("name") or card.get("name") or rec.get("card_id")})
+            state.pending_choice = {
+                "choice_id": gen_id("choice_"),
+                "kind": "heal_or_revive_friendly",
+                "owner": source_owner,
+                "source_minion_id": source_minion.instance_id if source_minion else None,
+                "amount": amount,
+                "options": options,
+            }
+            state.log_event({"type": "choice_required",
+                             "kind": "heal_or_revive_friendly",
+                             "player": source_owner})
             return
 
         # Sem UI de alvo em gatilho de fim de turno: cura o aliado mais ferido.
@@ -354,10 +408,22 @@ def register_lote13_handlers(handler):
         if not options:
             return
         idx = ctx.get("chose_index")
+        if getattr(state, "manual_choices", False) and idx is None:
+            state.pending_choice = {
+                "choice_id": gen_id("choice_"),
+                "kind": "heal_opponent_and_draw_scaling",
+                "owner": source_owner,
+                "source_minion_id": source_minion.instance_id if source_minion else None,
+                "options": options,
+            }
+            state.log_event({"type": "choice_required",
+                             "kind": "heal_opponent_and_draw_scaling",
+                             "player": source_owner})
+            return
         try:
             idx = int(idx)
         except Exception:
-            idx = len(options) - 1  # Sem UI dedicada ainda: escolhe maior risco/recompensa.
+            idx = len(options) - 1  # Fallback de testes/IA: maior risco/recompensa.
         idx = max(0, min(idx, len(options) - 1))
         opt = options[idx]
         opp = state.opponent_of(source_owner)

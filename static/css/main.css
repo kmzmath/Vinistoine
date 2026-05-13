@@ -3563,3 +3563,24 @@ input:focus { border-color: var(--gold); }
   line-height: 1.32;
   text-shadow: 0 1px 1px rgba(0,0,0,0.85);
 }
+
+/* Indicador de vínculo entre lacaios (ex.: Viní Sertanejo). */
+.linked-minion-portrait {
+  position: absolute;
+  right: 2.05rem;
+  bottom: 0.38rem;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 50%;
+  border: 2px solid #f5d36a;
+  background: #432b16 center/cover no-repeat;
+  color: #fff3bd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: 0 0 0 1px rgba(30, 16, 6, 0.85), 0 0 8px rgba(245, 211, 106, 0.7);
+  z-index: 8;
+}
