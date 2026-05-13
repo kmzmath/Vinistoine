@@ -1905,16 +1905,18 @@ def activate_ability(state: GameState, player_id: int, minion_instance_id: str,
         chosen_targets = [chosen_target] if chosen_target is not None else []
     chosen_descs = _chosen_targets_for_effect(eff)
     for idx, desc in enumerate(chosen_descs):
-        is_spell_like = trigger == "ACTIVATED_ABILITY"
+        # Habilidades ativadas não são feitiços: proteções como
+        # FRIENDLY_SPELL_TARGET_ONLY/ENEMY_SPELL_TARGET_IMMUNITY só devem
+        # bloquear cartas de tipo SPELL, não poderes de lacaios.
         if not targeting.has_valid_chosen_target(state, desc, player_id,
                                                 source_minion=minion,
-                                                is_spell=is_spell_like):
+                                                is_spell=False):
             return False, "Esta habilidade exige um alvo válido"
         target_id = chosen_targets[idx] if idx < len(chosen_targets) else None
         if target_id is None:
             return False, "Esta habilidade exige um alvo"
         if not targeting.resolve_targets(state, desc, player_id, minion, target_id,
-                                         is_spell=is_spell_like):
+                                         is_spell=False):
             return False, "Alvo inválido"
 
     chosen_target = chosen_targets[0] if chosen_targets else None

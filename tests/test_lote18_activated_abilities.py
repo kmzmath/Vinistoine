@@ -104,6 +104,23 @@ def test_activated_ability_resets_next_turn():
     assert ramon.activated_abilities_this_turn == 0
 
 
+def test_activated_ability_does_not_count_as_spell_for_spell_target_protection():
+    state = _new_blank_match()
+    pid = state.current_player
+    foe = 1 - pid
+    ramon = _force_minion(state, pid, card_id="ramoninho_mestre_da_nerf")
+    protected = _force_minion(state, foe, card_id="dois_caras_em_uma_moto")
+    state.players[pid].mana = 0
+
+    ok, msg = engine.activate_ability(
+        state, pid, ramon.instance_id, chosen_target=protected.instance_id
+    )
+    assert ok, msg
+
+    assert protected.health == protected.max_health - 3
+    assert protected.has_tag("FRIENDLY_SPELL_TARGET_ONLY")
+
+
 def test_rica_coelinho_during_turn_moves_to_hand():
     state = _new_blank_match()
     pid = state.current_player
