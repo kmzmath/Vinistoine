@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arena - Vinístone</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="stylesheet" href="/static/css/arena.css" />
+  <script src="/static/js/audio.js" defer></script>
+  <script src="/static/js/arena.js" defer></script>
+</head>
+<body>
+  <div class="arena-shell">
+    <header class="arena-topbar">
+      <div class="arena-title">Vinístone Arena</div>
+      <button class="btn small" id="arena-back-btn">Voltar ao saguão</button>
+      <span class="spacer"></span>
+      <span class="muted" id="arena-user"></span>
+      <button class="btn small" id="arena-logout-btn">Sair</button>
+    </header>
+
+    <main class="arena-page">
+      <section id="arena-setup" class="panel">
+        <h2>Modo Arena</h2>
+        <p class="muted">
+          Monte seu deck escolhendo 1 entre 3 cartas. São 15 escolhas; cada carta escolhida entra com 2 cópias, totalizando 30 cartas.
+        </p>
+        <div class="row" style="margin-top:1rem;">
+          <button class="btn primary" id="arena-create-btn">Criar Arena</button>
+          <span class="spacer"></span>
+          <input id="arena-join-code" type="text" placeholder="Código da sala" style="width:160px; text-transform:uppercase;" />
+          <button class="btn" id="arena-join-btn">Entrar na Arena</button>
+        </div>
+        <div class="sep"></div>
+        <div class="faint">Enquanto o oponente não entra, a sala fica aguardando. Depois, os dois jogadores fazem o draft simultaneamente.</div>
+      </section>
+
+      <section id="arena-waiting" class="panel" hidden style="text-align:center;">
+        <h2>Aguardando Arena</h2>
+        <p class="muted">Compartilhe o código com seu oponente. O draft começa quando ambos estiverem conectados.</p>
+        <div class="arena-room-code" id="arena-created-code"></div>
+        <div class="pulse-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      </section>
+
+      <section id="arena-draft" hidden>
+        <div class="arena-layout-grid">
+          <div class="panel">
+            <div class="row">
+              <div>
+                <h2 style="margin:0;">Escolha sua carta</h2>
+                <div class="arena-progress-text" id="arena-progress">Escolha 1/15</div>
+                <div class="muted" id="arena-progress-detail">0/30 cartas no deck</div>
+              </div>
+              <span class="spacer"></span>
+              <div>
+                <div class="faint">Código da sala</div>
+                <div class="arena-room-code" id="arena-room-code"></div>
+              </div>
+            </div>
+            <div class="arena-card-row" id="arena-options"></div>
+            <div class="muted" id="arena-status" style="text-align:center; margin-top:1rem;"></div>
+          </div>
+
+          <aside class="panel arena-curve-panel">
+            <h3 style="margin-top:0;">Curva de custo</h3>
+            <div class="arena-curve" id="arena-curve"></div>
+            <h3>Escolhas</h3>
+            <div class="arena-selected-list" id="arena-selected-list"></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
