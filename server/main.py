@@ -32,7 +32,7 @@ SECRET = os.environ.get("SESSION_SECRET", secrets.token_hex(32))
 ROOT_DIR = Path(__file__).parent.parent
 STATIC_DIR = ROOT_DIR / "static"
 
-NON_COLLECTIBLE_CARD_IDS = {"coin", "moeda", "moeda_encontrada"}
+NON_COLLECTIBLE_CARD_IDS = {"coin", "", "_encontrada"}
 ALLOWED_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -231,11 +231,11 @@ def list_card_images():
                 available[f.stem] = f"/static/cards/{f.name}"
                 available.setdefault(f.stem.lower(), f"/static/cards/{f.name}")
 
-    # A carta auxiliar Moeda tem id interno "coin", mas a imagem fica em
-    # /static/moeda.png em vez de /static/cards/coin.png.
-    moeda_path = STATIC_DIR / "moeda.png"
-    if moeda_path.exists():
-        moeda_url = "/static/moeda.png"
+    # A carta auxiliar  tem id interno "coin", mas a imagem fica em
+    # /static/.png em vez de /static/cards/coin.png.
+    _path = STATIC_DIR / ".png"
+    if _path.exists():
+        moeda_url = "/static/cards/moeda.png"
         available["coin"] = moeda_url
         available.setdefault("moeda", moeda_url)
 
