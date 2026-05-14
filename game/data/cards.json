@@ -171,7 +171,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VEICULO"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -525,7 +527,9 @@
     "tags": [
       "TAUNT"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": []
   },
   {
@@ -677,7 +681,8 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -998,7 +1003,8 @@
       "DEATHRATTLE"
     ],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -1236,7 +1242,8 @@
     "text": "Sempre que você evocar uma fruta, esse lacaio recebe +1 de vida.",
     "tags": [],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -1421,7 +1428,9 @@
     "tags": [
       "DEATHRATTLE"
     ],
-    "tribes": [],
+    "tribes": [
+      "BRASIL"
+    ],
     "effects": [
       {
         "trigger": "ON_DEATH",
@@ -1446,7 +1455,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -2176,7 +2187,8 @@
       "DEATHRATTLE"
     ],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -2213,7 +2225,8 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -2242,7 +2255,8 @@
       "DEATHRATTLE"
     ],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -2728,7 +2742,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -2785,7 +2801,9 @@
     "tags": [
       "DORMANT"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "OPPONENT_SPELL_PLAYED",
@@ -2842,7 +2860,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -2870,7 +2890,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -3029,7 +3051,8 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -3113,7 +3136,8 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "ITALIA"
+      "ITALIA",
+      "VINI"
     ],
     "effects": [
       {
@@ -3143,7 +3167,9 @@
     "tags": [
       "RUSH"
     ],
-    "tribes": [],
+    "tribes": [
+      "ITALIA"
+    ],
     "effects": [
       {
         "trigger": "IN_HAND",
@@ -3223,7 +3249,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "BRASIL"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -3422,9 +3450,7 @@
     "durability": null,
     "text": "Conceda +1/1 a todos os seus lacaios, lacaios inimigos que não são chineses perdem -1/1.",
     "tags": [],
-    "tribes": [
-      "CHINA"
-    ],
+    "tribes": [],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -3460,8 +3486,8 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "BRASIL",
-      "VINI"
+      "VINI",
+      "BRASIL"
     ],
     "effects": [
       {
@@ -3765,9 +3791,7 @@
       "BATTLECRY",
       "DEATHRATTLE"
     ],
-    "tribes": [
-      "CORROMPIDO"
-    ],
+    "tribes": [],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -3903,7 +3927,8 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "FRUTA"
+      "FRUTA",
+      "COMIDA"
     ],
     "effects": [
       {
@@ -4024,9 +4049,7 @@
     "durability": null,
     "text": "Silencie todos os lacaios inimigos, destrua um lacaio inimigo.",
     "tags": [],
-    "tribes": [
-      "CHINA"
-    ],
+    "tribes": [],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -4141,7 +4164,9 @@
       "SPELL_TARGET_IMMUNITY"
     ],
     "tribes": [
-      "COMIDA"
+      "FRUTA",
+      "COMIDA",
+      "ITALIA"
     ],
     "effects": [
       {
@@ -4763,7 +4788,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -4798,7 +4825,9 @@
     "tags": [
       "CONDITIONAL_CANT_ATTACK"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "AURA",
@@ -4850,7 +4879,9 @@
     "tags": [
       "DEATHRATTLE"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_DEATH",
@@ -5678,8 +5709,8 @@
       "IMMUNE_TO_ATTACK_DAMAGE"
     ],
     "tribes": [
-      "CHINA",
-      "VINI"
+      "VINI",
+      "CHINA"
     ],
     "effects": [
       {
@@ -5806,9 +5837,7 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [
-      "CORROMPIDO"
-    ],
+    "tribes": [],
     "effects": [
       {
         "trigger": "ON_PLAY",
@@ -5957,14 +5986,14 @@
     "tribes": [
       "TUDO",
       "COMIDA",
-      "FERA",
+      "CHINA",
       "BRASIL",
-      "ITALIA",
-      "VINI",
       "VEICULO",
-      "ELEMENTAL",
+      "ITALIA",
+      "FERA",
+      "VINI",
       "FRUTA",
-      "CORROMPIDO"
+      "ARGENTINA"
     ],
     "effects": []
   },
@@ -6211,7 +6240,6 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "ELEMENTAL",
       "VINI"
     ],
     "effects": [
@@ -6447,7 +6475,7 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "ELEMENTAL"
+      "VINI"
     ],
     "effects": [
       {
@@ -7038,7 +7066,7 @@
       "BATTLECRY"
     ],
     "tribes": [
-      "ITALIA"
+      "VINI"
     ],
     "effects": [
       {
@@ -7183,7 +7211,9 @@
       "RUSH",
       "WINDFURY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": []
   },
   {
@@ -7198,7 +7228,9 @@
     "tags": [
       "DEATHRATTLE"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_DEATH",
@@ -7218,7 +7250,9 @@
     "tags": [
       "BATTLECRY"
     ],
-    "tribes": [],
+    "tribes": [
+      "VINI"
+    ],
     "effects": [
       {
         "trigger": "ON_PLAY",
