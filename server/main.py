@@ -230,6 +230,15 @@ def list_card_images():
             if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
                 available[f.stem] = f"/static/cards/{f.name}"
                 available.setdefault(f.stem.lower(), f"/static/cards/{f.name}")
+
+    # A carta auxiliar Moeda tem id interno "coin", mas a imagem fica em
+    # /static/moeda.png em vez de /static/cards/coin.png.
+    moeda_path = STATIC_DIR / "moeda.png"
+    if moeda_path.exists():
+        moeda_url = "/static/moeda.png"
+        available["coin"] = moeda_url
+        available.setdefault("moeda", moeda_url)
+
     heroes_dir = STATIC_DIR / "heroes"
     hero_avatars: dict[str, str] = {}
     if heroes_dir.exists():
