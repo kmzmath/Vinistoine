@@ -29,7 +29,7 @@
 
 .arena-layout-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   gap: 1.4rem;
   align-items: start;
 }
@@ -165,38 +165,153 @@
 }
 
 .arena-selected-list {
-  max-height: 300px;
+  max-height: 380px;
   overflow: auto;
   margin-top: 1rem;
   border-top: 1px solid var(--line);
 }
 
-.arena-selected-row {
-  display: grid;
-  grid-template-columns: 36px 1fr 36px;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.38rem 0;
-  border-bottom: 1px solid rgba(58,47,34,0.65);
+.arena-deck-row {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  min-height: 58px;
+  height: 58px;
+  padding: 0 0.65rem;
+  border-bottom: 1px solid rgba(58,47,34,0.75);
+  font-size: 1.02rem;
+  line-height: 1.1;
+  background: linear-gradient(90deg, rgba(22,17,13,0.96), rgba(22,17,13,0.82));
+  cursor: default;
 }
 
-.arena-selected-row .mana {
-  width: 28px;
-  height: 28px;
+.arena-deck-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(12,9,7,0.94) 0%, rgba(12,9,7,0.5) 48%, rgba(12,9,7,0.76) 100%),
+    linear-gradient(180deg, rgba(255,235,170,0.08), rgba(0,0,0,0.24));
+}
+
+.arena-deck-row.has-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image: var(--deck-row-art);
+  background-size: var(--deck-row-art-size, 136% auto);
+  background-position: var(--deck-row-art-x, 50%) var(--deck-row-art-y, 22%);
+  filter: saturate(1.18) contrast(1.1) brightness(0.98);
+  transform: scale(1.08);
+}
+
+.arena-deck-row:hover::after {
+  background:
+    linear-gradient(90deg, rgba(12,9,7,0.76) 0%, rgba(12,9,7,0.18) 38%, rgba(12,9,7,0.58) 100%),
+    linear-gradient(180deg, rgba(245,201,105,0.16), rgba(0,0,0,0.18));
+}
+
+.arena-deck-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.arena-deck-row .mana {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: radial-gradient(circle, #4a7fa8, #1a3a58);
   border: 1px solid var(--gold-dim);
+  align-self: center;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Cinzel', serif;
   font-weight: 800;
+  color: #fff;
 }
 
-.arena-selected-row .qty {
+.arena-deck-row .nm {
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem 0 0.5rem;
+  background: linear-gradient(90deg, rgba(10,8,6,0.82) 0%, rgba(10,8,6,0.66) 68%, transparent 100%);
+  font-weight: 700;
+  text-shadow: 0 2px 3px rgba(0,0,0,0.95), 0 0 5px rgba(0,0,0,0.75);
+}
+
+.arena-deck-row .qty {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
   color: var(--gold);
   font-family: 'JetBrains Mono', monospace;
   font-weight: 800;
+  text-shadow: 0 2px 3px rgba(0,0,0,0.95);
+}
+
+.arena-card-preview {
+  position: fixed;
+  z-index: 10000;
+  width: 260px;
+  height: 377px;
+  pointer-events: none;
+  border-radius: 10px;
+  border: 2px solid var(--gold);
+  background: #111;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 16px 44px rgba(0,0,0,0.82), 0 0 18px rgba(212,166,74,0.35);
+}
+
+.arena-card-preview .fallback-preview {
+  position: absolute;
+  inset: 0;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: linear-gradient(180deg, #2a2218 0%, #1a140e 100%);
+}
+
+.arena-card-preview .preview-cost {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #4a7fa8, #1a3a58);
+  border: 2px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  color: #fff;
+}
+
+.arena-card-preview .preview-name {
+  font-family: 'Cinzel', serif;
+  color: var(--gold-bright);
+  text-align: center;
+  font-weight: 800;
+}
+
+.arena-card-preview .preview-text {
+  flex: 1;
+  color: var(--ink);
+  font-style: italic;
+  text-align: center;
 }
 
 .arena-progress-text {
