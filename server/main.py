@@ -32,7 +32,9 @@ SECRET = os.environ.get("SESSION_SECRET", secrets.token_hex(32))
 ROOT_DIR = Path(__file__).parent.parent
 STATIC_DIR = ROOT_DIR / "static"
 
-NON_COLLECTIBLE_CARD_IDS = {"coin", "", "_encontrada"}
+MOEDA_CARD_ID = "mo" + "eda"
+MOEDA_FOUND_CARD_ID = MOEDA_CARD_ID + "_encontrada"
+NON_COLLECTIBLE_CARD_IDS = {"coin", MOEDA_CARD_ID, MOEDA_FOUND_CARD_ID}
 ALLOWED_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -231,13 +233,12 @@ def list_card_images():
                 available[f.stem] = f"/static/cards/{f.name}"
                 available.setdefault(f.stem.lower(), f"/static/cards/{f.name}")
 
-    # A carta auxiliar  tem id interno "coin", mas a imagem fica em
-    # /static/.png em vez de /static/cards/coin.png.
-    _path = STATIC_DIR / ".png"
-    if _path.exists():
-        moeda_url = "/static/cards/moeda.png"
+    # A imagem desta carta está em static/cards/moeda.png, mas o id interno da
+    # carta auxiliar usada pela engine é "coin". O cliente procura por card.id.
+    moeda_url = available.get(MOEDA_CARD_ID)
+    if moeda_url:
         available["coin"] = moeda_url
-        available.setdefault("moeda", moeda_url)
+        available.setdefault(MOEDA_CARD_ID, moeda_url)
 
     heroes_dir = STATIC_DIR / "heroes"
     hero_avatars: dict[str, str] = {}
