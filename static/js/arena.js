@@ -9,8 +9,14 @@ let allCards = {};
 let cardImages = {};
 let currentDraft = null;
 let selecting = false;
+let hoverPreview = null;
 
 const COST_BUCKETS = ["0", "1", "2", "3", "4", "5", "6", "7+"];
+
+const DECK_ROW_ART_DEFAULTS = {
+  MINION: { x: "50%", y: "22%", size: "136% auto" },
+  SPELL: { x: "50%", y: "24%", size: "128% auto" },
+};
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -111,6 +117,56 @@ function renderCurve(curve) {
   }
 }
 
+function applyDeckRowArt(row, card) {
+  const artUrl = cardImages[card.id];
+  if (!artUrl) return;
+  const defaults = DECK_ROW_ART_DEFAULTS[card.type] || DECK_ROW_ART_DEFAULTS.MINION;
+  row.classList.add("has-art");
+  row.style.setProperty("--deck-row-art", `url('${artUrl}')`);
+  row.style.setProperty("--deck-row-art-x", defaults.x);
+  row.style.setProperty("--deck-row-art-y", defaults.y);
+  row.style.setProperty("--deck-row-art-size", defaults.size);
+}
+
+function showCardPreview(cardId, event) {
+  hideCardPreview();
+  const card = allCards[cardId] || {};
+  const preview = document.createElement("div");
+  preview.className = "arena-card-preview";
+  if (cardImages[cardId]) {
+    preview.style.backgroundImage = `url('${cardImages[cardId]}')`;
+  } else {
+    preview.innerHTML = `
+      <div class="fallback-preview">
+        <div class="preview-cost">${cardCost(card)}</div>
+        <div class="preview-name">${escapeHtml(card.name || cardId)}</div>
+        <div class="preview-text">${escapeHtml(card.text || "")}</div>
+      </div>
+    `;
+  }
+  document.body.appendChild(preview);
+  hoverPreview = preview;
+  moveCardPreview(event);
+}
+
+function moveCardPreview(event) {
+  if (!hoverPreview || !event) return;
+  const margin = 18;
+  const width = 260;
+  const height = 377;
+  let x = event.clientX + margin;
+  let y = event.clientY + margin;
+  if (x + width > window.innerWidth - 8) x = event.clientX - width - margin;
+  if (y + height > window.innerHeight - 8) y = window.innerHeight - height - 8;
+  hoverPreview.style.left = `${Math.max(8, x)}px`;
+  hoverPreview.style.top = `${Math.max(8, y)}px`;
+}
+
+function hideCardPreview() {
+  if (hoverPreview) hoverPreview.remove();
+  hoverPreview = null;
+}
+
 function renderSelected(selected, copiesPerChoice) {
   const root = document.getElementById("arena-selected-list");
   if (!root) return;
@@ -119,15 +175,28 @@ function renderSelected(selected, copiesPerChoice) {
     root.innerHTML = '<div class="faint" style="padding:.75rem 0;">Nenhuma carta escolhida ainda.</div>';
     return;
   }
-  for (const item of selected) {
-    const card = allCards[item.card_id] || {};
+
+  const counts = new Map();
+  for (const item of selected) counts.set(item.card_id, (counts.get(item.card_id) || 0) + copiesPerChoice);
+  const rows = Array.from(counts.entries()).map(([cardId, qty]) => ({
+    cardId,
+    qty,
+    card: allCards[cardId] || { id: cardId, name: cardId, cost: 0 },
+  }));
+  rows.sort((a, b) => cardCost(a.card) - cardCost(b.card) || String(a.card.name || a.cardId).localeCompare(String(b.card.name || b.cardId)));
+
+  for (const rowData of rows) {
     const row = document.createElement("div");
-    row.className = "arena-selected-row";
+    row.className = "arena-deck-row";
+    applyDeckRowArt(row, rowData.card);
     row.innerHTML = `
-      <div class="mana">${cardCost(card)}</div>
-      <div>${escapeHtml(card.name || item.card_id)}</div>
-      <div class="qty">${copiesPerChoice > 1 ? `x${copiesPerChoice}` : "✓"}</div>
+      <div class="mana">${cardCost(rowData.card)}</div>
+      <div class="nm">${escapeHtml(rowData.card.name || rowData.cardId)}</div>
+      <div class="qty">${rowData.qty > 1 ? `×${rowData.qty}` : ""}</div>
     `;
+    row.addEventListener("mouseenter", (e) => showCardPreview(rowData.cardId, e));
+    row.addEventListener("mousemove", moveCardPreview);
+    row.addEventListener("mouseleave", hideCardPreview);
     root.appendChild(row);
   }
 }
@@ -255,6 +324,9 @@ async function initArena() {
     connectArena();
   }
 }
+
+window.addEventListener("scroll", hideCardPreview, { passive: true });
+window.addEventListener("blur", hideCardPreview);
 
 initArena().catch(err => {
   console.error(err);
