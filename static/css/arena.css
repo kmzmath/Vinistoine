@@ -1,0 +1,215 @@
+.arena-shell {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.arena-topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.arena-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--gold-bright);
+}
+
+.arena-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.arena-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 1.4rem;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .arena-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.arena-card-row {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.arena-choice-card {
+  width: 230px;
+  height: 333px;
+  border-radius: 10px;
+  border: 2px solid var(--gold-dim);
+  background: linear-gradient(180deg, #2a2218 0%, #1a140e 100%);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.arena-choice-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--gold-bright);
+  box-shadow: var(--glow-gold), var(--shadow);
+}
+
+.arena-choice-card.full-art {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.arena-choice-card .fallback {
+  position: absolute;
+  inset: 0;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.arena-choice-card .cost {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #4a7fa8, #1a3a58);
+  border: 2px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.arena-choice-card .name {
+  margin-top: 1rem;
+  font-family: 'Cinzel', serif;
+  color: var(--gold-bright);
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.arena-choice-card .text {
+  flex: 1;
+  color: var(--ink);
+  font-style: italic;
+  text-align: center;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+.arena-choice-card .stats {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+}
+
+.arena-curve-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.arena-curve {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.35rem;
+  align-items: end;
+  min-height: 220px;
+  padding: 1rem 0.7rem 0.65rem;
+  background: linear-gradient(180deg, rgba(12,10,8,0.72), rgba(0,0,0,0.3));
+  border: 1px solid var(--line);
+}
+
+.arena-bar-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 190px;
+}
+
+.arena-bar {
+  width: 100%;
+  max-width: 34px;
+  min-height: 2px;
+  border: 1px solid rgba(255, 221, 135, 0.32);
+  background: linear-gradient(180deg, #f5c969, #e85a3f 70%, #7b2617);
+  box-shadow: 0 0 10px rgba(232, 90, 63, 0.35);
+  transition: height 0.18s ease;
+}
+
+.arena-cost-label {
+  margin-top: 0.35rem;
+  font-family: 'Cinzel', serif;
+  font-size: 0.78rem;
+  color: var(--gold-bright);
+}
+
+.arena-selected-list {
+  max-height: 300px;
+  overflow: auto;
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.arena-selected-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.38rem 0;
+  border-bottom: 1px solid rgba(58,47,34,0.65);
+}
+
+.arena-selected-row .mana {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #4a7fa8, #1a3a58);
+  border: 1px solid var(--gold-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+}
+
+.arena-selected-row .qty {
+  color: var(--gold);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+}
+
+.arena-progress-text {
+  font-family: 'Cinzel', serif;
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+}
+
+.arena-room-code {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.16em;
+  color: var(--gold-bright);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--gold-dim);
+  background: rgba(0,0,0,0.28);
+}
