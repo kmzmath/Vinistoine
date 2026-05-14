@@ -4097,6 +4097,28 @@ input:focus { border-color: var(--gold); }
   flex-wrap: wrap;
   gap: 0.4rem;
 }
+.dev-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+.dev-action-btn {
+  min-height: 34px;
+  padding: 0.36rem 0.42rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.045);
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  text-align: center;
+  cursor: pointer;
+}
+.dev-action-btn:hover,
+.dev-action-btn.active {
+  border-color: rgba(245, 201, 105, 0.76);
+  color: var(--gold-bright);
+  background: rgba(143, 99, 44, 0.28);
+}
 .dev-card-search {
   width: 100%;
 }

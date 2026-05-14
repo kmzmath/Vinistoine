@@ -415,6 +415,9 @@ def join_match(payload: JoinMatchIn, request: Request):
     if room is None:
         raise HTTPException(400, "Sala não encontrada ou já cheia")
 
+    if room.game_mode == "dev":
+        raise HTTPException(400, "Modo dev é singleplayer")
+
     if room.game_mode in DECKLESS_GAME_MODES:
         deck: list[str] = []
     else:
@@ -606,7 +609,50 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
             return
 
         if action == "dev_add_card":
-            ok, msg = engine.dev_add_card_to_hand(match.state, player_id, data.get("card_id"))
+            ok, msg = engine.dev_add_card_to_hand(
+                match.state,
+                player_id,
+                data.get("card_id"),
+                target_player_id=data.get("target_player_id"),
+            )
+            if not ok:
+                await send_error(match.sockets[user_id], msg)
+            await broadcast_state(match)
+            return
+
+        if action == "dev_draw_card":
+            ok, msg = engine.dev_draw_card(
+                match.state,
+                player_id,
+                data.get("card_id"),
+                target_player_id=data.get("target_player_id"),
+            )
+            if not ok:
+                await send_error(match.sockets[user_id], msg)
+            await broadcast_state(match)
+            return
+
+        if action == "dev_add_to_deck":
+            ok, msg = engine.dev_add_card_to_deck(
+                match.state,
+                player_id,
+                data.get("card_id"),
+                target_player_id=data.get("target_player_id"),
+                position=data.get("position", "TOP"),
+            )
+            if not ok:
+                await send_error(match.sockets[user_id], msg)
+            await broadcast_state(match)
+            return
+
+        if action == "dev_summon_minion":
+            ok, msg = engine.dev_summon_minion(
+                match.state,
+                player_id,
+                data.get("card_id"),
+                target_player_id=data.get("target_player_id"),
+                board_position=data.get("position"),
+            )
             if not ok:
                 await send_error(match.sockets[user_id], msg)
             await broadcast_state(match)
@@ -618,6 +664,7 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
                 player_id,
                 data.get("mana", 10),
                 data.get("max_mana", 10),
+                target_player_id=data.get("target_player_id"),
             )
             if not ok:
                 await send_error(match.sockets[user_id], msg)
@@ -625,14 +672,19 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
             return
 
         if action == "dev_clear_hand":
-            ok, msg = engine.dev_clear_hand(match.state, player_id)
+            ok, msg = engine.dev_clear_hand(
+                match.state,
+                player_id,
+                target_player_id=data.get("target_player_id"),
+            )
             if not ok:
                 await send_error(match.sockets[user_id], msg)
             await broadcast_state(match)
             return
 
         if action == "end_turn":
-            ok = engine.end_turn(match.state, player_id)
+            turn_player = match.state.current_player if match.state.dev_mode else player_id
+            ok = engine.end_turn(match.state, turn_player)
             if not ok:
                 await send_error(match.sockets[user_id], "Não é seu turno ou há escolha pendente")
             await broadcast_state(match)

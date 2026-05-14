@@ -118,6 +118,8 @@ class LobbyManager:
         m = self.get_by_code(code)
         if m is None or m.guest_user_id is not None:
             return None
+        if m.game_mode == "dev":
+            return None
         # Um usuário não pode entrar na própria sala. Como sockets são
         # indexados por user_id, self-join sobrescreveria a conexão do host
         # e deixaria a sala em estado inconsistente.
@@ -145,6 +147,8 @@ class LobbyManager:
     def list_open_matches(self) -> list[dict]:
         out = []
         for m in self.matches.values():
+            if m.game_mode == "dev":
+                continue
             if m.guest_user_id is None and not m.started:
                 out.append({
                     "code": m.code,
@@ -198,15 +202,18 @@ async def send_error(ws: WebSocket, message: str):
 
 
 async def start_match_if_ready(match: Match):
-    """Quando os 2 sockets estão conectados, iniciamos o jogo."""
+    """Quando os sockets necessários estão conectados, iniciamos o jogo."""
     if match.started:
         return
-    if len(match.sockets) < 2:
+    required_sockets = 1 if match.game_mode == "dev" else 2
+    if len(match.sockets) < required_sockets:
         return
 
     if match.game_mode in DECKLESS_GAME_MODES:
         host_deck = generate_random_deck()
         guest_deck = generate_random_deck()
+        if match.game_mode == "dev":
+            match.guest_nickname = match.guest_nickname or "Oponente Dev"
     else:
         if match.guest_deck is None:
             return

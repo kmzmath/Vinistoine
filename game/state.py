@@ -355,7 +355,7 @@ class GameState:
     def to_dict(self, viewer_id: int) -> dict:
         """Serializa o estado pra um jogador específico, escondendo info privada."""
         you = self.players[viewer_id].to_dict(hide_hand=False)
-        opponent = self.players[1 - viewer_id].to_dict(hide_hand=True)
+        opponent = self.players[1 - viewer_id].to_dict(hide_hand=not self.dev_mode)
         # Anexa flags por-jogador derivados de pending_modifiers para a UI.
         def _visible_player_dict(pid: int):
             return you if pid == viewer_id else opponent

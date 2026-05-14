@@ -74,21 +74,46 @@ def _ensure_dev_mode(state: GameState) -> tuple[bool, str]:
     return True, "OK"
 
 
-def dev_add_card_to_hand(state: GameState, player_id: int, card_id: str) -> tuple[bool, str]:
+def _dev_target_player_id(state: GameState, player_id: int,
+                          target_player_id: Optional[int] = None) -> Optional[int]:
+    if target_player_id is None:
+        return player_id
+    try:
+        target = int(target_player_id)
+    except Exception:
+        return None
+    if target < 0 or target >= len(state.players):
+        return None
+    return target
+
+
+def _dev_get_card(card_id: str | None, allowed_types: set[str]) -> Optional[dict]:
+    card = get_card(str(card_id or ""))
+    if card is None or card.get("type") not in allowed_types:
+        return None
+    return card
+
+
+def dev_add_card_to_hand(state: GameState, player_id: int, card_id: str,
+                         target_player_id: Optional[int] = None) -> tuple[bool, str]:
     ok, msg = _ensure_dev_mode(state)
     if not ok:
         return ok, msg
-    card = get_card(str(card_id or ""))
-    if card is None or card.get("type") not in {"MINION", "SPELL"}:
+    target = _dev_target_player_id(state, player_id, target_player_id)
+    if target is None:
+        return False, "Jogador alvo invalido"
+    card = _dev_get_card(card_id, {"MINION", "SPELL"})
+    if card is None:
         return False, "Carta inválida"
-    p = state.players[player_id]
+    p = state.players[target]
     if len(p.hand) >= MAX_HAND_SIZE:
         return False, "Mão cheia"
     ch = CardInHand(instance_id=gen_id("h_"), card_id=card["id"])
     p.hand.append(ch)
     state.log_event({
         "type": "dev_add_card_to_hand",
-        "player": player_id,
+        "player": target,
+        "actor": player_id,
         "card_id": card["id"],
         "card_name": card.get("name"),
         "instance_id": ch.instance_id,
@@ -97,38 +122,146 @@ def dev_add_card_to_hand(state: GameState, player_id: int, card_id: str) -> tupl
 
 
 def dev_set_mana(state: GameState, player_id: int, mana: int = MAX_MANA,
-                 max_mana: int = MAX_MANA) -> tuple[bool, str]:
+                 max_mana: int = MAX_MANA,
+                 target_player_id: Optional[int] = None) -> tuple[bool, str]:
     ok, msg = _ensure_dev_mode(state)
     if not ok:
         return ok, msg
+    target = _dev_target_player_id(state, player_id, target_player_id)
+    if target is None:
+        return False, "Jogador alvo invalido"
     try:
         mana = int(mana)
         max_mana = int(max_mana)
     except Exception:
         return False, "Mana inválida"
-    p = state.players[player_id]
+    p = state.players[target]
     p.max_mana = max(0, min(MAX_MANA, max_mana))
     p.mana = max(0, min(MAX_MANA, mana, p.max_mana))
     state.log_event({
         "type": "dev_set_mana",
-        "player": player_id,
+        "player": target,
+        "actor": player_id,
         "mana": p.mana,
         "max_mana": p.max_mana,
     })
     return True, "OK"
 
 
-def dev_clear_hand(state: GameState, player_id: int) -> tuple[bool, str]:
+def dev_clear_hand(state: GameState, player_id: int,
+                   target_player_id: Optional[int] = None) -> tuple[bool, str]:
     ok, msg = _ensure_dev_mode(state)
     if not ok:
         return ok, msg
-    p = state.players[player_id]
+    target = _dev_target_player_id(state, player_id, target_player_id)
+    if target is None:
+        return False, "Jogador alvo invalido"
+    p = state.players[target]
     count = len(p.hand)
     p.hand.clear()
     state.log_event({
         "type": "dev_clear_hand",
-        "player": player_id,
+        "player": target,
+        "actor": player_id,
         "count": count,
+    })
+    return True, "OK"
+
+
+def dev_add_card_to_deck(state: GameState, player_id: int, card_id: str,
+                         target_player_id: Optional[int] = None,
+                         position: str = "TOP") -> tuple[bool, str]:
+    ok, msg = _ensure_dev_mode(state)
+    if not ok:
+        return ok, msg
+    target = _dev_target_player_id(state, player_id, target_player_id)
+    if target is None:
+        return False, "Jogador alvo invalido"
+    card = _dev_get_card(card_id, {"MINION", "SPELL"})
+    if card is None:
+        return False, "Carta invalida"
+
+    p = state.players[target]
+    where = str(position or "TOP").upper()
+    if where == "BOTTOM":
+        p.deck.append(card["id"])
+    elif where == "SHUFFLE":
+        p.deck.append(card["id"])
+        state.rng.shuffle(p.deck)
+    else:
+        where = "TOP"
+        p.deck.insert(0, card["id"])
+    state.log_event({
+        "type": "dev_add_card_to_deck",
+        "player": target,
+        "actor": player_id,
+        "card_id": card["id"],
+        "card_name": card.get("name"),
+        "position": where,
+    })
+    return True, "OK"
+
+
+def dev_draw_card(state: GameState, player_id: int, card_id: str,
+                  target_player_id: Optional[int] = None) -> tuple[bool, str]:
+    ok, msg = _ensure_dev_mode(state)
+    if not ok:
+        return ok, msg
+    target = _dev_target_player_id(state, player_id, target_player_id)
+    if target is None:
+        return False, "Jogador alvo invalido"
+    card = _dev_get_card(card_id, {"MINION", "SPELL"})
+    if card is None:
+        return False, "Carta invalida"
+    p = state.players[target]
+    if len(p.hand) >= MAX_HAND_SIZE:
+        return False, "Mao cheia"
+    p.deck.insert(0, card["id"])
+    previous_reason = getattr(state, "_draw_reason", None)
+    state._draw_reason = "dev"
+    try:
+        effects.draw_card(state, p, 1)
+    finally:
+        state._draw_reason = previous_reason
+    state.log_event({
+        "type": "dev_draw_card",
+        "player": target,
+        "actor": player_id,
+        "card_id": card["id"],
+        "card_name": card.get("name"),
+    })
+    return True, "OK"
+
+
+def dev_summon_minion(state: GameState, player_id: int, card_id: str,
+                      target_player_id: Optional[int] = None,
+                      board_position: Optional[int] = None) -> tuple[bool, str]:
+    ok, msg = _ensure_dev_mode(state)
+    if not ok:
+        return ok, msg
+    target = _dev_target_player_id(state, player_id, target_player_id)
+    if target is None:
+        return False, "Jogador alvo invalido"
+    card = _dev_get_card(card_id, {"MINION"})
+    if card is None:
+        return False, "Escolha um lacaio"
+    if len(state.players[target].board) >= MAX_BOARD_SIZE:
+        return False, "Campo cheio"
+    try:
+        if board_position is not None:
+            board_position = int(board_position)
+    except Exception:
+        board_position = None
+    minion = effects.summon_minion_from_card(state, target, card["id"], position=board_position)
+    if minion is None:
+        return False, "Nao foi possivel evocar o lacaio"
+    state.log_event({
+        "type": "dev_summon_minion",
+        "player": target,
+        "actor": player_id,
+        "card_id": card["id"],
+        "card_name": card.get("name"),
+        "minion_id": minion.instance_id,
     })
     return True, "OK"
 

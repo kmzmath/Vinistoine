@@ -295,20 +295,25 @@ function updateLobbyModeControls() {
   const deckLabel = document.getElementById("deck-label");
   const createBtn = document.getElementById("create-match-btn");
   const joinBtn = document.getElementById("join-match-btn");
+  const joinCode = document.getElementById("join-code");
   const status = document.getElementById("status");
 
   if (mode === "random" || mode === "dev") {
     deckSelect.disabled = true;
     deckLabel.style.opacity = "0.45";
     createBtn.disabled = false;
-    joinBtn.disabled = false;
+    joinBtn.disabled = mode === "dev";
+    if (joinCode) joinCode.disabled = mode === "dev";
+    createBtn.textContent = mode === "dev" ? "Iniciar Teste" : "Criar Sala";
     status.innerHTML = mode === "dev"
-      ? "Modo <b>dev</b>: cria uma partida com ferramentas de teste e acesso rápido ao catálogo de cartas."
+      ? "Modo <b>dev</b>: inicia uma plataforma singleplayer de testes com acesso rápido ao catálogo de cartas."
       : "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";
     return;
   }
   deckSelect.disabled = false;
   deckLabel.style.opacity = "1";
+  if (joinCode) joinCode.disabled = false;
+  createBtn.textContent = "Criar Sala";
   createBtn.disabled = !hasDeck;
   joinBtn.disabled = !hasDeck;
   if (!hasDeck) {
@@ -376,7 +381,7 @@ function setupLobbyHandlers() {
     if (!r.ok) { alert(data.detail || "Erro"); return; }
     localStorage.setItem("current_match", data.match_id);
     localStorage.setItem("current_code", data.code);
-    alert(`Sala criada! Compartilhe este código com seu oponente: ${data.code}`);
+    if (mode !== "dev") alert(`Sala criada! Compartilhe este código com seu oponente: ${data.code}`);
     window.location.href = `/play?match=${data.match_id}`;
   };
   document.getElementById("join-match-btn").onclick = async () => {

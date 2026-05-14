@@ -55,6 +55,18 @@ let devToolsOpen = true;
 let devSearch = "";
 let devFilter = "ALL";
 let devSelectedCardId = null;
+let devAction = "hand_self";
+
+const DEV_ACTIONS = [
+  { id: "hand_self", label: "Minha mão", primary: "Colocar na minha mão", requires: "ANY" },
+  { id: "draw_self", label: "Comprar", primary: "Comprar agora", requires: "ANY" },
+  { id: "deck_self", label: "Topo deck", primary: "Pôr no topo do meu deck", requires: "ANY" },
+  { id: "summon_self", label: "Evocar meu", primary: "Evocar no meu campo", requires: "MINION" },
+  { id: "summon_opp", label: "Evocar inimigo", primary: "Evocar no campo inimigo", requires: "MINION" },
+  { id: "hand_opp", label: "Mão inimiga", primary: "Colocar na mão inimiga", requires: "ANY" },
+  { id: "draw_opp", label: "Compra inimiga", primary: "Fazer inimigo comprar", requires: "ANY" },
+  { id: "deck_opp", label: "Deck inimigo", primary: "Pôr no topo do deck inimigo", requires: "ANY" },
+];
 
 const ATTACK_ANIMATION_MS = 760;
 const ATTACK_STATE_RENDER_DELAY_MS = 820;
@@ -853,12 +865,13 @@ function renderBoard() {
   const ctrl = document.createElement("div");
   ctrl.className = "controls-bar";
   const endBtn = document.createElement("button");
-  endBtn.className = "end-turn-btn " + (isMyTurn ? "active" : "waiting");
-  endBtn.disabled = !isMyTurn;
+  const canAdvanceTurn = isMyTurn || state.dev_mode;
+  endBtn.className = "end-turn-btn " + (canAdvanceTurn ? "active" : "waiting");
+  endBtn.disabled = !canAdvanceTurn;
   endBtn.innerHTML = isMyTurn
     ? `<div>Encerrar<br/>Turno</div>`
-    : `<div>Vez do<br/>Oponente</div>`;
-  endBtn.onclick = () => { if (isMyTurn) { cancelModes(); send("end_turn"); } };
+    : (state.dev_mode ? `<div>Avançar<br/>Turno</div>` : `<div>Vez do<br/>Oponente</div>`);
+  endBtn.onclick = () => { if (canAdvanceTurn) { cancelModes(); send("end_turn"); } };
   ctrl.appendChild(endBtn);
   arena.appendChild(ctrl);
 
@@ -934,10 +947,26 @@ function removeDevTools() {
   if (tab) tab.remove();
 }
 
+function devActionConfig(id = devAction) {
+  return DEV_ACTIONS.find(a => a.id === id) || DEV_ACTIONS[0];
+}
+
+function devActionRequiresMinion(id = devAction) {
+  return devActionConfig(id).requires === "MINION";
+}
+
+function devPlayerIds() {
+  const selfId = state?.you?.player_id ?? myPid ?? 0;
+  const opponentId = state?.opponent?.player_id ?? (selfId === 0 ? 1 : 0);
+  return { selfId, opponentId };
+}
+
 function devCardCatalog() {
   const query = devSearch.trim().toLowerCase();
+  const requiresMinion = devActionRequiresMinion();
   return Object.values(allCards)
     .filter(c => c && (c.type === "MINION" || c.type === "SPELL"))
+    .filter(c => !requiresMinion || c.type === "MINION")
     .filter(c => devFilter === "ALL" || c.type === devFilter)
     .filter(c => {
       if (!query) return true;
@@ -959,6 +988,33 @@ function devCardCatalog() {
 function sendDevAction(action, data = {}) {
   if (!state?.dev_mode) return;
   send(action, data);
+}
+
+function runDevCardAction(card) {
+  if (!card) return;
+  const cfg = devActionConfig();
+  if (cfg.requires === "MINION" && card.type !== "MINION") {
+    toast("Esta ação precisa de um lacaio");
+    return;
+  }
+  const { selfId, opponentId } = devPlayerIds();
+  if (devAction === "hand_self") {
+    sendDevAction("dev_add_card", { card_id: card.id, target_player_id: selfId });
+  } else if (devAction === "hand_opp") {
+    sendDevAction("dev_add_card", { card_id: card.id, target_player_id: opponentId });
+  } else if (devAction === "draw_self") {
+    sendDevAction("dev_draw_card", { card_id: card.id, target_player_id: selfId });
+  } else if (devAction === "draw_opp") {
+    sendDevAction("dev_draw_card", { card_id: card.id, target_player_id: opponentId });
+  } else if (devAction === "deck_self") {
+    sendDevAction("dev_add_to_deck", { card_id: card.id, target_player_id: selfId, position: "TOP" });
+  } else if (devAction === "deck_opp") {
+    sendDevAction("dev_add_to_deck", { card_id: card.id, target_player_id: opponentId, position: "TOP" });
+  } else if (devAction === "summon_self") {
+    sendDevAction("dev_summon_minion", { card_id: card.id, target_player_id: selfId });
+  } else if (devAction === "summon_opp") {
+    sendDevAction("dev_summon_minion", { card_id: card.id, target_player_id: opponentId });
+  }
 }
 
 function renderDevTools() {
@@ -984,17 +1040,18 @@ function renderDevTools() {
   panel.className = "dev-tools-panel";
 
   const catalog = devCardCatalog();
-  if (!devSelectedCardId || !allCards[devSelectedCardId]) {
+  if (!devSelectedCardId || !catalog.some(c => c.id === devSelectedCardId)) {
     devSelectedCardId = catalog[0]?.id || null;
   }
   const selected = devSelectedCardId ? allCards[devSelectedCardId] : null;
+  const currentDevAction = devActionConfig();
 
   const header = document.createElement("div");
   header.className = "dev-tools-header";
   header.innerHTML = `
     <div>
       <div class="dev-tools-title">Modo dev</div>
-      <div class="dev-tools-subtitle">${catalog.length} cartas</div>
+      <div class="dev-tools-subtitle">${catalog.length} cartas · ${escapeHtml(currentDevAction.label)}</div>
     </div>
   `;
   const collapse = document.createElement("button");
@@ -1007,28 +1064,64 @@ function renderDevTools() {
   header.appendChild(collapse);
   panel.appendChild(header);
 
+  const actionGrid = document.createElement("div");
+  actionGrid.className = "dev-action-grid";
+  for (const actionCfg of DEV_ACTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "dev-action-btn" + (devAction === actionCfg.id ? " active" : "");
+    btn.textContent = actionCfg.label;
+    btn.onclick = () => {
+      devAction = actionCfg.id;
+      if (actionCfg.requires === "MINION" && devFilter === "SPELL") devFilter = "MINION";
+      renderDevTools();
+    };
+    actionGrid.appendChild(btn);
+  }
+  panel.appendChild(actionGrid);
+
   const actions = document.createElement("div");
   actions.className = "dev-tools-actions";
   const addSelected = document.createElement("button");
   addSelected.className = "btn primary small";
-  addSelected.textContent = "Adicionar";
-  addSelected.disabled = !selected;
+  addSelected.textContent = currentDevAction.primary;
+  addSelected.disabled = !selected || (currentDevAction.requires === "MINION" && selected.type !== "MINION");
   addSelected.onclick = () => {
-    if (selected) sendDevAction("dev_add_card", { card_id: selected.id });
+    if (selected) runDevCardAction(selected);
   };
   actions.appendChild(addSelected);
 
   const manaBtn = document.createElement("button");
   manaBtn.className = "btn small";
   manaBtn.textContent = "Mana 10/10";
-  manaBtn.onclick = () => sendDevAction("dev_set_mana", { mana: 10, max_mana: 10 });
+  manaBtn.onclick = () => sendDevAction("dev_set_mana", {
+    mana: 10,
+    max_mana: 10,
+    target_player_id: devPlayerIds().selfId,
+  });
   actions.appendChild(manaBtn);
+
+  const manaBothBtn = document.createElement("button");
+  manaBothBtn.className = "btn small";
+  manaBothBtn.textContent = "Mana ambos";
+  manaBothBtn.onclick = () => {
+    const { selfId, opponentId } = devPlayerIds();
+    sendDevAction("dev_set_mana", { mana: 10, max_mana: 10, target_player_id: selfId });
+    sendDevAction("dev_set_mana", { mana: 10, max_mana: 10, target_player_id: opponentId });
+  };
+  actions.appendChild(manaBothBtn);
 
   const clearBtn = document.createElement("button");
   clearBtn.className = "btn small danger";
   clearBtn.textContent = "Limpar mão";
-  clearBtn.onclick = () => sendDevAction("dev_clear_hand");
+  clearBtn.onclick = () => sendDevAction("dev_clear_hand", { target_player_id: devPlayerIds().selfId });
   actions.appendChild(clearBtn);
+
+  const clearOppBtn = document.createElement("button");
+  clearOppBtn.className = "btn small danger";
+  clearOppBtn.textContent = "Limpar mão inimiga";
+  clearOppBtn.onclick = () => sendDevAction("dev_clear_hand", { target_player_id: devPlayerIds().opponentId });
+  actions.appendChild(clearOppBtn);
   panel.appendChild(actions);
 
   const search = document.createElement("input");
@@ -1094,7 +1187,7 @@ function renderDevTools() {
       devSelectedCardId = c.id;
       renderDevTools();
     };
-    row.ondblclick = () => sendDevAction("dev_add_card", { card_id: c.id });
+    row.ondblclick = () => runDevCardAction(c);
     list.appendChild(row);
   }
   if (catalog.length > visible.length) {
