@@ -3729,6 +3729,33 @@ input:focus { border-color: var(--gold); }
   z-index: 8;
 }
 
+.status-portrait-row {
+  position: absolute;
+  left: 50%;
+  bottom: -0.7rem;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.22rem;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.status-card-portrait {
+  width: 1.34rem;
+  height: 1.34rem;
+  border-radius: 50%;
+  border: 2px solid #9fd1ff;
+  background: #1b3148 center/cover no-repeat;
+  color: #e8f5ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: 0 0 0 1px rgba(6, 14, 24, 0.88), 0 0 8px rgba(112, 184, 255, 0.68);
+}
+
 /* Portraits */
 .portraits-container { max-width: 1280px; }
 .portrait-grid {

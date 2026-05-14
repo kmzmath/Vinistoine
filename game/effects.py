@@ -165,6 +165,11 @@ def damage_character(state: GameState, target, amount: int, source_owner: int,
                         if target.has_tribe(tribe):
                             kills_via_poison = True
                             break
+                    if tag.startswith("POISONOUS_AGAINST_"):
+                        tribe = tag[len("POISONOUS_AGAINST_"):]
+                        if target.has_tribe(tribe):
+                            kills_via_poison = True
+                            break
             if kills_via_poison and target.health > 0:
                 target.health = 0
                 state.log_event({"type": "poison_kill", "minion": target.instance_id})
@@ -285,6 +290,7 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
     encadeados como Foco, Guilãozinho e Investidor.
     """
     drawn_ids: list[str] = []
+    preserve_nested_drawn_ids = False
     for _ in range(n):
         if not player.deck:
             player.fatigue_counter += 1
@@ -299,6 +305,7 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
         cost_modifier = 0
         stat_modifier = {}
         extra_tags = []
+        extra_tribes = []
         card_id = raw
         deck_mods = getattr(state, "deck_card_modifiers", None)
         if deck_mods and raw in deck_mods:
@@ -308,6 +315,7 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
             cost_modifier = int(mod.get("cost_modifier", 0) or 0)
             stat_modifier = dict(mod.get("stat_modifier") or {})
             extra_tags = list(mod.get("extra_tags") or [])
+            extra_tribes = list(mod.get("extra_tribes") or [])
 
         if len(player.hand) >= MAX_HAND_SIZE:
             state.log_event({"type": "burn", "player": player.player_id, "card_id": card_id})
@@ -316,6 +324,7 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
         new_card = CardInHand(
             instance_id=gen_id("h_"), card_id=card_id, cost_override=cost_override,
             cost_modifier=cost_modifier, stat_modifier=stat_modifier, extra_tags=extra_tags,
+            extra_tribes=extra_tribes,
         )
         player.hand.append(new_card)
         drawn_ids.append(new_card.instance_id)
@@ -325,7 +334,19 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
             "reason": getattr(state, "_draw_reason", None) or "effect",
         })
 
-        if getattr(player, "reveal_next_draw", False):
+        revealed_tops = getattr(state, "revealed_top_cards", None)
+        if isinstance(revealed_tops, dict) and revealed_tops.get(player.player_id) == raw:
+            new_card.revealed = True
+            revealed_tops.pop(player.player_id, None)
+            state.log_event({
+                "type": "reveal_drawn_card",
+                "player": player.player_id,
+                "instance_id": new_card.instance_id,
+                "card_id": card_id,
+            })
+        elif isinstance(revealed_tops, dict) and player.player_id in revealed_tops:
+            revealed_tops.pop(player.player_id, None)
+        elif getattr(player, "reveal_next_draw", False):
             new_card.revealed = True
             state.log_event({
                 "type": "reveal_drawn_card",
@@ -343,8 +364,20 @@ def draw_card(state: GameState, player: PlayerState, n: int = 1):
             for eff in card.get("effects") or []:
                 if eff.get("trigger") == "ON_DRAW":
                     resolve_effect(state, eff, player.player_id, None, ctx)
+        if card and "CAST_WHEN_DRAWN" in (card.get("tags") or []) and new_card in player.hand:
+            player.hand.remove(new_card)
+            if new_card.instance_id in drawn_ids:
+                drawn_ids.remove(new_card.instance_id)
+            preserve_nested_drawn_ids = True
+            state.log_event({
+                "type": "cast_when_drawn",
+                "player": player.player_id,
+                "instance_id": new_card.instance_id,
+                "card_id": card_id,
+            })
 
-    state.last_drawn_card_instance_ids = drawn_ids
+    if drawn_ids or not preserve_nested_drawn_ids:
+        state.last_drawn_card_instance_ids = drawn_ids
 
 def summon_minion_from_card(state: GameState, owner: int, card_id: str,
                              position: Optional[int] = None,
@@ -610,6 +643,8 @@ def _destroy(state, eff, source_owner, source_minion, ctx):
             ctx["destroyed_minion_id"] = t.instance_id
             ctx["destroyed_minion_health"] = max(0, t.health)
             ctx["destroyed_minion_attack"] = max(0, t.attack)
+            if "_FORCE_DESTROY" not in t.tags:
+                t.tags.append("_FORCE_DESTROY")
             t.health = 0
             state.log_event({"type": "destroy", "minion": t.instance_id})
 
@@ -835,17 +870,17 @@ def _destroy_and_resummon(state, eff, source_owner, source_minion, ctx):
         pos = len(board)
     base_card_id = target.card_id
     base_attack = target.attack
+    fallback_base_hp = target.max_health
     target.health = 0
-    if target in board:
-        board.remove(target)
-    state.graveyard.append({"card_id": target.card_id, "owner": owner, "name": target.name})
-    state.log_event({"type": "destroy_no_deathrattle", "minion": target.instance_id,
-                     "owner": owner})
+    if "_FORCE_DESTROY" not in target.tags:
+        target.tags.append("_FORCE_DESTROY")
+    from . import engine
+    engine.cleanup(state)
 
     card = get_card(base_card_id) or {}
     base_hp = card.get("health")
     if base_hp is None:
-        base_hp = max(1, target.max_health)
+        base_hp = max(1, fallback_base_hp)
     resummon = eff.get("resummon") or {}
     atk = base_attack
     if resummon.get("attack_multiplier") is not None:
@@ -1281,7 +1316,7 @@ def _discard(state, eff, source_owner, source_minion, ctx):
 def _gain_temp_mana(state, eff, source_owner, source_minion, ctx):
     amount = eff.get("amount", 1)
     p = state.player_at(source_owner)
-    p.mana = min(p.mana + amount, 10)
+    p.mana = max(0, p.mana + amount)
 
 
 @handler("SHUFFLE_DECK")
@@ -1321,6 +1356,43 @@ def _sequence(state, eff, source_owner, source_minion, ctx):
             break
 
 
+def effective_card_has_tribe(state: GameState, owner: int, card: dict, tribe: str) -> bool:
+    """Considera tribos base e tribos concedidas por auras aliadas ativas."""
+    from .cards import card_has_tribe
+    if card_has_tribe(card, tribe):
+        return True
+    if not card or not tribe:
+        return False
+    effective_tribes = set(card.get("tribes") or [])
+    try:
+        sources = list(state.players[owner].board)
+    except Exception:
+        return False
+    changed = True
+    while changed:
+        changed = False
+        for source in sources:
+            if source.silenced or source.has_tag("DORMANT"):
+                continue
+            for eff in source.effects or []:
+                if eff.get("trigger") != "AURA" or eff.get("action") != "ADD_TRIBE":
+                    continue
+                granted = eff.get("tribe")
+                if not granted or granted in effective_tribes:
+                    continue
+                target_desc = eff.get("target") or {}
+                if target_desc.get("mode") not in ("FRIENDLY_MINIONS", "ALL_FRIENDLY_MINIONS"):
+                    continue
+                required = target_desc.get("tribe") or target_desc.get("required_tribe")
+                if required and not (required in effective_tribes or card_has_tribe(card, required)):
+                    continue
+                effective_tribes.add(granted)
+                changed = True
+                if granted == tribe:
+                    return True
+    return tribe in effective_tribes
+
+
 def check_condition(state, cond: dict, source_owner: int,
                     source_minion: Optional[Minion], ctx: Optional[dict] = None) -> bool:
     """Avalia condições usadas por CONDITIONAL_EFFECTS.
@@ -1344,24 +1416,27 @@ def check_condition(state, cond: dict, source_owner: int,
         tribe = cond.get("tribe")
         exclude_self = cond.get("exclude_self", False)
         for m in me.board:
+            if m.has_tag("DORMANT"):
+                continue
             if exclude_self and m is source_minion:
                 continue
             if tribe and m.has_tribe(tribe):
                 return True
         return False
     if ctype in ("FRIENDLY_MINION_COUNT_GTE", "FRIENDLY_MINION_COUNT_AT_LEAST"):
-        board = list(me.board)
+        board = [m for m in me.board if not m.has_tag("DORMANT")]
         if cond.get("exclude_self") and source_minion is not None:
             board = [m for m in board if m is not source_minion]
         return len(board) >= cond.get("amount", cond.get("count", 0))
     if ctype == "ENEMY_MINION_COUNT_GTE":
-        return len(foe.board) >= cond.get("amount", cond.get("count", 0))
+        return sum(1 for m in foe.board if not m.has_tag("DORMANT")) >= cond.get("amount", cond.get("count", 0))
     if ctype == "HAND_SIZE_GTE":
         return len(me.hand) >= cond.get("amount", 0)
     if ctype == "FRIENDLY_MINION_EXISTS":
-        return any(m is not source_minion for m in me.board) if cond.get("exclude_self") else bool(me.board)
+        board = [m for m in me.board if not m.has_tag("DORMANT")]
+        return any(m is not source_minion for m in board) if cond.get("exclude_self") else bool(board)
     if ctype == "ENEMY_MINION_EXISTS":
-        return bool(foe.board)
+        return any(not m.has_tag("DORMANT") for m in foe.board)
     if ctype == "TARGET_HAS_TRIBE":
         m = chosen_minion()
         tribe = cond.get("tribe")
@@ -1373,7 +1448,8 @@ def check_condition(state, cond: dict, source_owner: int,
         m = chosen_minion()
         return bool(m and source_minion and m.attack < source_minion.attack)
     if ctype == "ONLY_FRIENDLY_MINION":
-        return source_minion is not None and len(me.board) == 1 and me.board[0] is source_minion
+        board = [m for m in me.board if not m.has_tag("DORMANT")]
+        return source_minion is not None and len(board) == 1 and board[0] is source_minion
     if ctype in ("PLAYED_CARD_TRIBE", "CARD_TRIBE", "SUMMONED_MINION_TRIBE"):
         tribe = cond.get("tribe")
         card_id = ctx.get("played_card_id") or ctx.get("source_card_id")
@@ -1383,8 +1459,8 @@ def check_condition(state, cond: dict, source_owner: int,
             if found and tribe:
                 return found[0].has_tribe(tribe)
         if card_id and tribe:
-            from .cards import get_card, card_has_tribe
-            return card_has_tribe(get_card(card_id), tribe)
+            from .cards import get_card
+            return effective_card_has_tribe(state, source_owner, get_card(card_id), tribe)
         return False
     if ctype == "OPPONENT_HAS_MORE_CARDS_IN_HAND":
         return len(foe.hand) > len(me.hand)
@@ -1475,11 +1551,14 @@ def resolve_effect(state: GameState, eff: dict, source_owner: int,
         return
     ctx = _prepare_effect_context(eff, ctx)
     previous_trigger = getattr(targeting, "CURRENT_SOURCE_TRIGGER", None)
+    previous_is_spell = getattr(targeting, "CURRENT_SOURCE_IS_SPELL", False)
     targeting.CURRENT_SOURCE_TRIGGER = ctx.get("source_trigger")
+    targeting.CURRENT_SOURCE_IS_SPELL = bool(ctx.get("is_spell", False))
     try:
         h(state, eff, source_owner, source_minion, ctx)
     finally:
         targeting.CURRENT_SOURCE_TRIGGER = previous_trigger
+        targeting.CURRENT_SOURCE_IS_SPELL = previous_is_spell
 
 
 def resolve_card_effects(state: GameState, card: dict, source_owner: int,

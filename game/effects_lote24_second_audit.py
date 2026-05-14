@@ -79,8 +79,7 @@ def recruit_minions_from_deck(state, source_owner: int, amount: int,
 
     preferred_tribe = (target_desc or {}).get("preferred_tribe")
     max_cost = (target_desc or {}).get("max_cost")
-    from .cards import card_has_tribe
-    from .effects import summon_minion_from_card
+    from .effects import effective_card_has_tribe, summon_minion_from_card
 
     for _ in range(amount):
         if len(p.board) >= MAX_BOARD_SIZE:
@@ -96,7 +95,7 @@ def recruit_minions_from_deck(state, source_owner: int, amount: int,
             if max_cost is not None and int(card.get("cost", 0) or 0) > int(max_cost):
                 continue
             pool.append(i)
-            if preferred_tribe and card_has_tribe(card, preferred_tribe):
+            if preferred_tribe and effective_card_has_tribe(state, source_owner, card, preferred_tribe):
                 preferred_pool.append(i)
 
         chosen_pool = preferred_pool or pool

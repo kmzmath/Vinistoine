@@ -95,12 +95,12 @@ def test_vini_egoista_increases_friendly_minion_hand_costs():
     assert cost == (get_card("pizza")["cost"] + 1)
 
 
-def test_lost_coin_bonus_draw_does_not_trigger_another_lost_coin_immediately():
+def test_found_coin_casts_when_drawn_and_suppresses_nested_on_draw_triggers():
     state = _new_game()
     pid = state.current_player
     player = state.players[pid]
     player.hand.clear()
-    player.deck = ["moeda_perdida", "moeda_perdida", "pizza"]
+    player.deck = ["moeda_encontrada", "moeda_perdida", "pizza"]
 
     effects.draw_card(state, player, 1)
 
@@ -169,3 +169,84 @@ def test_el_luca_view_links_the_restricted_attacker_portrait():
     luca_view = next(m for m in view if m["instance_id"] == luca.instance_id)
     assert luca_view["linked_minion"]["instance_id"] == attacker.instance_id
     assert luca_view["linked_minion"]["card_id"] == "pizza"
+
+
+def test_tribe_auras_apply_to_hand_and_deck_logic():
+    state = _new_game()
+    pid = state.current_player
+    player = state.players[pid]
+    player.hand.clear()
+    _force_minion(state, pid, card_id="vini_brasileiro")
+    _force_minion(state, pid, card_id="niurau_japones")
+    vini = _add_hand(state, pid, "vini_zumbi")
+    beast = _add_hand(state, pid, "touro_mafioso")
+
+    engine.apply_continuous_effects(state)
+
+    assert "BRASIL" in vini.extra_tribes
+    assert "VINI" in beast.extra_tribes
+    assert effects.effective_card_has_tribe(state, pid, get_card("vini_zumbi"), "BRASIL")
+    assert effects.effective_card_has_tribe(state, pid, get_card("touro_mafioso"), "VINI")
+
+
+def test_vinas_conditional_discount_is_reflected_in_display_cost():
+    state = _new_game()
+    pid = state.current_player
+    player = state.players[pid]
+    state.pending_modifiers.append({
+        "kind": "next_card_cost_reduction",
+        "owner": pid,
+        "amount": 2,
+        "conditional_amount": 3,
+        "condition": {"type": "CARD_TRIBE", "tribe": "VINI"},
+        "valid": ["MINION"],
+        "active": True,
+    })
+    ch = _add_hand(state, pid, "vini_brasileiro")
+
+    cost = engine.compute_displayed_cost(state, player, ch, get_card("vini_brasileiro"))
+
+    assert cost == 0
+
+
+def test_bomba_nuclear_force_destroys_immune_and_aura_buffed_minions():
+    state = _new_game()
+    pid = state.current_player
+    foe = 1 - pid
+    player = state.players[pid]
+    player.hand.clear()
+    player.mana = 10
+    _force_minion(state, pid, card_id="ninjagui_domador_de_feras")
+    beast = _force_minion(state, pid, card_id="peixe")
+    surdo = _force_minion(state, foe, card_id="surdo")
+    engine.apply_continuous_effects(state)
+    assert beast.health > 1
+    ch = _add_hand(state, pid, "bomba_nuclear")
+
+    ok, msg = engine.play_card(state, pid, ch.instance_id)
+
+    assert ok, msg
+    assert state.players[pid].board == []
+    assert state.find_minion(surdo.instance_id) is None
+
+
+def test_after_play_minion_triggers_resume_after_manual_battlecry_choice():
+    state = _new_game(manual_choices=True)
+    pid = state.current_player
+    player = state.players[pid]
+    player.hand.clear()
+    player.mana = 10
+    josney = _force_minion(state, pid, card_id="josney_tequila")
+    ch = _add_hand(state, pid, "lamboia_3_anos")
+
+    ok, msg = engine.play_card(state, pid, ch.instance_id)
+    assert ok, msg
+    assert state.pending_choice is not None
+    lamboia = next(m for m in player.board if m.card_id == "lamboia_3_anos")
+    assert lamboia.health == 1
+
+    ok, msg = engine.resolve_choice(state, pid, state.pending_choice["choice_id"], {"swap": False})
+
+    assert ok, msg
+    assert state.find_minion(lamboia.instance_id) is None
+    assert josney.health == 2

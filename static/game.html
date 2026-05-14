@@ -1574,6 +1574,7 @@ const CARD_RELATED_PREVIEW_IDS = {
 const MINION_PORTRAIT_ART_FOCUS = {
   vini_sertanejo: { size: "320% auto", position: "center 8%" },
   el_luca: { size: "320% auto", position: "center 10%" },
+  sub: { size: "320% auto", position: "center 10%" },
 };
 
 function getRelatedPreviewCards(card) {
@@ -1981,9 +1982,22 @@ function renderMinion(m, isOpponent) {
   const linked = m.linked_minion || null;
   const linkedCard = m.linked_card || null;
   const linkedData = linked || linkedCard;
+  const linkedFocus = linkedData ? (MINION_PORTRAIT_ART_FOCUS[linkedData.card_id] || null) : null;
   const linkedImg = linkedData && cardImages[linkedData.card_id]
-    ? `<span class="linked-minion-portrait has-image" title="Vinculado a ${escapeHtml(linkedData.name || cardName(linkedData.card_id, linkedData.card_id))}" style="background-image:url('${cardImages[linkedData.card_id]}')"></span>`
+    ? `<span class="linked-minion-portrait has-image" title="Vinculado a ${escapeHtml(linkedData.name || cardName(linkedData.card_id, linkedData.card_id))}" style="background-image:url('${cardImages[linkedData.card_id]}');${linkedFocus ? `background-size:${linkedFocus.size};background-position:${linkedFocus.position};` : ""}"></span>`
     : (linkedData ? `<span class="linked-minion-portrait" title="Vinculado a ${escapeHtml(linkedData.name || linkedData.card_id)}">${escapeHtml((linkedData.name || '?').charAt(0))}</span>` : "");
+  const statusPortraits = [];
+  if (!isDormant && m.skip_next_attack) statusPortraits.push({ card_id: "vinagra", label: "Perde o proximo ataque" });
+  if (!isDormant && (m.tags || []).includes("ATTACK_LOCKED")) statusPortraits.push({ card_id: "blitz", label: "Nao pode atacar temporariamente" });
+  const statusPortraitHtml = statusPortraits.length
+    ? `<div class="status-portrait-row">${statusPortraits.map(s => {
+        const img = cardImages[s.card_id];
+        const name = cardName(s.card_id, s.card_id);
+        return img
+          ? `<span class="status-card-portrait has-image" title="${escapeHtml(s.label)}: ${escapeHtml(name)}" style="background-image:url('${img}')"></span>`
+          : `<span class="status-card-portrait" title="${escapeHtml(s.label)}: ${escapeHtml(name)}">${escapeHtml((name || "?").charAt(0))}</span>`;
+      }).join("")}</div>`
+    : "";
 
   div.innerHTML = `
     <div class="${nameClass}">${escapeHtml(m.name)}</div>
@@ -1996,6 +2010,7 @@ function renderMinion(m, isOpponent) {
     ${!isDormant ? frozenOverlay : ""}
     ${silenceOverlay}
     ${!isDormant ? `<div class="atk-badge ${atkChanged}">${m.attack}</div><div class="hp-badge ${hpChanged}">${m.health}</div>${linkedImg}` : `<div class="dormant-label">DORMENTE</div>`}
+    ${statusPortraitHtml}
     ${primarySeal && !isDormant ? `<div class="keyword-seal" data-kw="${primarySeal}" title="${KW_NAME[primarySeal] || primarySeal}"></div>` : ""}
     ${isSick && !isDormant ? `<div class="zzz-anim"><span class="z z1">z</span><span class="z z2">z</span><span class="z z3">Z</span></div>` : ""}
   `;

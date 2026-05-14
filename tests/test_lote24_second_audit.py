@@ -99,7 +99,7 @@ def test_queima_de_estoque_manual_choice_resumes_with_exact_discard_count():
     assert p.board[0].card_id in {"pizza", "mamaquinho", "gusneba"}
 
 
-def test_furia_do_vini_geladinho_damages_minions_after_freezing_them():
+def test_furia_do_vini_geladinho_first_cast_only_freezes_then_damages_frozen():
     state = _new_blank_match()
     pid = state.current_player
     foe = 1 - pid
@@ -116,5 +116,12 @@ def test_furia_do_vini_geladinho_damages_minions_after_freezing_them():
 
     assert ally.frozen is True
     assert enemy.frozen is True
+    assert ally.health == 5
+    assert enemy.health == 5
+
+    furia2 = _add_hand(state, pid, "furia_do_vini_geladinho")
+    ok, msg = engine.play_card(state, pid, furia2.instance_id)
+    assert ok, msg
+
     assert ally.health == 3
     assert enemy.health == 3

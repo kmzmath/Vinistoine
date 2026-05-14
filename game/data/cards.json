@@ -1144,30 +1144,11 @@
       {
         "trigger": "ON_PLAY",
         "action": "SHUFFLE_THIS_INTO_DECK",
+        "card_id": "moeda_encontrada",
         "position": "MIDDLE",
         "target": {
           "mode": "SELF_DECK"
         }
-      },
-      {
-        "trigger": "ON_DRAW",
-        "action": "TRANSFORM_THIS_CARD",
-        "card": {
-          "id": "coin",
-          "name": "Moeda"
-        },
-        "target": {
-          "mode": "SELF_HAND"
-        }
-      },
-      {
-        "trigger": "ON_DRAW",
-        "action": "DRAW_CARD",
-        "amount": 2,
-        "target": {
-          "mode": "SELF_PLAYER"
-        },
-        "suppress_on_draw_triggers": true
       }
     ]
   },
@@ -1654,18 +1635,18 @@
     "effects": [
       {
         "trigger": "ON_PLAY",
-        "action": "FREEZE",
+        "action": "DAMAGE",
+        "amount": 2,
+        "condition": {
+          "type": "TARGET_IS_FROZEN"
+        },
         "target": {
           "mode": "ALL_MINIONS"
         }
       },
       {
         "trigger": "ON_PLAY",
-        "action": "DAMAGE",
-        "amount": 2,
-        "condition": {
-          "type": "TARGET_IS_FROZEN"
-        },
+        "action": "FREEZE",
         "target": {
           "mode": "ALL_MINIONS"
         }
@@ -6805,8 +6786,7 @@
         "target": {
           "mode": "CHOSEN_EACH",
           "valid": [
-            "ENEMY_HERO",
-            "ENEMY_MINION"
+            "ANY_CHARACTER"
           ]
         }
       }

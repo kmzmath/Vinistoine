@@ -34,7 +34,7 @@ STATIC_DIR = ROOT_DIR / "static"
 
 # Cartas auxiliares/tokens que podem existir no loader, mas não devem ser
 # exibidas no deckbuilder nem aceitas em decks salvos.
-NON_COLLECTIBLE_CARD_IDS = {"coin", "moeda"}
+NON_COLLECTIBLE_CARD_IDS = {"coin", "moeda", "moeda_encontrada"}
 ALLOWED_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -227,6 +227,7 @@ def list_card_images():
         for f in images_dir.iterdir():
             if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
                 available[f.stem] = f"/static/cards/{f.name}"
+                available.setdefault(f.stem.lower(), f"/static/cards/{f.name}")
     heroes_dir = STATIC_DIR / "heroes"
     hero_avatars: dict[str, str] = {}
     if heroes_dir.exists():

@@ -46,7 +46,7 @@ def _hand_card_matches(ch: CardInHand, filter_desc: dict | None) -> bool:
     tribe = filter_desc.get("tribe")
     if tribe:
         from .cards import card_has_tribe
-        if not card_has_tribe(card, tribe):
+        if not (card_has_tribe(card, tribe) or tribe in (ch.extra_tribes or [])):
             return False
     tag = filter_desc.get("tag")
     if tag and tag not in (card.get("tags") or []):

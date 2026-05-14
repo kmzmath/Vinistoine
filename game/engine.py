@@ -828,6 +828,7 @@ def apply_continuous_effects(state: GameState):
             pool = state.opponent_of(source.owner).board
         else:
             pool = state.all_minions()
+        pool = [m for m in pool if not m.has_tag("DORMANT")]
         if not tribes:
             return len(pool)
         return sum(1 for m in pool if any(m.has_tribe(t) for t in tribes))
@@ -889,7 +890,7 @@ def apply_continuous_effects(state: GameState):
             # Auras como Caverna: "Seus lacaios possuem Eco" também devem
             # afetar lacaios aliados enquanto estão na mão.
             target_mode = (target_desc or {}).get("mode")
-            if target_mode == "FRIENDLY_MINIONS" and tag:
+            if target_mode in ("FRIENDLY_MINIONS", "ALL_FRIENDLY_MINIONS") and tag:
                 marker = f"_AURA_HAND_TAG:{source.instance_id}:{tag}"
                 for ch in state.players[source.owner].hand:
                     card = effects.get_card(ch.card_id) if hasattr(effects, "get_card") else None
@@ -908,6 +909,23 @@ def apply_continuous_effects(state: GameState):
             tribe = eff.get("tribe")
             for t in targets:
                 _mark_tribe(t, source, tribe)
+            target_mode = (target_desc or {}).get("mode")
+            if target_mode in ("FRIENDLY_MINIONS", "ALL_FRIENDLY_MINIONS") and tribe:
+                required = (target_desc or {}).get("tribe") or (target_desc or {}).get("required_tribe")
+                marker = f"_AURA_HAND_TRIBE:{source.instance_id}:{tribe}"
+                for ch in state.players[source.owner].hand:
+                    card = effects.get_card(ch.card_id) if hasattr(effects, "get_card") else None
+                    if card is None:
+                        from .cards import get_card as _get_card
+                        card = _get_card(ch.card_id) or {}
+                    if card.get("type") != "MINION":
+                        continue
+                    if required and not effects.effective_card_has_tribe(state, source.owner, card, required):
+                        continue
+                    if marker not in ch.extra_tags:
+                        ch.extra_tags.append(marker)
+                    if tribe not in ch.extra_tribes:
+                        ch.extra_tribes.append(tribe)
 
     _remove_aura_markers()
 
@@ -915,15 +933,24 @@ def apply_continuous_effects(state: GameState):
     for p in state.players:
         for ch in p.hand:
             aura_tags_to_remove = []
+            aura_tribes_to_remove = []
             for t in list(ch.extra_tags or []):
                 if str(t).startswith("_AURA_HAND_TAG:"):
                     parts = str(t).split(":", 2)
                     if len(parts) == 3:
                         aura_tags_to_remove.append(parts[2])
+                elif str(t).startswith("_AURA_HAND_TRIBE:"):
+                    parts = str(t).split(":", 2)
+                    if len(parts) == 3:
+                        aura_tribes_to_remove.append(parts[2])
             ch.extra_tags = [
                 t for t in (ch.extra_tags or [])
-                if not str(t).startswith("_AURA_HAND_TAG:") and t not in aura_tags_to_remove
+                if not str(t).startswith("_AURA_HAND_TAG:")
+                and not str(t).startswith("_AURA_HAND_TRIBE:")
+                and t not in aura_tags_to_remove
             ]
+            if aura_tribes_to_remove:
+                ch.extra_tribes = [t for t in (ch.extra_tribes or []) if t not in aura_tribes_to_remove]
 
     # Recalcula todas as auras declaradas no JSON.
     for source in list(state.all_minions()):
@@ -945,6 +972,8 @@ def apply_continuous_effects(state: GameState):
                 "CANNOT_BE_TARGETED_BY_ENEMY_SPELLS",
                 "IMMUNE_TO_TRIGGERED_EFFECTS",
                 "PERMANENT_STEALTH",
+                "PREVENT_ATTACK_DAMAGE_TO_SELF",
+                "POISONOUS_AGAINST_TRIBE",
             ):
                 effects.resolve_effect(state, eff, m.owner, m, {"chosen_target": None})
 
@@ -954,7 +983,7 @@ def apply_continuous_effects(state: GameState):
             for eff in (m.effects or [])
         )
         if has_only_friendly_aura:
-            only_friendly = len(state.players[m.owner].board) == 1
+            only_friendly = len([x for x in state.players[m.owner].board if not x.has_tag("DORMANT")]) == 1
             if only_friendly and "CANT_ATTACK_ONLY_FRIENDLY" not in m.tags:
                 m.tags.append("CANT_ATTACK_ONLY_FRIENDLY")
             elif not only_friendly and "CANT_ATTACK_ONLY_FRIENDLY" in m.tags:
@@ -1047,7 +1076,7 @@ def compute_dynamic_cost(state: GameState, p: PlayerState, card_in_hand: CardInH
             valid = target_desc.get("valid") or []
             applies = not valid or ("MINION" in valid and card.get("type") == "MINION") or ("SPELL" in valid and card.get("type") == "SPELL")
             tribe = target_desc.get("tribe") or target_desc.get("required_tribe")
-            if tribe and not card_has_tribe(card, tribe):
+            if tribe and not (card_has_tribe(card, tribe) or tribe in (card_in_hand.extra_tribes or [])):
                 applies = False
             if applies:
                 amount = int(eff.get("amount", 0) or 0)
@@ -1061,7 +1090,7 @@ def compute_dynamic_cost(state: GameState, p: PlayerState, card_in_hand: CardInH
             continue
         action = eff.get("action")
         if action == "COST_REDUCTION_PER_FRIENDLY_MINION":
-            n = len(p.board)
+            n = sum(1 for m in p.board if not m.has_tag("DORMANT"))
             discount += n * eff.get("amount", 1)
         elif action == "COST_REDUCTION_PER_DAMAGED_MINION":
             n = sum(1 for m in state.all_minions() if m.health < m.max_health)
@@ -1109,7 +1138,14 @@ def compute_displayed_cost(state: "GameState", p: "PlayerState",
             continue
         if not _card_matches_pending_filter(card, pm.get("valid") or []):
             continue
-        extra += int(pm.get("amount", 0) or 0)
+        amount = int(pm.get("amount", 0) or 0)
+        cond = pm.get("condition") or {}
+        if cond and pm.get("conditional_amount") is not None:
+            if effects.check_condition(state, cond, p.player_id, None,
+                                       {"source_card_id": card.get("id"),
+                                        "played_card_id": card.get("id")}):
+                amount = int(pm.get("conditional_amount") or amount)
+        extra += amount
     return max(0, base - extra)
 
 
@@ -1218,6 +1254,70 @@ def _play_triggers_for_card(card: dict, combo_active: bool = False,
     if combo_active and any(e.get("trigger") == "ON_COMBO" for e in effects_list):
         triggers.append("ON_COMBO")
     return triggers
+
+
+def _fire_post_play_minion_triggers(state: GameState, player_id: int,
+                                    minion_id: str, card_id: str):
+    found = state.find_minion(minion_id)
+    if not found:
+        return
+    new_minion = found[0]
+    p = state.players[player_id]
+    for m in list(p.board):
+        if m is new_minion:
+            continue
+        effects.fire_minion_trigger(state, m, "AFTER_FRIENDLY_MINION_PLAY",
+                                    extra_ctx={"played_minion": new_minion.instance_id})
+        effects.fire_minion_trigger(state, m, "ON_FRIENDLY_MINION_PLAYED",
+                                    extra_ctx={"played_minion": new_minion.instance_id,
+                                               "chosen_target": new_minion.instance_id})
+        effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_MINION",
+                                    extra_ctx={"played_minion": new_minion.instance_id})
+        play_card_ctx = {"card_type": "MINION",
+                         "played_minion": new_minion.instance_id,
+                         "played_card_id": card_id,
+                         "source_card_id": card_id}
+        effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_CARD",
+                                    extra_ctx=play_card_ctx)
+        effects.fire_minion_trigger(state, m, "ON_PLAY_CARD",
+                                    extra_ctx=play_card_ctx)
+
+
+def _fire_post_play_spell_triggers(state: GameState, player_id: int, card_id: str):
+    play_card_ctx = {"card_type": "SPELL",
+                     "played_card_id": card_id,
+                     "source_card_id": card_id}
+    for m in list(state.players[player_id].board):
+        effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_CARD",
+                                    extra_ctx=play_card_ctx)
+        effects.fire_minion_trigger(state, m, "ON_PLAY_CARD",
+                                    extra_ctx=play_card_ctx)
+    for m in list(state.opponent_of(player_id).board):
+        effects.fire_minion_trigger(state, m, "OPPONENT_SPELL_PLAYED")
+
+
+def _attach_post_play_resume(state: GameState, payload: dict):
+    if state.pending_choice is not None:
+        state.pending_choice["resume_post_play"] = payload
+
+
+def _resume_post_play_if_needed(state: GameState, choice: dict):
+    payload = (choice or {}).get("resume_post_play")
+    if not payload or state.pending_choice is not None:
+        return
+    if payload.get("kind") == "minion":
+        _fire_post_play_minion_triggers(
+            state,
+            int(payload.get("player_id")),
+            payload.get("minion_id"),
+            payload.get("card_id"),
+        )
+    elif payload.get("kind") == "spell":
+        _fire_post_play_spell_triggers(
+            state,
+            int(payload.get("player_id")),
+            payload.get("card_id"),
+        )
 
 
 def play_card(state: GameState, player_id: int, hand_instance_id: str,
@@ -1369,7 +1469,7 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
             health=hp,
             max_health=hp,
             tags=all_tags,
-            tribes=list(card.get("tribes") or []),
+            tribes=list(dict.fromkeys(list(card.get("tribes") or []) + list(card_in_hand.extra_tribes or []))),
             effects=list(card.get("effects") or []),
             owner=player_id,
             divine_shield="DIVINE_SHIELD" in all_tags,
@@ -1407,6 +1507,7 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
             pass
 
         # dispara triggers principais do próprio lacaio: ON_PLAY / ON_COMBO / Fortalecer
+        post_play_deferred = False
         for trigger_name in main_triggers:
             effects.resolve_card_effects(state, card, player_id, trigger_name,
                                          source_minion=new_minion,
@@ -1420,8 +1521,17 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
                                                      "empowered": bool(empowered),
                                                      "direction": direction,
                                                      "adjacent_direction": direction})
+            if state.pending_choice is not None:
+                _attach_post_play_resume(state, {
+                    "kind": "minion",
+                    "player_id": player_id,
+                    "minion_id": new_minion.instance_id,
+                    "card_id": card.get("id"),
+                })
+                post_play_deferred = True
+                break
         # triggers em outros lacaios: AFTER_FRIENDLY_MINION_PLAY / AFTER_YOU_PLAY_MINION
-        for m in list(p.board):
+        for m in ([] if post_play_deferred else list(p.board)):
             if m is new_minion:
                 continue
             effects.fire_minion_trigger(state, m, "AFTER_FRIENDLY_MINION_PLAY",
@@ -1441,6 +1551,7 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
                                         extra_ctx=play_card_ctx)
 
     else:  # SPELL
+        post_play_deferred = False
         for trigger_name in main_triggers:
             effects.resolve_card_effects(state, card, player_id, trigger_name,
                                          source_minion=None,
@@ -1454,16 +1565,24 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
                                                      "empowered": bool(empowered),
                                                      "direction": direction,
                                                      "adjacent_direction": direction})
+            if state.pending_choice is not None:
+                _attach_post_play_resume(state, {
+                    "kind": "spell",
+                    "player_id": player_id,
+                    "card_id": card.get("id"),
+                })
+                post_play_deferred = True
+                break
         # dispara em lacaios: AFTER_YOU_PLAY_CARD / ON_PLAY_CARD / OPPONENT_SPELL_PLAYED no oponente
         play_card_ctx = {"card_type": "SPELL",
                          "played_card_id": card.get("id"),
                          "source_card_id": card.get("id")}
-        for m in list(p.board):
+        for m in ([] if post_play_deferred else list(p.board)):
             effects.fire_minion_trigger(state, m, "AFTER_YOU_PLAY_CARD",
                                         extra_ctx=play_card_ctx)
             effects.fire_minion_trigger(state, m, "ON_PLAY_CARD",
                                         extra_ctx=play_card_ctx)
-        for m in list(state.opponent_of(player_id).board):
+        for m in ([] if post_play_deferred else list(state.opponent_of(player_id).board)):
             effects.fire_minion_trigger(state, m, "OPPONENT_SPELL_PLAYED")
 
     p.cards_played_this_turn += 1
@@ -1484,6 +1603,7 @@ def play_card(state: GameState, player_id: int, hand_instance_id: str,
                 cost_modifier=0,
                 stat_modifier=dict(card_in_hand.stat_modifier),
                 extra_tags=list(card_in_hand.extra_tags),
+                extra_tribes=list(card_in_hand.extra_tribes),
                 echo_temporary=True,
             )
             p.hand.append(new_hand)
@@ -1502,11 +1622,13 @@ def _resume_choice_effects(state: GameState, choice: dict):
     """Continua a resolução de efeitos que foi pausada por pending_choice."""
     resume = choice.get("resume") if choice else None
     if not resume or resume.get("kind") != "effects":
+        _resume_post_play_if_needed(state, choice)
         cleanup(state)
         return
 
     source_owner = resume.get("source_owner")
     if source_owner is None:
+        _resume_post_play_if_needed(state, choice)
         cleanup(state)
         return
     source_minion = None
@@ -1523,6 +1645,7 @@ def _resume_choice_effects(state: GameState, choice: dict):
             effects.attach_resume_to_pending_choice(state, remaining[i + 1:],
                                                     source_owner, source_minion, ctx)
             break
+    _resume_post_play_if_needed(state, choice)
     cleanup(state)
 
 
@@ -1572,6 +1695,12 @@ def resolve_choice(state: GameState, player_id: int, choice_id: str, response: d
             return False, "Cartas reveladas mudaram; escolha expirada"
         if swap:
             me.deck[0], opp.deck[0] = opp.deck[0], me.deck[0]
+        if not hasattr(state, "revealed_top_cards"):
+            state.revealed_top_cards = {}
+        if me.deck:
+            state.revealed_top_cards[me.player_id] = me.deck[0]
+        if opp.deck:
+            state.revealed_top_cards[opp.player_id] = opp.deck[0]
         state.pending_choice = None
         state.log_event({
             "type": "choice_resolved",
@@ -2405,7 +2534,7 @@ def cleanup(state: GameState):
         dead: list[tuple[Minion, int]] = []
         for p in state.players:
             for m in list(p.board):
-                if m.health <= 0 and not m.immune:
+                if "_FORCE_DESTROY" in m.tags or (m.health <= 0 and not m.immune):
                     dead.append((m, p.player_id))
         if not dead:
             break

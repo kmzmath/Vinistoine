@@ -20,6 +20,10 @@ def register_lote29_features_handlers(handler):
             for p in state.players:
                 if p.deck:
                     revealed.append((p.player_id, p.deck[0]))
+            if not hasattr(state, "revealed_top_cards"):
+                state.revealed_top_cards = {}
+            for pid, cid in revealed:
+                state.revealed_top_cards[pid] = cid
             ctx["revealed_per_deck"] = revealed
             if revealed:
                 state.log_event({
@@ -36,6 +40,9 @@ def register_lote29_features_handlers(handler):
         if not p.deck:
             return
         cid = p.deck[0]
+        if not hasattr(state, "revealed_top_cards"):
+            state.revealed_top_cards = {}
+        state.revealed_top_cards[p.player_id] = cid
         ctx["revealed_card"] = cid
         ctx["revealed_card_owner"] = p.player_id
         state.log_event({"type": "reveal_top_card", "player": p.player_id, "card_id": cid})
@@ -45,15 +52,19 @@ def register_lote29_features_handlers(handler):
         revealed = ctx.get("revealed_per_deck") or []
         if not revealed:
             return
-        def sort_key(item):
-            pid, cid = item
-            cost = (get_card(cid) or {}).get("cost", 0)
-            opp_first = 0 if pid != source_owner else 1
-            return (cost, opp_first)
-        loser_pid, loser_cid = sorted(revealed, key=sort_key)[0]
+        with_cost = [(pid, cid, (get_card(cid) or {}).get("cost", 0)) for pid, cid in revealed]
+        min_cost = min(cost for _, _, cost in with_cost)
+        losers = [(pid, cid) for pid, cid, cost in with_cost if cost == min_cost]
+        if len(losers) > 1:
+            state.log_event({"type": "discard_lowest_revealed_tie",
+                             "source_card_id": ctx.get("source_card_id")})
+            return
+        loser_pid, loser_cid = losers[0]
         loser = state.players[loser_pid]
         if loser.deck and loser.deck[0] == loser_cid:
             loser.deck.pop(0)
+            if hasattr(state, "revealed_top_cards"):
+                state.revealed_top_cards.pop(loser_pid, None)
             state.log_event({
                 "type": "discard_lowest_revealed",
                 "owner": loser_pid,
@@ -95,6 +106,8 @@ def register_lote29_features_handlers(handler):
         winner = state.players[winner_pid]
         if winner.deck and winner.deck[0] == winner_cid:
             winner.deck.pop(0)
+            if hasattr(state, "revealed_top_cards"):
+                state.revealed_top_cards.pop(winner_pid, None)
             if len(winner.hand) < MAX_HAND_SIZE:
                 ch = CardInHand(
                     instance_id=__import__("game.state", fromlist=["gen_id"]).gen_id("h_"),

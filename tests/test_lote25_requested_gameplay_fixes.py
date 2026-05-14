@@ -206,7 +206,7 @@ def test_lamboia_reorder_uses_explicit_manual_order():
     assert p.deck[:4] == ["gusneba", "pizza", "vini_zumbi", "stonks"]
 
 
-def test_ramoninho_has_three_free_total_uses_with_remaining_counter():
+def test_ramoninho_has_four_free_total_uses_with_remaining_counter():
     state = _new_blank_match(manual=False)
     pid = state.current_player
     foe = 1 - pid
@@ -214,7 +214,7 @@ def test_ramoninho_has_three_free_total_uses_with_remaining_counter():
     enemy = _force_minion(state, foe, card_id="gusneba", health=20)
     state.players[pid].mana = 0
 
-    for expected_remaining in [2, 1, 0]:
+    for expected_remaining in [3, 2, 1, 0]:
         ok, msg = engine.activate_ability(state, pid, ramon.instance_id,
                                           chosen_target=enemy.instance_id)
         assert ok, msg

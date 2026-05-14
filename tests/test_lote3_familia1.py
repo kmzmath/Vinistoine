@@ -120,7 +120,7 @@ def test_discard_lowest_revealed():
     pid = state.current_player
     me = state.players[pid]
     opp = state.opponent_of(pid)
-    me.deck = ["vini_zumbi"] + me.deck  # custo 2
+    me.deck = ["pizza"] + me.deck  # custo 5
     opp.deck = ["camarao"] + opp.deck   # custo 1
 
     eff_reveal = {"action": "REVEAL_TOP_CARD_EACH_DECK", "amount": 1,
@@ -240,31 +240,29 @@ def test_shuffle_this_into_deck():
     p = state.players[pid]
     deck_before = len(p.deck)
     eff = {"action": "SHUFFLE_THIS_INTO_DECK", "position": "MIDDLE",
+           "card_id": "moeda_encontrada",
            "target": {"mode": "SELF_DECK"}}
     effects.resolve_effect(state, eff, pid, None,
                             {"source_card_id": "moeda_perdida"})
     assert len(p.deck) == deck_before + 1
-    assert "moeda_perdida" in p.deck
+    assert "moeda_encontrada" in p.deck
 
 
-# ============ TRANSFORM_THIS_CARD ============
+# ============ CAST_WHEN_DRAWN ============
 
-def test_transform_this_card_via_on_draw():
-    """Moeda Perdida: vira coin quando comprada."""
+def test_moeda_encontrada_casts_when_drawn():
+    """Moeda Encontrada: ao ser comprada, gera Moeda e compra duas."""
     state = _new_blank_match()
     pid = state.current_player
     p = state.players[pid]
-    # Coloca moeda_perdida no topo do deck
-    p.deck = ["moeda_perdida"] + p.deck
+    # Coloca Moeda Encontrada no topo do deck.
+    p.deck = ["moeda_encontrada", "pizza", "camarao"] + p.deck
     hand_before_ids = {c.instance_id for c in p.hand}
 
     effects.draw_card(state, p, 1)
-    # A carta original (moeda_perdida) virou "coin" - procurar entre as
-    # novas cartas da mão. Não devemos achar moeda_perdida.
     new_cards = [c for c in p.hand if c.instance_id not in hand_before_ids]
-    assert any(c.card_id == "coin" for c in new_cards), \
-        f"Esperava 'coin' nas novas: {[c.card_id for c in new_cards]}"
-    assert not any(c.card_id == "moeda_perdida" for c in new_cards)
+    assert [c.card_id for c in new_cards[:3]] == ["coin", "pizza", "camarao"]
+    assert not any(c.card_id == "moeda_encontrada" for c in new_cards)
 
 
 # ============ REVEAL_TOP_CARD_AND_CHOOSE_DRAW (Mario) ============

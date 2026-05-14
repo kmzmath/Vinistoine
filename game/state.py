@@ -157,6 +157,7 @@ class CardInHand:
     # São aplicados quando a carta é jogada como lacaio.
     stat_modifier: dict = field(default_factory=dict)  # {"attack": +X, "health": +X}
     extra_tags: list[str] = field(default_factory=list)
+    extra_tribes: list[str] = field(default_factory=list)
     # ECHO: cartas que foram jogadas com ECHO retornam à mão como temporárias.
     # No fim do turno são descartadas.
     echo_temporary: bool = False
@@ -198,6 +199,7 @@ class CardInHand:
             "cost_modified": eff_cost != base_cost,
             "echo_temporary": self.echo_temporary,
             "extra_tags": list(self.extra_tags or []),
+            "extra_tribes": list(self.extra_tribes or []),
             "revealed": self.revealed,
             "hidden": False,
         }
@@ -305,6 +307,9 @@ class GameState:
 
     def all_minions(self) -> list[Minion]:
         return [m for p in self.players for m in p.board]
+
+    def active_minions(self) -> list[Minion]:
+        return [m for m in self.all_minions() if not m.has_tag("DORMANT")]
 
     def find_minion(self, instance_id: str) -> Optional[tuple[Minion, int]]:
         """Retorna (minion, player_id) ou None."""
@@ -422,9 +427,19 @@ class GameState:
             if not rec:
                 continue
             for m in pdata.get("board", []):
-                if m.get("card_id") == "fusca_medicinal":
+                from .cards import get_card
+                has_resurrect = any(
+                    eff.get("action") == "RESURRECT_LAST_FRIENDLY_DEAD_MINION"
+                    for eff in (get_card(m.get("card_id")) or {}).get("effects") or []
+                )
+                if has_resurrect:
                     m["related_card_ids"] = [rec.get("card_id")]
                     m["related_label"] = "Ressuscita"
+                    card = get_card(rec.get("card_id")) or {}
+                    m["linked_card"] = {
+                        "card_id": rec.get("card_id"),
+                        "name": rec.get("name") or card.get("name") or rec.get("card_id"),
+                    }
                 if m.get("card_id") == "frifas":
                     existing = list(m.get("related_card_ids") or [])
                     if "saudades" not in existing:

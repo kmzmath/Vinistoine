@@ -9,10 +9,12 @@ from typing import Optional
 from .state import GameState, Minion, PlayerState
 
 CURRENT_SOURCE_TRIGGER: str | None = None
+CURRENT_SOURCE_IS_SPELL: bool = False
 
 
 
-def _is_trigger_immune(candidate, source_owner: int) -> bool:
+def _is_trigger_immune(candidate, source_owner: int,
+                       source_minion: Optional[Minion] = None) -> bool:
     """Bloqueia alvos imunes ao trigger atualmente resolvido.
 
     Usado para Surdo: imune a efeitos ON_PLAY. Isso também filtra AOE de
@@ -21,7 +23,7 @@ def _is_trigger_immune(candidate, source_owner: int) -> bool:
     if not isinstance(candidate, Minion):
         return False
     trigger = CURRENT_SOURCE_TRIGGER
-    if not trigger:
+    if not trigger or CURRENT_SOURCE_IS_SPELL:
         return False
     return candidate.has_tag(f"TRIGGER_IMMUNE_{trigger}")
 
@@ -73,13 +75,13 @@ def is_valid_target(state: GameState, target_desc: dict, candidate, source_owner
     if isinstance(candidate, Minion):
         if candidate.has_tag("DORMANT"):
             return False
-        if _is_trigger_immune(candidate, source_owner):
+        if _is_trigger_immune(candidate, source_owner, source_minion):
             return False
         # Inimigo com STEALTH não pode ser alvo escolhido por feitiços/battlecries.
         # AOE não passa por CHOSEN, então não é bloqueado por isso.
         if candidate.owner != source_owner and candidate.has_tag("STEALTH"):
             return False
-        if candidate.immune:
+        if candidate.immune and candidate.owner != source_owner:
             return False
         # Restrições de targeting por feitiços. Só afetam alvos escolhidos;
         # AOE usa outros modes e continua passando normalmente.
@@ -162,7 +164,7 @@ def _filter_minions(target_desc: dict, minions: list[Minion], source_owner: int,
                     source_minion: Optional[Minion]) -> list[Minion]:
     return [
         m for m in minions
-        if not _is_trigger_immune(m, source_owner)
+        if not _is_trigger_immune(m, source_owner, source_minion)
         and _passes_extra_filters(target_desc, m, source_owner, source_minion)
     ]
 

@@ -415,7 +415,7 @@ def register_lote22_bugfix_handlers(handler):
     def _buff_health(state, eff, source_owner, source_minion, ctx):
         amount = eff.get("amount", 0)
         if eff.get("amount_source") == "FRIENDLY_MINION_COUNT":
-            amount = len(state.players[source_owner].board)
+            amount = sum(1 for m in state.players[source_owner].board if not m.has_tag("DORMANT"))
             if not eff.get("include_self", False) and source_minion in state.players[source_owner].board:
                 amount -= 1
         amount = int(amount or 0)
@@ -433,7 +433,7 @@ def register_lote22_bugfix_handlers(handler):
             return
         atk_per = int(eff.get("attack_amount", eff.get("attack", 1)) or 0)
         hp_per = int(eff.get("health_amount", eff.get("health", 1)) or 0)
-        board = list(state.players[source_owner].board)
+        board = [m for m in state.players[source_owner].board if not m.has_tag("DORMANT")]
         if eff.get("exclude_self", True):
             board = [m for m in board if m is not source_minion]
         n = len(board)
@@ -452,7 +452,7 @@ def register_lote22_bugfix_handlers(handler):
         if not source_minion:
             return
         per_amount = int(eff.get("amount_per_minion", eff.get("amount", 1)) or 0)
-        board = list(state.players[source_owner].board)
+        board = [m for m in state.players[source_owner].board if not m.has_tag("DORMANT")]
         cf = eff.get("count_filter") or {}
         if cf.get("exclude_self", True):
             board = [m for m in board if m is not source_minion]
@@ -502,8 +502,8 @@ def register_lote22_bugfix_handlers(handler):
                 if filt.get("type") and card.get("type") != filt.get("type"):
                     continue
                 if filt.get("tribe"):
-                    from .cards import card_has_tribe
-                    if not card_has_tribe(card, filt.get("tribe")):
+                    from .effects import effective_card_has_tribe
+                    if not effective_card_has_tribe(state, source_owner, card, filt.get("tribe")):
                         continue
                 all_matches.append(i)
                 if filt.get("preferred_id") and card.get("id") == filt.get("preferred_id"):
@@ -527,6 +527,7 @@ def register_lote22_bugfix_handlers(handler):
                 cost_modifier=int(mod.get("cost_modifier", 0) or 0),
                 stat_modifier=dict(mod.get("stat_modifier") or {}),
                 extra_tags=list(mod.get("extra_tags") or []),
+                extra_tribes=list(mod.get("extra_tribes") or []),
             ))
             state.log_event({"type": "draw_card_from_deck_filtered",
                              "player": source_owner, "card_id": card_id, "filter": filt})
@@ -538,22 +539,24 @@ def register_lote22_bugfix_handlers(handler):
         if isinstance(preferred, str):
             preferred = [preferred]
         p = state.players[source_owner]
-        from .cards import card_has_tribe
+        from .effects import effective_card_has_tribe
         for _ in range(amount):
             minions = []
-            preferred_idx = []
+            preferred_pools = [[] for _ in preferred]
             for i, entry in enumerate(p.deck):
                 card = _deck_entry_card(state, entry)
                 if not card or card.get("type") != "MINION":
                     continue
                 minions.append(i)
-                if any(card.get("id") == pref.lower() or card_has_tribe(card, pref) for pref in preferred):
-                    preferred_idx.append(i)
-            pool = preferred_idx or minions
+                for rank, pref in enumerate(preferred):
+                    if card.get("id") == str(pref).lower() or effective_card_has_tribe(state, source_owner, card, pref):
+                        preferred_pools[rank].append(i)
+                        break
+            pool = next((pool for pool in preferred_pools if pool), None) or minions
             if not pool:
                 state.log_event({"type": "no_minion_to_draw"})
                 return
-            idx = state.rng.choice(pool)
+            idx = pool[0]
             entry = p.deck.pop(idx)
             card_id = _deck_entry_card_id(state, entry)
             mods = getattr(state, "deck_card_modifiers", {}) or {}
@@ -567,6 +570,7 @@ def register_lote22_bugfix_handlers(handler):
                 cost_modifier=int(mod.get("cost_modifier", 0) or 0),
                 stat_modifier=dict(mod.get("stat_modifier") or {}),
                 extra_tags=list(mod.get("extra_tags") or []),
+                extra_tribes=list(mod.get("extra_tribes") or []),
             ))
             state.log_event({"type": "draw_minion_from_deck",
                              "player": source_owner, "card_id": card_id,
@@ -576,7 +580,8 @@ def register_lote22_bugfix_handlers(handler):
     def _damage(state, eff, source_owner, source_minion, ctx):
         from .effects import damage_character, heal_character, check_condition
         cond = eff.get("condition") or {}
-        if isinstance(cond, dict) and cond.get("type") and not check_condition(state, cond, source_owner, source_minion, ctx):
+        per_target_frozen = isinstance(cond, dict) and cond.get("type") == "TARGET_IS_FROZEN"
+        if isinstance(cond, dict) and cond.get("type") and not per_target_frozen and not check_condition(state, cond, source_owner, source_minion, ctx):
             return
         amount = int(eff.get("amount", 0) or 0)
         targets = targeting.resolve_targets(state, eff.get("target") or {}, source_owner,
@@ -584,6 +589,8 @@ def register_lote22_bugfix_handlers(handler):
         is_spell = ctx.get("is_spell", False)
         total = 0
         for t in targets:
+            if per_target_frozen and not (isinstance(t, Minion) and t.frozen):
+                continue
             dealt = damage_character(state, t, amount, source_owner, source_minion, is_spell=is_spell)
             total += int(dealt or 0)
         if eff.get("lifesteal") and total > 0:
@@ -594,7 +601,7 @@ def register_lote22_bugfix_handlers(handler):
         from .effects import damage_character
         amount = eff.get("amount", 1)
         if eff.get("amount_source") == "ENEMY_MINION_COUNT":
-            amount = len(state.opponent_of(source_owner).board)
+            amount = sum(1 for m in state.opponent_of(source_owner).board if not m.has_tag("DORMANT"))
         amount = int(amount or 0)
         for m in list(state.opponent_of(source_owner).board):
             damage_character(state, m, amount, source_owner, source_minion,
@@ -689,6 +696,8 @@ def register_lote22_bugfix_handlers(handler):
                 ctx["destroyed_minion_id"] = t.instance_id
                 ctx["destroyed_minion_health"] = max(0, t.health)
                 ctx["destroyed_minion_attack"] = max(0, t.attack)
+                if "_FORCE_DESTROY" not in t.tags:
+                    t.tags.append("_FORCE_DESTROY")
                 t.health = 0
                 state.log_event({"type": "destroy", "minion": t.instance_id})
 

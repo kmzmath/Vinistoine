@@ -37,6 +37,21 @@ def load_cards(path: Optional[Path] = None) -> list[dict]:
                  "target": {"mode": "SELF_PLAYER"}}
             ],
         },
+        {
+            "id": "moeda_encontrada",
+            "name": "Moeda Encontrada",
+            "type": "SPELL",
+            "cost": 0,
+            "text": "Quando comprada, e lancada de graca: adicione uma Moeda a sua mao e compre duas cartas.",
+            "tags": ["CAST_WHEN_DRAWN"],
+            "tribes": [],
+            "effects": [
+                {"trigger": "ON_DRAW", "action": "ADD_CARD_TO_HAND", "card_id": "coin",
+                 "amount": 1, "target": {"mode": "SELF_PLAYER"}},
+                {"trigger": "ON_DRAW", "action": "DRAW_CARD", "amount": 2,
+                 "target": {"mode": "SELF_PLAYER"}, "suppress_on_draw_triggers": True},
+            ],
+        },
     ]
     for c in aux_cards:
         if not any(card["id"] == c["id"] for card in data):
@@ -78,7 +93,7 @@ def is_collectible_card(card_id: str) -> bool:
     Tokens auxiliares usados pela engine, como a Moeda, continuam disponíveis
     via get_card(), mas não são colecionáveis.
     """
-    return card_id not in {"coin", "moeda"}
+    return card_id not in {"coin", "moeda", "moeda_encontrada"}
 
 
 def card_max_copies(card_id: str) -> int:

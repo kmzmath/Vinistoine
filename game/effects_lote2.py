@@ -502,6 +502,7 @@ def register_lote2_handlers(handler):
         tribe = eff.get("tribe", "BRASILEIRO")
         max_iter = eff.get("max_iterations", 10)  # safety
         p = state.players[source_owner]
+        from .effects import effective_card_has_tribe
         drawn = 0
         for _ in range(max_iter):
             minion_idx = [i for i, cid in enumerate(p.deck)
@@ -517,8 +518,8 @@ def register_lote2_handlers(handler):
             drawn += 1
             c = get_card(cid)
             state.log_event({"type": "draw_repeat", "card_id": cid,
-                             "is_target_tribe": card_has_tribe(c, tribe)})
-            if not card_has_tribe(c, tribe):
+                             "is_target_tribe": effective_card_has_tribe(state, source_owner, c, tribe)})
+            if not effective_card_has_tribe(state, source_owner, c, tribe):
                 break
 
     @handler("DRAW_PLAYABLE_CARD")

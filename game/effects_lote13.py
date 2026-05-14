@@ -237,9 +237,10 @@ def register_lote13_handlers(handler):
         tribe = eff.get("tribe")
         amount = int(eff.get("amount", 1) or 1)
         drawn = []
+        from .effects import effective_card_has_tribe
         for _ in range(amount):
             entry = next((e for e in list(p.deck)
-                          if card_has_tribe(_card_for_deck_entry(state, e) or {}, tribe)), None)
+                          if effective_card_has_tribe(state, source_owner, _card_for_deck_entry(state, e) or {}, tribe)), None)
             if entry is None:
                 break
             _remove_deck_entry(p, entry)

@@ -266,19 +266,25 @@ def register_lote17_handlers(handler):
     @handler("SLEEP")
     def _sleep(state, eff, source_owner, source_minion, ctx):
         """Viní Dorminhoco: quando morre, volta dormente ao campo."""
-        from .effects import summon_minion_from_card
         card_id = ctx.get("source_card_id") or (source_minion.card_id if source_minion else None)
-        if not card_id:
+        if not card_id or source_minion is None:
             return
-        m = summon_minion_from_card(state, source_owner, card_id)
-        if not m:
-            return
+        m = source_minion
+        card = get_card(card_id) or {}
+        base_hp = card.get("health") or max(1, m.max_health)
+        m.health = max(1, base_hp)
+        m.max_health = max(m.max_health, base_hp)
         if "DORMANT" not in m.tags:
             m.tags.append("DORMANT")
         m.cant_attack = True
         m.immune = True
         m.summoning_sick = True
         # Reseta contador de despertar.
+        state.pending_modifiers = [
+            pm for pm in state.pending_modifiers
+            if not (pm.get("kind") == "friendly_summons_awaken_counter"
+                    and pm.get("target_id") == m.instance_id)
+        ]
         state.pending_modifiers.append({
             "kind": "friendly_summons_awaken_counter",
             "target_id": m.instance_id,
@@ -317,6 +323,35 @@ def handle_minion_death_specials(state, minion: Minion, owner: int):
     source_info = getattr(state, "last_damage_sources", {}).get(minion.instance_id, {})
     source_owner = source_info.get("source_owner")
     source_minion_id = source_info.get("source_minion_id")
+
+    if minion.card_id == "vini_dorminhoco" and "_FORCE_DESTROY" not in minion.tags:
+        if any(eff.get("trigger") == "ON_DEATH" and eff.get("action") == "SLEEP"
+               for eff in (minion.effects or [])):
+            card = get_card(minion.card_id) or {}
+            base_hp = card.get("health") or max(1, minion.max_health)
+            minion.health = max(1, base_hp)
+            minion.max_health = max(minion.max_health, base_hp)
+            if "DORMANT" not in minion.tags:
+                minion.tags.append("DORMANT")
+            minion.cant_attack = True
+            minion.immune = True
+            minion.summoning_sick = True
+            state.pending_modifiers = [
+                pm for pm in state.pending_modifiers
+                if not (pm.get("kind") == "friendly_summons_awaken_counter"
+                        and pm.get("target_id") == minion.instance_id)
+            ]
+            state.pending_modifiers.append({
+                "kind": "friendly_summons_awaken_counter",
+                "target_id": minion.instance_id,
+                "owner": owner,
+                "count": 0,
+                "required": 2,
+            })
+            state.log_event({"type": "sleep_replaces_death",
+                             "minion": minion.instance_id,
+                             "card_id": minion.card_id})
+            return True
 
     # Spiideba: cópia morreu, original ganha atributos.
     for pm in list(state.pending_modifiers):

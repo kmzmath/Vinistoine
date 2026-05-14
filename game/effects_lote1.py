@@ -319,6 +319,7 @@ def register_lote1_handlers(handler):
         preferred = target_desc.get("preferred_tribe")
         amount = eff.get("amount", 1)
         p = state.players[source_owner]
+        from .effects import effective_card_has_tribe
 
         for _ in range(amount):
             # Filtra cartas do deck que são MINION
@@ -329,7 +330,7 @@ def register_lote1_handlers(handler):
                 if not c or c.get("type") != "MINION":
                     continue
                 deck_minions_idx.append(i)
-                if preferred and card_has_tribe(c, preferred):
+                if preferred and effective_card_has_tribe(state, source_owner, c, preferred):
                     preferred_idx.append(i)
 
             pool = preferred_idx if preferred_idx else deck_minions_idx
@@ -374,6 +375,7 @@ def register_lote1_handlers(handler):
         preferred = target_desc.get("preferred_tribe")
         max_cost = eff.get("max_cost")
         p = state.players[source_owner]
+        from .effects import effective_card_has_tribe
 
         if len(p.board) >= MAX_BOARD_SIZE:
             state.log_event({"type": "board_full_recruit"})
@@ -389,7 +391,7 @@ def register_lote1_handlers(handler):
             if max_cost is not None and (c.get("cost") or 0) > max_cost:
                 continue
             pool.append(i)
-            if preferred and card_has_tribe(c, preferred):
+            if preferred and effective_card_has_tribe(state, source_owner, c, preferred):
                 preferred_pool.append(i)
 
         chosen_pool = preferred_pool if preferred_pool else pool

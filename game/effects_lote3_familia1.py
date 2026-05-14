@@ -186,6 +186,12 @@ def register_familia1_handlers(handler):
             state.log_event({"type": "swap_revealed_tops", "swapped": True})
         else:
             state.log_event({"type": "swap_revealed_tops", "swapped": False})
+        if not hasattr(state, "revealed_top_cards"):
+            state.revealed_top_cards = {}
+        if me.deck:
+            state.revealed_top_cards[me.player_id] = me.deck[0]
+        if opp.deck:
+            state.revealed_top_cards[opp.player_id] = opp.deck[0]
 
     # ============================================================
     # REVEAL_TOP_CARD_EACH_DECK
@@ -203,6 +209,10 @@ def register_familia1_handlers(handler):
             revealed.append((source_owner, me.deck[0]))
         if opp.deck:
             revealed.append((opp.player_id, opp.deck[0]))
+        if not hasattr(state, "revealed_top_cards"):
+            state.revealed_top_cards = {}
+        for pid, cid in revealed:
+            state.revealed_top_cards[pid] = cid
         ctx["revealed_per_deck"] = revealed
         state.log_event({
             "type": "reveal_top_each_deck",
@@ -390,8 +400,10 @@ def register_familia1_handlers(handler):
                 continue
             if max_cost is not None and (c.get("cost") or 0) > max_cost:
                 continue
-            if tribe and not card_has_tribe(c, tribe):
-                continue
+            if tribe:
+                from .effects import effective_card_has_tribe
+                if not effective_card_has_tribe(state, source_owner, c, tribe):
+                    continue
             match_idx = i
             if selection == "FIRST_MATCH":
                 break
@@ -457,7 +469,7 @@ def register_familia1_handlers(handler):
         """
         position = eff.get("position", "MIDDLE")
         # A carta original está em ctx.source_card_id
-        card_id = ctx.get("source_card_id")
+        card_id = eff.get("card_id") or ctx.get("source_card_id")
         if not card_id:
             return
         p = state.players[source_owner]
@@ -501,6 +513,26 @@ def _play_card_free(state: GameState, owner: int, card: dict):
     from .state import Minion
     p = state.players[owner]
     is_minion = card.get("type") == "MINION"
+    if getattr(state, "manual_choices", False):
+        needs_target = bool(targeting.chosen_targets_for_card(card))
+        needs_option = any(
+            eff.get("trigger") == "ON_PLAY" and eff.get("action") == "CHOOSE_ONE"
+            and len(eff.get("choices") or []) > 1
+            for eff in (card.get("effects") or [])
+        )
+        if needs_target or needs_option:
+            if len(p.hand) < MAX_HAND_SIZE:
+                ch = CardInHand(instance_id=gen_id("h_"), card_id=card.get("id"), cost_override=0)
+                p.hand.append(ch)
+                state.log_event({
+                    "type": "free_card_added_to_hand_for_choice",
+                    "player": owner,
+                    "card_id": card.get("id"),
+                    "instance_id": ch.instance_id,
+                })
+            else:
+                state.log_event({"type": "burn", "player": owner, "card_id": card.get("id")})
+            return
 
     if is_minion:
         if len(p.board) >= MAX_BOARD_SIZE:
