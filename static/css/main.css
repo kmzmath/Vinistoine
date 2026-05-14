@@ -1408,6 +1408,7 @@ input:focus { border-color: var(--gold); }
 /* Anel/foto do lacaio */
 .minion .portrait-ring {
   width: 120px; height: 120px;
+  box-sizing: border-box;
   border-radius: 50%;
   background:
     radial-gradient(circle at 35% 25%, rgba(255,210,140,0.35), transparent 55%),
@@ -1475,7 +1476,7 @@ input:focus { border-color: var(--gold); }
   right: 4px; bottom: 0;
   background: radial-gradient(circle at 35% 30%, #7fd49a, #4a8f6a 60%, #0e3a22);
 }
-.minion .hp-badge.damaged { color: #ffaaaa; }
+.minion .hp-badge.damaged { color: #ff2f2f; }
 .minion .hp-badge.buffed { color: #b6ffb6; }
 .minion .atk-badge.buffed { color: #fff7c8; }
 
@@ -1518,7 +1519,7 @@ input:focus { border-color: var(--gold); }
   width: 124px; height: 124px;
   border-radius: 50%;
   pointer-events: none;
-  z-index: 6;
+  z-index: 7;
   background:
     radial-gradient(circle at 32% 28%, rgba(255,255,200,0.55), rgba(255,220,90,0.18) 35%, transparent 65%),
     radial-gradient(circle, transparent 60%, rgba(255,210,100,0.35) 72%, rgba(255,180,40,0.55) 86%, transparent 100%);
@@ -1542,27 +1543,59 @@ input:focus { border-color: var(--gold); }
 
 /* === FURTIVIDADE: névoa cinza cobrindo o lacaio === */
 .minion.stealth .portrait-ring {
-  filter: brightness(0.5) saturate(0.4) blur(0.5px);
+  filter: brightness(0.46) saturate(0.36) blur(0.45px);
   border-style: dashed;
   border-color: #8a8478;
 }
 .minion.stealth .stealth-mist {
   position: absolute;
   top: 76px; left: 50%; transform: translate(-50%, -50%);
-  width: 104px; height: 104px;
+  width: 138px; height: 138px;
   border-radius: 50%;
   pointer-events: none;
-  z-index: 6;
+  z-index: 5;
+  overflow: hidden;
   background:
-    radial-gradient(circle at 25% 30%, rgba(120,120,140,0.5), transparent 50%),
-    radial-gradient(circle at 70% 60%, rgba(80,80,100,0.55), transparent 50%),
-    radial-gradient(circle at 50% 80%, rgba(100,100,120,0.5), transparent 55%),
-    radial-gradient(circle, rgba(40,40,50,0.35) 40%, rgba(20,20,30,0.6) 100%);
-  animation: mistDrift 7s ease-in-out infinite;
+    radial-gradient(circle at 25% 28%, rgba(150,150,170,0.62), transparent 46%),
+    radial-gradient(circle at 72% 58%, rgba(78,82,106,0.68), transparent 50%),
+    radial-gradient(circle at 50% 82%, rgba(116,116,140,0.58), transparent 54%),
+    radial-gradient(circle, rgba(32,34,46,0.62) 48%, rgba(12,14,22,0.82) 100%);
+  box-shadow:
+    inset 0 0 22px rgba(0,0,0,0.62),
+    0 0 18px rgba(82,84,112,0.42);
+  animation: mistDrift 6.5s ease-in-out infinite;
+}
+.minion.stealth .stealth-mist::before,
+.minion.stealth .stealth-mist::after {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 20deg,
+      transparent 0deg,
+      rgba(185,185,205,0.28) 36deg,
+      transparent 72deg,
+      rgba(92,96,128,0.38) 138deg,
+      transparent 190deg,
+      rgba(172,172,190,0.2) 260deg,
+      transparent 360deg);
+  filter: blur(5px);
+  animation: stealthSwirl 9s linear infinite;
+}
+.minion.stealth .stealth-mist::after {
+  inset: -12px;
+  animation-duration: 12s;
+  animation-direction: reverse;
+  opacity: 0.72;
 }
 @keyframes mistDrift {
-  0%, 100% { background-position: 0% 0%, 0% 0%, 0% 0%, center; opacity: 0.85; }
-  50%      { background-position: 8% 4%, -6% 3%, 4% -5%, center;  opacity: 1; }
+  0%, 100% { background-position: 0% 0%, 0% 0%, 0% 0%, center; opacity: 0.92; }
+  50%      { background-position: 10% 4%, -8% 4%, 5% -6%, center; opacity: 1; }
+}
+@keyframes stealthSwirl {
+  from { transform: rotate(0deg) scale(1); }
+  to   { transform: rotate(360deg) scale(1); }
 }
 
 /* === CONGELAR: lacaio coberto de gelo azul === */
@@ -1599,42 +1632,150 @@ input:focus { border-color: var(--gold); }
 .minion.windfury .wind-around {
   position: absolute;
   top: 76px; left: 50%; transform: translate(-50%, -50%);
-  width: 116px; height: 116px;
+  width: 150px; height: 150px;
   pointer-events: none;
-  z-index: 1;
-  animation: windSpin 3s linear infinite;
+  z-index: 6;
+  filter:
+    drop-shadow(0 0 7px rgba(190,232,255,0.9))
+    drop-shadow(0 0 15px rgba(92,185,255,0.42));
+  animation: windSpin 3.4s linear infinite;
 }
 .minion.windfury .wind-around svg {
   width: 100%; height: 100%;
-  opacity: 0.85;
+  opacity: 0.95;
+}
+.minion.windfury .wind-around path {
+  stroke-dasharray: 34 24;
+  animation: windDash 1.15s linear infinite;
+}
+.minion.windfury .wind-around::before,
+.minion.windfury .wind-around::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-left-color: rgba(209,241,255,0.82);
+  border-right-color: rgba(117,205,255,0.52);
+  filter: blur(0.3px);
+}
+.minion.windfury .wind-around::after {
+  inset: 20px;
+  border-width: 2px;
+  border-left-color: rgba(255,255,255,0.62);
+  border-right-color: rgba(92,185,255,0.46);
+  animation: windCounterSpin 2.7s linear infinite;
 }
 @keyframes windSpin {
   from { transform: translate(-50%, -50%) rotate(0deg); }
   to   { transform: translate(-50%, -50%) rotate(360deg); }
 }
+@keyframes windCounterSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+@keyframes windDash {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -58; }
+}
+.minion.windfury.divine-shield .wind-around {
+  width: 158px; height: 158px;
+  z-index: 8;
+  filter:
+    drop-shadow(0 0 8px rgba(224,245,255,0.95))
+    drop-shadow(0 0 16px rgba(255,215,96,0.45));
+}
 .minion.windfury .portrait-ring {
   border-color: #aac8e6;
+}
+.minion.windfury.taunt .portrait-ring { border-color: #c8b888; }
+.minion.windfury.divine-shield .portrait-ring { border-color: #ffd860; }
+
+/* === PROTECAO CONTRA FEITICOS: runas arcanas ao redor do retrato === */
+.minion.spell-protected .spell-ward {
+  position: absolute;
+  top: 76px; left: 50%; transform: translate(-50%, -50%);
+  width: 142px; height: 142px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 6;
+  background:
+    conic-gradient(from 0deg,
+      transparent 0deg,
+      rgba(115,235,255,0.85) 20deg,
+      transparent 45deg,
+      rgba(170,115,255,0.72) 92deg,
+      transparent 126deg,
+      rgba(115,235,255,0.78) 185deg,
+      transparent 222deg,
+      rgba(210,185,255,0.64) 286deg,
+      transparent 328deg,
+      rgba(115,235,255,0.85) 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 65%, #000 77%, transparent 80%);
+          mask: radial-gradient(circle, transparent 62%, #000 65%, #000 77%, transparent 80%);
+  filter:
+    drop-shadow(0 0 7px rgba(115,235,255,0.9))
+    drop-shadow(0 0 16px rgba(150,90,255,0.52));
+  animation: spellWardSpin 7.5s linear infinite;
+}
+.minion.spell-protected .spell-ward::before,
+.minion.spell-protected .spell-ward::after {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border-radius: 50%;
+  border: 1px dashed rgba(205,245,255,0.76);
+}
+.minion.spell-protected .spell-ward::after {
+  inset: 27px;
+  border-style: solid;
+  border-color: transparent rgba(184,140,255,0.58);
+  animation: spellWardCounterSpin 5.5s linear infinite;
+}
+@keyframes spellWardSpin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes spellWardCounterSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
 }
 
 /* === PODE ATACAR: borda verde brilhante === */
 .minion.can-attack .portrait-ring {
-  border-width: 7px;
-  border-color: #66ff7a;
   box-shadow:
     inset 0 -6px 10px rgba(0,0,0,0.4),
     0 0 14px rgba(102,255,122,0.75),
     0 0 24px rgba(102,255,122,0.35);
+}
+.minion.can-attack .portrait-ring::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 4px solid #66ff7a;
+  box-shadow:
+    0 0 14px rgba(102,255,122,0.7),
+    0 0 24px rgba(102,255,122,0.35),
+    inset 0 0 8px rgba(102,255,122,0.22);
+  pointer-events: none;
   animation: readyPulse 1.6s ease-in-out infinite;
 }
 @keyframes readyPulse {
-  0%, 100% { box-shadow:
-    inset 0 -6px 10px rgba(0,0,0,0.4),
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
     0 0 14px rgba(102,255,122,0.7),
-    0 0 24px rgba(102,255,122,0.3); }
-  50% { box-shadow:
-    inset 0 -6px 10px rgba(0,0,0,0.4),
+    0 0 24px rgba(102,255,122,0.3),
+    inset 0 0 8px rgba(102,255,122,0.22);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow:
     0 0 22px rgba(102,255,122,1),
-    0 0 36px rgba(102,255,122,0.55); }
+    0 0 36px rgba(102,255,122,0.55),
+    inset 0 0 12px rgba(102,255,122,0.34);
+  }
 }
 
 /* Hover de alvo */
@@ -1657,7 +1798,7 @@ input:focus { border-color: var(--gold); }
   position: absolute;
   left: 50%; bottom: 4px;
   transform: translateX(-50%);
-  width: 28px; height: 28px;
+  width: 30px; height: 30px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   border: 2px solid #1a0e08;
@@ -1667,7 +1808,7 @@ input:focus { border-color: var(--gold); }
 }
 .minion .keyword-seal::before {
   content: "";
-  width: 18px; height: 18px;
+  width: 21px; height: 21px;
   -webkit-mask-size: contain;
           mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -1679,14 +1820,15 @@ input:focus { border-color: var(--gold); }
 
 /* Ícone CAVEIRA com ossos cruzados (DEATHRATTLE) */
 .minion .keyword-seal[data-kw="DEATHRATTLE"] {
-  background: radial-gradient(circle at 35% 30%, #f0e6d2, #8a7a58 60%, #3a2e18);
-  border-color: #2a1808;
+  background: radial-gradient(circle at 35% 30%, #5f5145, #2b211a 62%, #080604);
+  border-color: #d6c4a2;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.85), 0 0 10px rgba(214,196,162,0.4);
 }
 .minion .keyword-seal[data-kw="DEATHRATTLE"]::before {
   /* Caveira frontal + dois ossos em X por trás */
   -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M2.5 14.5 L21.5 9.5 L21.5 11.2 L2.5 16.2 Z M2.5 9.5 L21.5 14.5 L21.5 16.2 L2.5 11.2 Z' fill='white'/><circle cx='5' cy='14.7' r='1.5' fill='white'/><circle cx='5' cy='11' r='1.5' fill='white'/><circle cx='19' cy='14.7' r='1.5' fill='white'/><circle cx='19' cy='11' r='1.5' fill='white'/><path d='M12 4 C8.5 4 6 6.5 6 10 C6 12.2 7 13.8 8.5 14.8 L8 17 H10 L10.5 16 C11 16.1 11.5 16.2 12 16.2 C12.5 16.2 13 16.1 13.5 16 L14 17 H16 L15.5 14.8 C17 13.8 18 12.2 18 10 C18 6.5 15.5 4 12 4 Z M9.5 9.5 A1.4 1.4 0 1 1 9.5 12.3 A1.4 1.4 0 1 1 9.5 9.5 Z M14.5 9.5 A1.4 1.4 0 1 1 14.5 12.3 A1.4 1.4 0 1 1 14.5 9.5 Z M11 13.4 H13 V14.6 H11 Z' fill='white'/></svg>");
           mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M2.5 14.5 L21.5 9.5 L21.5 11.2 L2.5 16.2 Z M2.5 9.5 L21.5 14.5 L21.5 16.2 L2.5 11.2 Z' fill='white'/><circle cx='5' cy='14.7' r='1.5' fill='white'/><circle cx='5' cy='11' r='1.5' fill='white'/><circle cx='19' cy='14.7' r='1.5' fill='white'/><circle cx='19' cy='11' r='1.5' fill='white'/><path d='M12 4 C8.5 4 6 6.5 6 10 C6 12.2 7 13.8 8.5 14.8 L8 17 H10 L10.5 16 C11 16.1 11.5 16.2 12 16.2 C12.5 16.2 13 16.1 13.5 16 L14 17 H16 L15.5 14.8 C17 13.8 18 12.2 18 10 C18 6.5 15.5 4 12 4 Z M9.5 9.5 A1.4 1.4 0 1 1 9.5 12.3 A1.4 1.4 0 1 1 9.5 9.5 Z M14.5 9.5 A1.4 1.4 0 1 1 14.5 12.3 A1.4 1.4 0 1 1 14.5 9.5 Z M11 13.4 H13 V14.6 H11 Z' fill='white'/></svg>");
-  background: #f5ecd6;
+  background: #fff0d2;
 }
 
 /* Ícone RAIO (PASSIVE / AURA / efeito contínuo) */
@@ -1760,8 +1902,8 @@ input:focus { border-color: var(--gold); }
 /* Silenciado mas pode atacar: o anel verde de "pronto pra atacar" deve
    continuar visível (a borda dashed cinza não pode mascarar o sinal). */
 .minion.silenced.can-attack .portrait-ring {
-  border-style: solid;
-  border-color: #66ff7a;
+  border-style: dashed;
+  border-color: #6e6e6e;
   filter: grayscale(0.6) brightness(0.78);
 }
 .minion.silenced .silence-mark {
@@ -2022,7 +2164,7 @@ input:focus { border-color: var(--gold); }
 .minion.opponent .portrait-ring {
   border-color: #8a4a3a;
 }
-.minion.opponent.can-attack .portrait-ring { border-width: 7px; border-color: #66ff7a; }
+.minion.opponent.can-attack .portrait-ring { border-color: #8a4a3a; }
 .minion.opponent.taunt .portrait-ring { border-color: #d8d8d8; }
 .minion.opponent.divine-shield .portrait-ring { border-color: var(--gold-bright); }
 
@@ -3046,14 +3188,14 @@ input:focus { border-color: var(--gold); }
 
 /* Ícone VENENO */
 .minion .keyword-seal[data-kw="POISONOUS"] {
-  background: radial-gradient(circle at 35% 30%, #b8ff73, #2f9c3f 60%, #103812);
+  background: radial-gradient(circle at 35% 30%, #c9ff76, #33964a 58%, #0b2f18);
   border-color: #0b220c;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.85), 0 0 10px rgba(80,255,100,0.6);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.85), 0 0 12px rgba(90,255,120,0.68);
 }
 .minion .keyword-seal[data-kw="POISONOUS"]::before {
-  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2 C9 5 7 8 7 11 C7 15 9.6 18 12 22 C14.4 18 17 15 17 11 C17 8 15 5 12 2 Z M10 9 C10.7 8.2 11.3 8.2 12 9 C12.7 8.2 13.3 8.2 14 9 C13.5 10 12.8 10.5 12 11 C11.2 10.5 10.5 10 10 9 Z M9 14 H15 V16 H9 Z' fill='white'/></svg>");
-          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2 C9 5 7 8 7 11 C7 15 9.6 18 12 22 C14.4 18 17 15 17 11 C17 8 15 5 12 2 Z M10 9 C10.7 8.2 11.3 8.2 12 9 C12.7 8.2 13.3 8.2 14 9 C13.5 10 12.8 10.5 12 11 C11.2 10.5 10.5 10 10 9 Z M9 14 H15 V16 H9 Z' fill='white'/></svg>");
-  background: #eaffd6;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M10 2 H14 V5 L13 6.2 V8.2 L18.3 16.4 C19.7 18.6 18.2 21 15.6 21 H8.4 C5.8 21 4.3 18.6 5.7 16.4 L11 8.2 V6.2 L10 5 Z M8.7 15.1 H15.3 L12.4 10.2 H11.6 Z M9 3.2 H15 V5 H9 Z' fill='white'/></svg>");
+          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M10 2 H14 V5 L13 6.2 V8.2 L18.3 16.4 C19.7 18.6 18.2 21 15.6 21 H8.4 C5.8 21 4.3 18.6 5.7 16.4 L11 8.2 V6.2 L10 5 Z M8.7 15.1 H15.3 L12.4 10.2 H11.6 Z M9 3.2 H15 V5 H9 Z' fill='white'/></svg>");
+  background: #dcffd0;
 }
 
 

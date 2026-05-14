@@ -646,6 +646,9 @@ const KW_NAME = {
   COMBO: "Combo",
   ACTIVATED_ABILITY: "Habilidade",
   LIFESTEAL: "Roubo de Vida",
+  SPELL_TARGET_IMMUNITY: "Imune a feiticos",
+  ENEMY_SPELL_TARGET_IMMUNITY: "Protecao contra feiticos inimigos",
+  FRIENDLY_SPELL_TARGET_ONLY: "Alvo so aliado",
   PASSIVE: "Efeito Contínuo",
 };
 
@@ -668,14 +671,23 @@ const KW_DESCRIPTION = {
   COMBO: "Efeito extra ativado se você já jogou outra carta neste turno.",
   ACTIVATED_ABILITY: "Habilidade manual do lacaio que você ativa no campo, pagando seu custo quando houver.",
   LIFESTEAL: "Dano causado por este personagem também cura seu herói.",
+  SPELL_TARGET_IMMUNITY: "Nao pode ser alvo de feiticos.",
+  ENEMY_SPELL_TARGET_IMMUNITY: "Nao pode ser alvo de feiticos inimigos enquanto a protecao durar.",
+  FRIENDLY_SPELL_TARGET_ONLY: "Feiticos inimigos nao podem alvejar este lacaio.",
 };
 
 const KEYWORD_PANEL_ORDER = [
   "BATTLECRY", "RUSH", "STEALTH", "TAUNT", "DIVINE_SHIELD", "ECHO",
   "FREEZE", "DEATHRATTLE", "RESISTANT", "DORMANT", "EMPOWER",
-  "POISONOUS", "CHARGE", "RECRUIT", "WINDFURY", "COMBO", "ACTIVATED_ABILITY",
+  "POISONOUS", "CHARGE", "RECRUIT", "WINDFURY", "SPELL_TARGET_IMMUNITY",
+  "ENEMY_SPELL_TARGET_IMMUNITY", "FRIENDLY_SPELL_TARGET_ONLY", "COMBO", "ACTIVATED_ABILITY",
   "LIFESTEAL",
 ];
+const SPELL_TARGET_PROTECTION_TAGS = new Set([
+  "SPELL_TARGET_IMMUNITY",
+  "ENEMY_SPELL_TARGET_IMMUNITY",
+  "FRIENDLY_SPELL_TARGET_ONLY",
+]);
 
 // ====== Tabuleiro ======
 function renderBoard() {
@@ -1291,19 +1303,15 @@ const SVG_TAUNT_SHIELD = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/20
 </svg>`;
 
 const SVG_WIND = `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-  <g fill="none" stroke="#cfe6f5" stroke-width="2.5" stroke-linecap="round" opacity="0.85">
-    <path d="M22 30 Q40 22 56 30" />
-    <path d="M14 50 Q34 42 52 50" />
-    <path d="M98 70 Q80 78 64 70" />
-    <path d="M106 90 Q86 98 68 90" />
-    <path d="M30 100 Q42 92 58 100" />
-    <path d="M90 22 Q78 30 62 22" />
+  <g fill="none" stroke="#d8f2ff" stroke-width="3.1" stroke-linecap="round" opacity="0.92">
+    <path d="M18 42 C32 18 72 14 96 32" />
+    <path d="M14 64 C31 49 58 47 79 59 C90 65 99 66 108 58" />
+    <path d="M24 88 C45 108 84 103 101 81" />
   </g>
-  <g fill="#e8f3fa" opacity="0.9">
-    <circle cx="56" cy="30" r="2.5"/>
-    <circle cx="52" cy="50" r="2.5"/>
-    <circle cx="64" cy="70" r="2.5"/>
-    <circle cx="68" cy="90" r="2.5"/>
+  <g fill="#f3fbff" opacity="0.9">
+    <circle cx="95" cy="32" r="2.7"/>
+    <circle cx="108" cy="58" r="2.4"/>
+    <circle cx="101" cy="81" r="2.7"/>
   </g>
 </svg>`;
 
@@ -1900,22 +1908,26 @@ function renderMinion(m, isOpponent) {
 
   // Estados visuais ambientais (efeitos em torno do lacaio)
   const card = allCards[m.card_id] || {};
-  const isDormant = (m.tags || []).includes("DORMANT");
+  const tags = m.tags || [];
+  const isDormant = tags.includes("DORMANT");
   const isPassive = hasPassiveEffect(card);
+  const hasSpellTargetProtection = !isDormant
+    && tags.some(t => SPELL_TARGET_PROTECTION_TAGS.has(t));
 
   if (isDormant) div.classList.add("dormant");
-  if (!isDormant && m.tags.includes("TAUNT") && !m.silenced) div.classList.add("taunt");
+  if (!isDormant && tags.includes("TAUNT") && !m.silenced) div.classList.add("taunt");
   if (!isDormant && m.divine_shield) div.classList.add("divine-shield");
   if (!isDormant && m.frozen) div.classList.add("frozen");
-  if (!isDormant && m.tags.includes("STEALTH") && !m.silenced) div.classList.add("stealth");
-  if (!isDormant && m.tags.includes("WINDFURY") && !m.silenced) div.classList.add("windfury");
+  if (!isDormant && tags.includes("STEALTH") && !m.silenced) div.classList.add("stealth");
+  if (!isDormant && tags.includes("WINDFURY") && !m.silenced) div.classList.add("windfury");
+  if (hasSpellTargetProtection) div.classList.add("spell-protected");
   if (m.silenced) div.classList.add("silenced");
 
   if (!isOpponent && state.current_player === myPid && m.can_attack) {
     div.classList.add("can-attack");
   }
   const isSick = m.summoning_sick
-    && !(m.tags.includes("CHARGE") || m.tags.includes("RUSH"));
+    && !(tags.includes("CHARGE") || tags.includes("RUSH"));
   if (isSick) div.classList.add("sick");
 
   // Imagem do retrato
@@ -1931,9 +1943,9 @@ function renderMinion(m, isOpponent) {
   // Apenas Deathrattle ou Passive (efeito contínuo) ganham selo central.
   // Battlecry/Charge/Rush/Windfury NÃO recebem selo (Windfury vira anel de vento).
   let primarySeal = null;
-  if (!isDormant && m.tags.includes("POISONOUS") && !m.silenced) {
+  if (!isDormant && tags.includes("POISONOUS") && !m.silenced) {
     primarySeal = "POISONOUS";
-  } else if (!isDormant && m.tags.includes("DEATHRATTLE") && !m.silenced) {
+  } else if (!isDormant && tags.includes("DEATHRATTLE") && !m.silenced) {
     primarySeal = "DEATHRATTLE";
   } else if (!isDormant && isPassive && !m.silenced) {
     primarySeal = "PASSIVE";
@@ -1956,16 +1968,18 @@ function renderMinion(m, isOpponent) {
   else if (nLen > 14) nameClass += " long";
 
   // Overlays ambientais
-  const tauntOverlay = (m.tags.includes("TAUNT") && !m.silenced)
+  const tauntOverlay = (tags.includes("TAUNT") && !m.silenced)
     ? `<div class="taunt-shield">${SVG_TAUNT_SHIELD}</div>` : "";
   const divineOverlay = m.divine_shield
     ? `<div class="divine-bubble"></div>` : "";
-  const stealthOverlay = (m.tags.includes("STEALTH") && !m.silenced)
+  const stealthOverlay = (tags.includes("STEALTH") && !m.silenced)
     ? `<div class="stealth-mist"></div>` : "";
   const frozenOverlay = m.frozen
     ? `<div class="freeze-ice">${SVG_FREEZE}</div>` : "";
-  const windOverlay = (m.tags.includes("WINDFURY") && !m.silenced)
+  const windOverlay = (tags.includes("WINDFURY") && !m.silenced)
     ? `<div class="wind-around">${SVG_WIND}</div>` : "";
+  const spellWardOverlay = hasSpellTargetProtection
+    ? `<div class="spell-ward" title="Protegido contra feiticos"></div>` : "";
   const silenceOverlay = m.silenced ? `<div class="silence-mark"></div>` : "";
 
   const activatableEffects = getActivatableEffectsForMinion(m);
@@ -2004,6 +2018,7 @@ function renderMinion(m, isOpponent) {
     ${firstAbility && !isDormant ? `<button class="ability-btn ${canAbility ? "ready" : "disabled"}" title="${abilityReadOnly ? "Habilidade do lacaio inimigo (somente visualização)" : "Usos/custo da habilidade"}" aria-disabled="${canAbility ? "false" : "true"}" data-readonly="${abilityReadOnly ? "true" : "false"}">${abilityLabel}</button>` : ""}
     ${!isDormant ? tauntOverlay : ""}
     ${!isDormant ? windOverlay : ""}
+    ${!isDormant ? spellWardOverlay : ""}
     <div class="${ringClass}" style="${portraitStyle}">${initial}</div>
     ${!isDormant ? stealthOverlay : ""}
     ${!isDormant ? divineOverlay : ""}
