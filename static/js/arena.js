@@ -88,7 +88,7 @@ function renderChoiceCard(cardId, index) {
 function renderCurve(curve) {
   const root = document.getElementById("arena-curve");
   if (!root) return;
-  const max = Math.max(2, ...COST_BUCKETS.map(k => curve?.[k] || 0));
+  const max = Math.max(1, ...COST_BUCKETS.map(k => curve?.[k] || 0));
   root.innerHTML = "";
   for (const bucket of COST_BUCKETS) {
     const value = curve?.[bucket] || 0;
@@ -111,7 +111,7 @@ function renderCurve(curve) {
   }
 }
 
-function renderSelected(selected) {
+function renderSelected(selected, copiesPerChoice) {
   const root = document.getElementById("arena-selected-list");
   if (!root) return;
   root.innerHTML = "";
@@ -126,7 +126,7 @@ function renderSelected(selected) {
     row.innerHTML = `
       <div class="mana">${cardCost(card)}</div>
       <div>${escapeHtml(card.name || item.card_id)}</div>
-      <div class="qty">x2</div>
+      <div class="qty">${copiesPerChoice > 1 ? `x${copiesPerChoice}` : "✓"}</div>
     `;
     root.appendChild(row);
   }
@@ -139,12 +139,15 @@ function renderDraft(draft) {
   document.getElementById("arena-status").textContent = "";
   document.getElementById("arena-draft").hidden = false;
   document.getElementById("arena-setup").hidden = true;
+  document.getElementById("arena-waiting").hidden = true;
   document.getElementById("arena-room-code").textContent = params.get("code") || localStorage.getItem("current_code") || "";
 
   const made = draft.choices_made || 0;
-  const total = draft.total || 15;
+  const total = draft.total || 30;
+  const copies = draft.copies_per_choice || 1;
+  const deckCount = made * copies;
   document.getElementById("arena-progress").textContent = `Escolha ${Math.min(made + 1, total)}/${total}`;
-  document.getElementById("arena-progress-detail").textContent = `${made * 2}/30 cartas no deck · cada escolha adiciona 2 cópias`;
+  document.getElementById("arena-progress-detail").textContent = `${deckCount}/30 cartas no deck · cada escolha adiciona ${copies} carta${copies > 1 ? "s" : ""}`;
 
   const cardsRoot = document.getElementById("arena-options");
   cardsRoot.innerHTML = "";
@@ -161,7 +164,7 @@ function renderDraft(draft) {
   }
 
   renderCurve(draft.cost_curve || {});
-  renderSelected(draft.selected || []);
+  renderSelected(draft.selected || [], copies);
 }
 
 function connectArena() {
@@ -175,6 +178,8 @@ function connectArena() {
         localStorage.setItem("current_code", msg.code);
         const codeEl = document.getElementById("arena-room-code");
         if (codeEl) codeEl.textContent = msg.code;
+        const waitingCodeEl = document.getElementById("arena-created-code");
+        if (waitingCodeEl) waitingCodeEl.textContent = msg.code;
       }
       if (msg.mode && msg.mode !== "arena") {
         window.location.href = `/play?match=${encodeURIComponent(matchId)}`;
