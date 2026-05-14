@@ -21,7 +21,7 @@ from typing import Optional
 from .db import init_db, get_session, User, Deck
 from .lobby import (
     lobby, broadcast_state, send_error, start_match_if_ready, Match,
-    normalize_game_mode, DECKLESS_GAME_MODES,
+    normalize_game_mode, DECKLESS_GAME_MODES, choose_arena_card,
 )
 from game import engine
 from game.cards import all_cards, get_card, card_max_copies
@@ -32,8 +32,6 @@ SECRET = os.environ.get("SESSION_SECRET", secrets.token_hex(32))
 ROOT_DIR = Path(__file__).parent.parent
 STATIC_DIR = ROOT_DIR / "static"
 
-# Cartas auxiliares/tokens que podem existir no loader, mas não devem ser
-# exibidas no deckbuilder nem aceitas em decks salvos.
 NON_COLLECTIBLE_CARD_IDS = {"coin", "moeda", "moeda_encontrada"}
 ALLOWED_CORS_ORIGINS = [
     origin.strip()
@@ -45,7 +43,6 @@ ALLOWED_CORS_ORIGINS = [
 ]
 
 app = FastAPI(title="Card Game")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_CORS_ORIGINS,
@@ -54,14 +51,11 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-
-# ============================ Auth helpers ============================
-# Sistema simples: token aleatório guardado em memória (jogo é privado, OK)
-SESSIONS: dict[str, int] = {}  # token -> user_id
+SESSIONS: dict[str, int] = {}
 
 
 def hash_password(pw: str) -> str:
-    salt = "cardgame_static_salt_v1"  # estático mas ok pra escopo de amigos
+    salt = "cardgame_static_salt_v1"
     return hashlib.sha256((salt + pw).encode()).hexdigest()
 
 
@@ -83,9 +77,6 @@ def require_user(request: Request) -> User:
     return user
 
 
-# ============================ Schemas ============================
-# Limites generosos mas que evitam DoS por payloads gigantes (1MB de senha,
-# decks com 30k cartas etc.). card_id é hex/snake-case curto.
 _NICK = constr(min_length=1, max_length=40, strip_whitespace=True)
 _PASS = constr(min_length=1, max_length=128)
 _CARD_ID = constr(min_length=1, max_length=64)
@@ -103,7 +94,6 @@ class LoginIn(BaseModel):
 
 class DeckIn(BaseModel):
     name: constr(min_length=1, max_length=60, strip_whitespace=True)
-    # max_length aceita decks até DECK_SIZE; o validador de regras checa o resto.
     cards: conlist(_CARD_ID, max_length=DECK_SIZE)
 
 
@@ -121,7 +111,6 @@ class PortraitIn(BaseModel):
     portrait: constr(min_length=1, max_length=120, strip_whitespace=True)
 
 
-# ============================ Startup ============================
 @app.on_event("startup")
 def on_startup():
     init_db()
@@ -129,18 +118,11 @@ def on_startup():
     load_cards()
 
 
-# ============================ Static / index ============================
 @app.get("/")
 def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
-# /lobby e /deckbuilder servem a MESMA shell (SPA) - o roteamento entre
-# as duas é client-side via history.pushState. Isso evita o reload de
-# página que cortava o áudio global ao alternar entre as abas.
-# Cache-Control: no-cache força o navegador a revalidar a resposta
-# (ETag/304 ainda funcionam mas evita servir HTML stale em caso de
-# rollback do roteamento).
 _SHELL_HEADERS = {"Cache-Control": "no-cache, must-revalidate"}
 
 
@@ -164,10 +146,14 @@ def play_page():
     return FileResponse(STATIC_DIR / "game.html")
 
 
+@app.get("/arena")
+def arena_page():
+    return FileResponse(STATIC_DIR / "arena.html", headers=_SHELL_HEADERS)
+
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-# ============================ Auth ============================
 @app.post("/api/register")
 def register(payload: RegisterIn):
     nick = payload.nickname.strip()
@@ -205,11 +191,8 @@ def me(request: Request):
     return {"user_id": user.id, "nickname": user.nickname, "selected_portrait": user.selected_portrait}
 
 
-# ============================ Cartas ============================
 @app.get("/api/cards")
 def list_cards(include_tokens: bool = False):
-    # O deckbuilder usa a rota padrão e não deve ver tokens. O jogo passa
-    # include_tokens=1 para conseguir renderizar a Moeda e outros auxiliares.
     if include_tokens:
         return all_cards()
     return [c for c in all_cards() if c.get("id") not in NON_COLLECTIBLE_CARD_IDS]
@@ -217,12 +200,8 @@ def list_cards(include_tokens: bool = False):
 
 @app.get("/api/card-images")
 def list_card_images():
-    """Lista quais cartas têm imagem em /static/cards/. Cliente usa pra escolher
-    entre mostrar a foto ou o fallback colorido - assim evitamos um monte de
-    404 no console.
-    """
     images_dir = STATIC_DIR / "cards"
-    available: dict[str, str] = {}  # card_id -> "url"
+    available: dict[str, str] = {}
     if images_dir.exists():
         for f in images_dir.iterdir():
             if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
@@ -282,13 +261,6 @@ def select_portrait(payload: PortraitIn, request: Request):
 
 @app.get("/api/music")
 def list_music():
-    """Lista faixas de música em /static/audio/. Cliente embaralha e toca em
-    looping com regra de "drain queue" (sem repetir até todas tocarem).
-
-    Formato canônico: .m4a (AAC em container MP4 audio-only - mime correto
-    `audio/mp4`, melhor compatibilidade com Safari/iOS). Também aceita .mp4
-    (mesmo conteúdo, mime `video/mp4`) e demais formatos web comuns.
-    """
     audio_dir = STATIC_DIR / "audio"
     tracks: list[str] = []
     if audio_dir.exists():
@@ -298,15 +270,10 @@ def list_music():
     return {"tracks": tracks}
 
 
-# ============================ Decks ============================
 def validate_deck(card_ids: list[str]) -> Optional[str]:
-    """Retorna mensagem de erro ou None se OK."""
     if len(card_ids) != DECK_SIZE:
         return f"O deck deve ter exatamente {DECK_SIZE} cartas (você tem {len(card_ids)})"
     counts = Counter(card_ids)
-    # Primeiro varre identidade/tipo (não-coletáveis, IDs inválidos, tipo errado).
-    # Só depois verifica limite de cópias, para que mensagens mais específicas
-    # apareçam antes do simples "Máximo N cópias".
     for cid in counts:
         if cid in NON_COLLECTIBLE_CARD_IDS:
             return f"Carta não permitida no deck: {cid}"
@@ -330,8 +297,7 @@ def save_deck(payload: DeckIn, request: Request):
     if err:
         raise HTTPException(400, err)
     with get_session() as s:
-        d = Deck(user_id=user.id, name=payload.name.strip()[:60] or "Deck",
-                 cards_json=json.dumps(payload.cards))
+        d = Deck(user_id=user.id, name=payload.name.strip()[:60] or "Deck", cards_json=json.dumps(payload.cards))
         s.add(d)
         s.commit()
         s.refresh(d)
@@ -383,7 +349,6 @@ def get_deck_for_user(user_id: int, deck_id: int) -> Optional[list[str]]:
         return d.card_ids()
 
 
-# ============================ Lobby ============================
 @app.post("/api/match/create")
 def create_match(payload: CreateMatchIn, request: Request):
     user = require_user(request)
@@ -450,22 +415,10 @@ def cancel_match(match_id: str, request: Request):
     return {"ok": True}
 
 
-# ============================ WebSocket de partida ============================
 def _is_origin_allowed(websocket: WebSocket) -> bool:
-    """Bloqueia Cross-Site WebSocket Hijacking sem quebrar deploy.
-
-    Aceita:
-    1. requisições sem header Origin (CLI/test runner);
-    2. mesma-origem (Origin.host == Host) - cobre o caso normal do app
-       servindo a si mesmo, em qualquer domínio (Render, localhost, etc.);
-    3. Origin listado em ALLOWED_CORS_ORIGINS (cross-origin explícito).
-
-    O CORSMiddleware não cobre o handshake de WS, então a checagem é manual.
-    """
     origin = websocket.headers.get("origin")
     if not origin:
         return True
-    # Same-origin: confere host da Origin contra Host do request.
     host = websocket.headers.get("host")
     if host:
         try:
@@ -475,7 +428,6 @@ def _is_origin_allowed(websocket: WebSocket) -> bool:
                 return True
         except Exception:
             pass
-    # Allowlist explícita (cross-origin).
     return origin in ALLOWED_CORS_ORIGINS
 
 
@@ -496,7 +448,6 @@ async def match_ws(websocket: WebSocket, match_id: str, token: str):
         await websocket.close()
         return
 
-    # determina player_id
     if user.id == match.host_user_id:
         player_id = 0
     elif user.id == match.guest_user_id:
@@ -515,6 +466,7 @@ async def match_ws(websocket: WebSocket, match_id: str, token: str):
         "host_nickname": match.host_nickname,
         "guest_nickname": match.guest_nickname,
         "code": match.code,
+        "mode": match.game_mode,
     }))
 
     await start_match_if_ready(match)
@@ -530,23 +482,27 @@ async def match_ws(websocket: WebSocket, match_id: str, token: str):
             await handle_action(match, user.id, player_id, data)
     except WebSocketDisconnect:
         match.sockets.pop(user.id, None)
-        # notifica oponente
         for uid, ws in match.sockets.items():
             try:
                 await ws.send_text(json.dumps({"type": "opponent_disconnected"}))
             except Exception:
                 pass
-        # se ninguém ficou e o jogo nem começou, remove
         if not match.sockets and not match.started:
             lobby.remove_match(match.match_id)
 
 
 async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
+    action = data.get("action")
+
     if match.state is None:
+        if action == "arena_pick":
+            ok, msg = await choose_arena_card(match, player_id, data.get("card_id"))
+            if not ok:
+                await send_error(match.sockets[user_id], msg)
+            return
         await send_error(match.sockets[user_id], "Jogo ainda não começou")
         return
 
-    action = data.get("action")
     async with match.lock:
         if action == "mulligan":
             swap_ids = data.get("swap", [])
@@ -558,14 +514,10 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
 
         if action == "play_card":
             ok, msg = engine.play_card(
-                match.state, player_id,
-                data.get("hand_id"),
-                chosen_target=data.get("target"),
-                chosen_targets=data.get("targets"),
-                board_position=data.get("position"),
-                chose_index=data.get("chose_index"),
-                empowered=bool(data.get("empowered", False)),
-                direction=data.get("direction"),
+                match.state, player_id, data.get("hand_id"),
+                chosen_target=data.get("target"), chosen_targets=data.get("targets"),
+                board_position=data.get("position"), chose_index=data.get("chose_index"),
+                empowered=bool(data.get("empowered", False)), direction=data.get("direction"),
             )
             if not ok:
                 await send_error(match.sockets[user_id], msg)
@@ -573,11 +525,7 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
             return
 
         if action == "attack":
-            ok, msg = engine.attack(
-                match.state, player_id,
-                data.get("attacker_id"),
-                data.get("target_id"),
-            )
+            ok, msg = engine.attack(match.state, player_id, data.get("attacker_id"), data.get("target_id"))
             if not ok:
                 await send_error(match.sockets[user_id], msg)
             await broadcast_state(match)
@@ -585,13 +533,9 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
 
         if action == "activate_ability":
             ok, msg = engine.activate_ability(
-                match.state, player_id,
-                data.get("minion_id"),
-                ability_index=data.get("ability_index", 0),
-                chosen_target=data.get("target"),
-                chosen_targets=data.get("targets"),
-                zone=data.get("zone"),
-                position=data.get("position"),
+                match.state, player_id, data.get("minion_id"),
+                ability_index=data.get("ability_index", 0), chosen_target=data.get("target"),
+                chosen_targets=data.get("targets"), zone=data.get("zone"), position=data.get("position"),
             )
             if not ok:
                 await send_error(match.sockets[user_id], msg)
@@ -599,85 +543,22 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
             return
 
         if action == "choice_response":
-            ok, msg = engine.resolve_choice(
-                match.state, player_id,
-                data.get("choice_id"),
-                data.get("response") or {},
-            )
+            ok, msg = engine.resolve_choice(match.state, player_id, data.get("choice_id"), data.get("response") or {})
             if not ok:
                 await send_error(match.sockets[user_id], msg)
             await broadcast_state(match)
             return
 
-        if action == "dev_add_card":
-            ok, msg = engine.dev_add_card_to_hand(
-                match.state,
-                player_id,
-                data.get("card_id"),
-                target_player_id=data.get("target_player_id"),
-            )
-            if not ok:
-                await send_error(match.sockets[user_id], msg)
-            await broadcast_state(match)
-            return
-
-        if action == "dev_draw_card":
-            ok, msg = engine.dev_draw_card(
-                match.state,
-                player_id,
-                data.get("card_id"),
-                target_player_id=data.get("target_player_id"),
-            )
-            if not ok:
-                await send_error(match.sockets[user_id], msg)
-            await broadcast_state(match)
-            return
-
-        if action == "dev_add_to_deck":
-            ok, msg = engine.dev_add_card_to_deck(
-                match.state,
-                player_id,
-                data.get("card_id"),
-                target_player_id=data.get("target_player_id"),
-                position=data.get("position", "TOP"),
-            )
-            if not ok:
-                await send_error(match.sockets[user_id], msg)
-            await broadcast_state(match)
-            return
-
-        if action == "dev_summon_minion":
-            ok, msg = engine.dev_summon_minion(
-                match.state,
-                player_id,
-                data.get("card_id"),
-                target_player_id=data.get("target_player_id"),
-                board_position=data.get("position"),
-            )
-            if not ok:
-                await send_error(match.sockets[user_id], msg)
-            await broadcast_state(match)
-            return
-
-        if action == "dev_set_mana":
-            ok, msg = engine.dev_set_mana(
-                match.state,
-                player_id,
-                data.get("mana", 10),
-                data.get("max_mana", 10),
-                target_player_id=data.get("target_player_id"),
-            )
-            if not ok:
-                await send_error(match.sockets[user_id], msg)
-            await broadcast_state(match)
-            return
-
-        if action == "dev_clear_hand":
-            ok, msg = engine.dev_clear_hand(
-                match.state,
-                player_id,
-                target_player_id=data.get("target_player_id"),
-            )
+        dev_actions = {
+            "dev_add_card": lambda: engine.dev_add_card_to_hand(match.state, player_id, data.get("card_id"), target_player_id=data.get("target_player_id")),
+            "dev_draw_card": lambda: engine.dev_draw_card(match.state, player_id, data.get("card_id"), target_player_id=data.get("target_player_id")),
+            "dev_add_to_deck": lambda: engine.dev_add_card_to_deck(match.state, player_id, data.get("card_id"), target_player_id=data.get("target_player_id"), position=data.get("position", "TOP")),
+            "dev_summon_minion": lambda: engine.dev_summon_minion(match.state, player_id, data.get("card_id"), target_player_id=data.get("target_player_id"), board_position=data.get("position")),
+            "dev_set_mana": lambda: engine.dev_set_mana(match.state, player_id, data.get("mana", 10), data.get("max_mana", 10), target_player_id=data.get("target_player_id")),
+            "dev_clear_hand": lambda: engine.dev_clear_hand(match.state, player_id, target_player_id=data.get("target_player_id")),
+        }
+        if action in dev_actions:
+            ok, msg = dev_actions[action]()
             if not ok:
                 await send_error(match.sockets[user_id], msg)
             await broadcast_state(match)
@@ -701,7 +582,6 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
         await send_error(match.sockets[user_id], f"Ação desconhecida: {action}")
 
 
-# Healthcheck para o Render
 @app.get("/healthz")
 def health():
     return {"ok": True}
