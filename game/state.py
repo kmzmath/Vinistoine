@@ -287,6 +287,9 @@ class GameState:
     # Em testes unitários a engine pode continuar usando fallbacks/heurísticas.
     # O servidor habilita escolhas manuais nas partidas reais.
     manual_choices: bool = False
+    # Modo especial de desenvolvimento: habilita ferramentas explícitas de
+    # debug no servidor/UI, como inserir cartas na mão durante a partida.
+    dev_mode: bool = False
     # Cartas compradas pela última ação de compra. Usado por efeitos encadeados
     # como Investidor, Foco e Guilãozinho. Armazenamos instance_ids da mão.
     last_drawn_card_instance_ids: list[str] = field(default_factory=list)
@@ -430,6 +433,7 @@ class GameState:
                     m["related_label"] = "Compra se possível"
         return {
             "game_id": self.game_id,
+            "dev_mode": self.dev_mode,
             "current_player": self.current_player,
             "turn_number": self.turn_number,
             "winner": self.winner,

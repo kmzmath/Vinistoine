@@ -19,6 +19,7 @@ def new_game(player_a_name: str, deck_a: list[str],
              player_b_name: str, deck_b: list[str],
              seed: Optional[int] = None,
              manual_choices: bool = False,
+             dev_mode: bool = False,
              player_a_portrait: Optional[str] = None,
              player_b_portrait: Optional[str] = None) -> GameState:
     """Cria um novo jogo. deck_a e deck_b são listas de card_ids (já validadas).
@@ -45,6 +46,7 @@ def new_game(player_a_name: str, deck_a: list[str],
         rng=rng,
         phase="MULLIGAN",
         manual_choices=manual_choices,
+        dev_mode=dev_mode,
     )
 
     # mão inicial: primeiro jogador 3 cartas, segundo 4 cartas + a Moeda no início do jogo (turno 1)
@@ -62,6 +64,73 @@ def new_game(player_a_name: str, deck_a: list[str],
 
     state.log_event({"type": "game_start", "first_player": first})
     return state
+
+
+def _ensure_dev_mode(state: GameState) -> tuple[bool, str]:
+    if not getattr(state, "dev_mode", False):
+        return False, "Ferramenta disponível apenas no modo dev"
+    if state.phase == "ENDED":
+        return False, "A partida já terminou"
+    return True, "OK"
+
+
+def dev_add_card_to_hand(state: GameState, player_id: int, card_id: str) -> tuple[bool, str]:
+    ok, msg = _ensure_dev_mode(state)
+    if not ok:
+        return ok, msg
+    card = get_card(str(card_id or ""))
+    if card is None or card.get("type") not in {"MINION", "SPELL"}:
+        return False, "Carta inválida"
+    p = state.players[player_id]
+    if len(p.hand) >= MAX_HAND_SIZE:
+        return False, "Mão cheia"
+    ch = CardInHand(instance_id=gen_id("h_"), card_id=card["id"])
+    p.hand.append(ch)
+    state.log_event({
+        "type": "dev_add_card_to_hand",
+        "player": player_id,
+        "card_id": card["id"],
+        "card_name": card.get("name"),
+        "instance_id": ch.instance_id,
+    })
+    return True, "OK"
+
+
+def dev_set_mana(state: GameState, player_id: int, mana: int = MAX_MANA,
+                 max_mana: int = MAX_MANA) -> tuple[bool, str]:
+    ok, msg = _ensure_dev_mode(state)
+    if not ok:
+        return ok, msg
+    try:
+        mana = int(mana)
+        max_mana = int(max_mana)
+    except Exception:
+        return False, "Mana inválida"
+    p = state.players[player_id]
+    p.max_mana = max(0, min(MAX_MANA, max_mana))
+    p.mana = max(0, min(MAX_MANA, mana, p.max_mana))
+    state.log_event({
+        "type": "dev_set_mana",
+        "player": player_id,
+        "mana": p.mana,
+        "max_mana": p.max_mana,
+    })
+    return True, "OK"
+
+
+def dev_clear_hand(state: GameState, player_id: int) -> tuple[bool, str]:
+    ok, msg = _ensure_dev_mode(state)
+    if not ok:
+        return ok, msg
+    p = state.players[player_id]
+    count = len(p.hand)
+    p.hand.clear()
+    state.log_event({
+        "type": "dev_clear_hand",
+        "player": player_id,
+        "count": count,
+    })
+    return True, "OK"
 
 
 def confirm_mulligan(state: GameState, player_id: int, swap_instance_ids: list[str]):

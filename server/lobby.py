@@ -14,7 +14,13 @@ from game.state import GameState, DECK_SIZE
 from game.cards import all_cards, card_max_copies, is_collectible_card
 
 
-VALID_GAME_MODES = {"constructed", "random"}
+VALID_GAME_MODES = {"constructed", "random", "dev"}
+DECKLESS_GAME_MODES = {"random", "dev"}
+GAME_MODE_LABELS = {
+    "constructed": "Deck construído",
+    "random": "Decks aleatórios",
+    "dev": "Modo dev",
+}
 
 
 def normalize_game_mode(mode: str | None) -> str:
@@ -144,7 +150,7 @@ class LobbyManager:
                     "code": m.code,
                     "host": m.host_nickname,
                     "mode": m.game_mode,
-                    "mode_label": "Decks aleatórios" if m.game_mode == "random" else "Deck construído",
+                    "mode_label": GAME_MODE_LABELS.get(m.game_mode, "Deck construído"),
                 })
         return out
 
@@ -198,7 +204,7 @@ async def start_match_if_ready(match: Match):
     if len(match.sockets) < 2:
         return
 
-    if match.game_mode == "random":
+    if match.game_mode in DECKLESS_GAME_MODES:
         host_deck = generate_random_deck()
         guest_deck = generate_random_deck()
     else:
@@ -212,8 +218,13 @@ async def start_match_if_ready(match: Match):
         match.guest_nickname, guest_deck,
         seed=None,
         manual_choices=True,
+        dev_mode=match.game_mode == "dev",
         player_a_portrait=match.host_portrait,
         player_b_portrait=match.guest_portrait,
     )
+    if match.game_mode == "dev":
+        # O modo dev deve cair direto na mesa para acelerar testes de cartas.
+        engine.confirm_mulligan(match.state, 0, [])
+        engine.confirm_mulligan(match.state, 1, [])
     match.started = True
     await broadcast_state(match)

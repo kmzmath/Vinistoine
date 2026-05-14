@@ -51,6 +51,10 @@ let hoverPreviewLastEvent = null;
 let dragState = null;
 let pendingStateRenderTimer = null;
 let stateRenderVersion = 0;
+let devToolsOpen = true;
+let devSearch = "";
+let devFilter = "ALL";
+let devSelectedCardId = null;
 
 const ATTACK_ANIMATION_MS = 760;
 const ATTACK_STATE_RENDER_DELAY_MS = 820;
@@ -285,10 +289,11 @@ function render() {
 
   const root = document.getElementById("board-root");
   if (!state) {
+    removeDevTools();
     renderWaitingRoom(root);
     return;
   }
-  if (state.phase === "MULLIGAN") { renderMulligan(); fitArenaToViewport(); return; }
+  if (state.phase === "MULLIGAN") { removeDevTools(); renderMulligan(); fitArenaToViewport(); return; }
   renderBoard();
   renderLog();
   renderPendingChoiceOverlay();
@@ -859,6 +864,7 @@ function renderBoard() {
 
   layout.appendChild(arena);
   root.appendChild(layout);
+  renderDevTools();
 
   if (targetingMode || attackingMode) {
     decorateTargetCandidates();
@@ -919,6 +925,194 @@ function renderDeckPile(player, isOpponent) {
   wrap.appendChild(info);
 
   return wrap;
+}
+
+function removeDevTools() {
+  const panel = document.getElementById("dev-tools-panel");
+  if (panel) panel.remove();
+  const tab = document.getElementById("dev-tools-tab");
+  if (tab) tab.remove();
+}
+
+function devCardCatalog() {
+  const query = devSearch.trim().toLowerCase();
+  return Object.values(allCards)
+    .filter(c => c && (c.type === "MINION" || c.type === "SPELL"))
+    .filter(c => devFilter === "ALL" || c.type === devFilter)
+    .filter(c => {
+      if (!query) return true;
+      const haystack = [
+        c.name,
+        c.id,
+        c.text,
+        ...(c.tags || []),
+        ...(c.tribes || []),
+      ].join(" ").toLowerCase();
+      return haystack.includes(query);
+    })
+    .sort((a, b) =>
+      (a.cost ?? 0) - (b.cost ?? 0)
+      || String(a.name || a.id).localeCompare(String(b.name || b.id))
+    );
+}
+
+function sendDevAction(action, data = {}) {
+  if (!state?.dev_mode) return;
+  send(action, data);
+}
+
+function renderDevTools() {
+  const hadSearchFocus = document.activeElement?.id === "dev-card-search";
+  removeDevTools();
+  if (!state?.dev_mode) return;
+
+  if (!devToolsOpen) {
+    const tab = document.createElement("button");
+    tab.id = "dev-tools-tab";
+    tab.className = "dev-tools-tab";
+    tab.textContent = "Dev";
+    tab.onclick = () => {
+      devToolsOpen = true;
+      renderDevTools();
+    };
+    document.body.appendChild(tab);
+    return;
+  }
+
+  const panel = document.createElement("aside");
+  panel.id = "dev-tools-panel";
+  panel.className = "dev-tools-panel";
+
+  const catalog = devCardCatalog();
+  if (!devSelectedCardId || !allCards[devSelectedCardId]) {
+    devSelectedCardId = catalog[0]?.id || null;
+  }
+  const selected = devSelectedCardId ? allCards[devSelectedCardId] : null;
+
+  const header = document.createElement("div");
+  header.className = "dev-tools-header";
+  header.innerHTML = `
+    <div>
+      <div class="dev-tools-title">Modo dev</div>
+      <div class="dev-tools-subtitle">${catalog.length} cartas</div>
+    </div>
+  `;
+  const collapse = document.createElement("button");
+  collapse.className = "btn small";
+  collapse.textContent = "Ocultar";
+  collapse.onclick = () => {
+    devToolsOpen = false;
+    renderDevTools();
+  };
+  header.appendChild(collapse);
+  panel.appendChild(header);
+
+  const actions = document.createElement("div");
+  actions.className = "dev-tools-actions";
+  const addSelected = document.createElement("button");
+  addSelected.className = "btn primary small";
+  addSelected.textContent = "Adicionar";
+  addSelected.disabled = !selected;
+  addSelected.onclick = () => {
+    if (selected) sendDevAction("dev_add_card", { card_id: selected.id });
+  };
+  actions.appendChild(addSelected);
+
+  const manaBtn = document.createElement("button");
+  manaBtn.className = "btn small";
+  manaBtn.textContent = "Mana 10/10";
+  manaBtn.onclick = () => sendDevAction("dev_set_mana", { mana: 10, max_mana: 10 });
+  actions.appendChild(manaBtn);
+
+  const clearBtn = document.createElement("button");
+  clearBtn.className = "btn small danger";
+  clearBtn.textContent = "Limpar mão";
+  clearBtn.onclick = () => sendDevAction("dev_clear_hand");
+  actions.appendChild(clearBtn);
+  panel.appendChild(actions);
+
+  const search = document.createElement("input");
+  search.id = "dev-card-search";
+  search.className = "dev-card-search";
+  search.type = "search";
+  search.placeholder = "Buscar carta";
+  search.value = devSearch;
+  search.addEventListener("input", () => {
+    devSearch = search.value;
+    renderDevTools();
+  });
+  panel.appendChild(search);
+
+  const filters = document.createElement("div");
+  filters.className = "dev-filter-row";
+  [
+    ["ALL", "Todas"],
+    ["MINION", "Lacaios"],
+    ["SPELL", "Feitiços"],
+  ].forEach(([value, label]) => {
+    const btn = document.createElement("button");
+    btn.className = "dev-filter-btn" + (devFilter === value ? " active" : "");
+    btn.textContent = label;
+    btn.onclick = () => {
+      devFilter = value;
+      renderDevTools();
+    };
+    filters.appendChild(btn);
+  });
+  panel.appendChild(filters);
+
+  if (selected) {
+    const selectedWrap = document.createElement("div");
+    selectedWrap.className = "dev-selected-card";
+    const preview = renderCard(selected, selected.cost ?? 0, { show_hand_stats: true });
+    selectedWrap.appendChild(preview);
+    const meta = document.createElement("div");
+    meta.className = "dev-selected-meta";
+    meta.innerHTML = `
+      <strong>${escapeHtml(selected.name || selected.id)}</strong>
+      <span>${escapeHtml(selected.id)}</span>
+      <span>${selected.type === "MINION" ? `${selected.attack ?? 0}/${selected.health ?? 0}` : "Feitiço"} · ${selected.cost ?? 0} mana</span>
+    `;
+    selectedWrap.appendChild(meta);
+    panel.appendChild(selectedWrap);
+  }
+
+  const list = document.createElement("div");
+  list.className = "dev-card-list";
+  const visible = catalog.slice(0, 160);
+  for (const c of visible) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "dev-card-row" + (c.id === devSelectedCardId ? " selected" : "");
+    row.title = `${c.name || c.id}\n${c.text || ""}`;
+    row.innerHTML = `
+      <span class="dev-card-cost">${c.cost ?? 0}</span>
+      <span class="dev-card-name">${escapeHtml(c.name || c.id)}</span>
+      <span class="dev-card-type">${c.type === "MINION" ? `${c.attack ?? 0}/${c.health ?? 0}` : "SPELL"}</span>
+    `;
+    row.onclick = () => {
+      devSelectedCardId = c.id;
+      renderDevTools();
+    };
+    row.ondblclick = () => sendDevAction("dev_add_card", { card_id: c.id });
+    list.appendChild(row);
+  }
+  if (catalog.length > visible.length) {
+    const more = document.createElement("div");
+    more.className = "dev-card-more";
+    more.textContent = `+${catalog.length - visible.length} resultados`;
+    list.appendChild(more);
+  }
+  panel.appendChild(list);
+
+  document.body.appendChild(panel);
+  if (hadSearchFocus) {
+    const nextSearch = document.getElementById("dev-card-search");
+    if (nextSearch) {
+      nextSearch.focus();
+      nextSearch.setSelectionRange(nextSearch.value.length, nextSearch.value.length);
+    }
+  }
 }
 
 function isHeroBurning(playerId) {

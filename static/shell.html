@@ -42,6 +42,7 @@
             <select id="mode-select">
               <option value="constructed">Deck construído</option>
               <option value="random">Decks aleatórios</option>
+              <option value="dev">Modo dev</option>
             </select>
             <label id="deck-label">Deck:</label>
             <select id="deck-select"></select>
@@ -296,12 +297,14 @@ function updateLobbyModeControls() {
   const joinBtn = document.getElementById("join-match-btn");
   const status = document.getElementById("status");
 
-  if (mode === "random") {
+  if (mode === "random" || mode === "dev") {
     deckSelect.disabled = true;
     deckLabel.style.opacity = "0.45";
     createBtn.disabled = false;
     joinBtn.disabled = false;
-    status.innerHTML = "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";
+    status.innerHTML = mode === "dev"
+      ? "Modo <b>dev</b>: cria uma partida com ferramentas de teste e acesso rápido ao catálogo de cartas."
+      : "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";
     return;
   }
   deckSelect.disabled = false;

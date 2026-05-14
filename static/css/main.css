@@ -4040,3 +4040,169 @@ input:focus { border-color: var(--gold); }
 
 /* A intro é parte do fluxo da partida; não ocultamos por prefers-reduced-motion,
    senão alguns navegadores/OS fazem a abertura simplesmente não aparecer. */
+
+/* === Ferramentas do modo dev === */
+.dev-tools-tab,
+.dev-tools-panel {
+  position: fixed;
+  right: 14px;
+  top: 14px;
+  z-index: 50000;
+}
+.dev-tools-tab {
+  padding: 0.62rem 0.9rem;
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  background: rgba(33, 22, 13, 0.92);
+  color: var(--gold-bright);
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.dev-tools-panel {
+  width: min(372px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(201, 163, 85, 0.55);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgba(35, 24, 15, 0.97), rgba(13, 10, 8, 0.97));
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+.dev-tools-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+.dev-tools-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  color: var(--gold-bright);
+  letter-spacing: 0.04em;
+}
+.dev-tools-subtitle {
+  color: var(--ink-dim);
+  font-size: 0.82rem;
+}
+.dev-tools-actions,
+.dev-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.dev-card-search {
+  width: 100%;
+}
+.dev-filter-btn {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.42rem 0.58rem;
+  background: rgba(255,255,255,0.04);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.dev-filter-btn.active {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: rgba(145, 102, 50, 0.28);
+}
+.dev-selected-card {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  min-height: 132px;
+}
+.dev-selected-card .card {
+  width: 92px;
+  height: 132px;
+  pointer-events: none;
+}
+.dev-selected-card .card.full-art .hand-cost,
+.dev-selected-card .card.full-art .hand-atk,
+.dev-selected-card .card.full-art .hand-hp {
+  font-size: 0.78rem;
+}
+.dev-selected-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.24rem;
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+}
+.dev-selected-meta strong,
+.dev-selected-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dev-selected-meta strong {
+  color: var(--ink);
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+}
+.dev-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow: auto;
+  min-height: 120px;
+  padding-right: 0.2rem;
+}
+.dev-card-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 34px;
+  padding: 0.32rem 0.42rem;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.035);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.dev-card-row:hover,
+.dev-card-row.selected {
+  border-color: rgba(245, 201, 105, 0.72);
+  background: rgba(143, 99, 44, 0.24);
+}
+.dev-card-cost {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(122, 202, 255, 0.65);
+  border-radius: 50%;
+  color: #dbf1ff;
+  background: rgba(31, 85, 125, 0.42);
+  font-weight: 800;
+}
+.dev-card-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dev-card-type {
+  justify-self: end;
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+}
+.dev-card-more {
+  padding: 0.5rem;
+  color: var(--ink-dim);
+  text-align: center;
+  font-size: 0.82rem;
+}

@@ -19,7 +19,10 @@ from pydantic import BaseModel, Field, conlist, constr
 from typing import Optional
 
 from .db import init_db, get_session, User, Deck
-from .lobby import lobby, broadcast_state, send_error, start_match_if_ready, Match, normalize_game_mode
+from .lobby import (
+    lobby, broadcast_state, send_error, start_match_if_ready, Match,
+    normalize_game_mode, DECKLESS_GAME_MODES,
+)
 from game import engine
 from game.cards import all_cards, get_card, card_max_copies
 from game.state import DECK_SIZE
@@ -388,7 +391,7 @@ def create_match(payload: CreateMatchIn, request: Request):
     except ValueError:
         raise HTTPException(400, "Modo de jogo inválido")
 
-    if mode == "random":
+    if mode in DECKLESS_GAME_MODES:
         deck: list[str] = []
     else:
         if payload.deck_id is None:
@@ -412,7 +415,7 @@ def join_match(payload: JoinMatchIn, request: Request):
     if room is None:
         raise HTTPException(400, "Sala não encontrada ou já cheia")
 
-    if room.game_mode == "random":
+    if room.game_mode in DECKLESS_GAME_MODES:
         deck: list[str] = []
     else:
         if payload.deck_id is None:
@@ -597,6 +600,32 @@ async def handle_action(match: Match, user_id: int, player_id: int, data: dict):
                 data.get("choice_id"),
                 data.get("response") or {},
             )
+            if not ok:
+                await send_error(match.sockets[user_id], msg)
+            await broadcast_state(match)
+            return
+
+        if action == "dev_add_card":
+            ok, msg = engine.dev_add_card_to_hand(match.state, player_id, data.get("card_id"))
+            if not ok:
+                await send_error(match.sockets[user_id], msg)
+            await broadcast_state(match)
+            return
+
+        if action == "dev_set_mana":
+            ok, msg = engine.dev_set_mana(
+                match.state,
+                player_id,
+                data.get("mana", 10),
+                data.get("max_mana", 10),
+            )
+            if not ok:
+                await send_error(match.sockets[user_id], msg)
+            await broadcast_state(match)
+            return
+
+        if action == "dev_clear_hand":
+            ok, msg = engine.dev_clear_hand(match.state, player_id)
             if not ok:
                 await send_error(match.sockets[user_id], msg)
             await broadcast_state(match)
