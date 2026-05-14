@@ -139,10 +139,6 @@ def _shell_response() -> HTMLResponse:
         'if (mode === "random" || mode === "dev" || mode === "arena") {',
     )
     html = html.replace(
-        'createBtn.textContent = mode === "dev" ? "Iniciar Teste" : "Criar Sala";',
-        'createBtn.textContent = mode === "dev" ? "Iniciar Teste" : "Criar Sala";',
-    )
-    html = html.replace(
         ': "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";',
         ': (mode === "arena" ? "Modo <b>Arena</b>: cada jogador escolhe 30 cartas individualmente antes da partida." : "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.");',
     )
@@ -497,6 +493,10 @@ async def match_ws(websocket: WebSocket, match_id: str, token: str):
     }))
 
     await start_match_if_ready(match)
+    if match.started and match.state is not None:
+        # Reconnects e redirecionamentos pós-Arena precisam receber o estado
+        # atual imediatamente. Sem isso, o cliente ficava na tela de espera.
+        await broadcast_state(match)
 
     try:
         while True:
