@@ -11,16 +11,22 @@ from typing import Optional
 from fastapi import WebSocket
 from game import engine
 from game.state import GameState, DECK_SIZE
-from game.cards import all_cards, card_max_copies, is_collectible_card
+from game.cards import all_cards, is_collectible_card, get_card
 
 
-VALID_GAME_MODES = {"constructed", "random", "dev"}
-DECKLESS_GAME_MODES = {"random", "dev"}
+VALID_GAME_MODES = {"constructed", "random", "dev", "arena"}
+DECKLESS_GAME_MODES = {"random", "dev", "arena"}
 GAME_MODE_LABELS = {
     "constructed": "Deck construído",
     "random": "Decks aleatórios",
     "dev": "Modo dev",
+    "arena": "Arena",
 }
+
+ARENA_CHOICES_TOTAL = 15
+ARENA_OPTIONS_PER_PICK = 3
+ARENA_COPIES_PER_PICK = 2
+ARENA_COST_BUCKETS = ["0", "1", "2", "3", "4", "5", "6", "7+"]
 
 
 def normalize_game_mode(mode: str | None) -> str:
@@ -30,6 +36,16 @@ def normalize_game_mode(mode: str | None) -> str:
     return mode
 
 
+def _eligible_card_ids() -> list[str]:
+    """Cartas que podem entrar em decks gerados pelo servidor."""
+    return [
+        c["id"]
+        for c in all_cards()
+        if is_collectible_card(c.get("id"))
+        and c.get("type") in {"MINION", "SPELL"}
+    ]
+
+
 def generate_random_deck(size: int = DECK_SIZE, rng: random.Random | None = None) -> list[str]:
     """Gera um deck aleatório de cartas colecionáveis.
 
@@ -37,12 +53,7 @@ def generate_random_deck(size: int = DECK_SIZE, rng: random.Random | None = None
     Tokens auxiliares, como a Moeda, não entram.
     """
     rng = rng or random.SystemRandom()
-    eligible = [
-        c["id"]
-        for c in all_cards()
-        if is_collectible_card(c.get("id"))
-        and c.get("type") in {"MINION", "SPELL"}
-    ]
+    eligible = _eligible_card_ids()
     if not eligible:
         raise RuntimeError("Nenhuma carta colecionável disponível para gerar deck aleatório")
 
@@ -58,6 +69,109 @@ def generate_random_deck(size: int = DECK_SIZE, rng: random.Random | None = None
     while len(deck) < size:
         deck.append(rng.choice(unique_pool))
     return deck
+
+
+def _arena_cost_bucket(card_id: str) -> str:
+    card = get_card(card_id) or {}
+    try:
+        cost = int(card.get("cost", 0) or 0)
+    except Exception:
+        cost = 0
+    return "7+" if cost >= 7 else str(max(0, cost))
+
+
+def _arena_cost_curve(selected: list[str]) -> dict[str, int]:
+    curve = {bucket: 0 for bucket in ARENA_COST_BUCKETS}
+    for cid in selected:
+        curve[_arena_cost_bucket(cid)] += ARENA_COPIES_PER_PICK
+    return curve
+
+
+def _arena_deck_from_selected(selected: list[str]) -> list[str]:
+    deck: list[str] = []
+    for cid in selected:
+        deck.extend([cid] * ARENA_COPIES_PER_PICK)
+    return deck
+
+
+def _deal_arena_options(draft: dict):
+    if len(draft["selected"]) >= ARENA_CHOICES_TOTAL:
+        draft["options"] = []
+        return
+    offered = set(draft.get("offered") or [])
+    available = [cid for cid in draft["pool"] if cid not in offered]
+    if len(available) < ARENA_OPTIONS_PER_PICK:
+        raise RuntimeError("Pool de cartas insuficiente para continuar a Arena sem repetir ofertas")
+    draft["rng"].shuffle(available)
+    options = available[:ARENA_OPTIONS_PER_PICK]
+    draft["offered"].extend(options)
+    draft["options"] = options
+
+
+def _new_arena_draft(player_id: int) -> dict:
+    pool = list(dict.fromkeys(_eligible_card_ids()))
+    required_unique = ARENA_CHOICES_TOTAL * ARENA_OPTIONS_PER_PICK
+    if len(pool) < required_unique:
+        raise RuntimeError(
+            f"Pool de cartas insuficiente para Arena: {len(pool)}/{required_unique} cartas únicas"
+        )
+    rng = random.SystemRandom()
+    rng.shuffle(pool)
+    draft = {
+        "player_id": player_id,
+        "pool": pool,
+        "rng": rng,
+        "selected": [],
+        "offered": [],
+        "options": [],
+    }
+    _deal_arena_options(draft)
+    return draft
+
+
+def _arena_snapshot(match: "Match", player_id: int) -> dict:
+    draft = match.arena_drafts.get(player_id)
+    if draft is None:
+        return {"mode": "arena", "waiting": True}
+    selected = list(draft.get("selected") or [])
+    options = list(draft.get("options") or [])
+    opponent = match.arena_drafts.get(1 - player_id) or {}
+    choices_made = len(selected)
+    return {
+        "mode": "arena",
+        "player_id": player_id,
+        "round": min(choices_made + 1, ARENA_CHOICES_TOTAL),
+        "total": ARENA_CHOICES_TOTAL,
+        "choices_made": choices_made,
+        "options_per_pick": ARENA_OPTIONS_PER_PICK,
+        "copies_per_choice": ARENA_COPIES_PER_PICK,
+        "options": [{"card_id": cid} for cid in options],
+        "selected": [{"card_id": cid} for cid in selected],
+        "cost_curve": _arena_cost_curve(selected),
+        "done": choices_made >= ARENA_CHOICES_TOTAL,
+        "opponent_done": len(opponent.get("selected") or []) >= ARENA_CHOICES_TOTAL,
+    }
+
+
+def init_arena_drafts(match: "Match"):
+    if match.arena_draft_started:
+        return
+    match.arena_drafts = {
+        0: _new_arena_draft(0),
+        1: _new_arena_draft(1),
+    }
+    match.arena_draft_started = True
+
+
+async def broadcast_arena_draft(match: "Match"):
+    for user_id, ws in list(match.sockets.items()):
+        pid = match.user_to_player.get(user_id)
+        if pid is None:
+            continue
+        try:
+            await ws.send_text(json.dumps({"type": "arena_draft", "draft": _arena_snapshot(match, pid)}))
+        except Exception:
+            pass
 
 
 @dataclass
@@ -77,6 +191,8 @@ class Match:
     sockets: dict[int, WebSocket] = field(default_factory=dict)  # player_id -> ws
     user_to_player: dict[int, int] = field(default_factory=dict)  # user_id -> player_id (0/1)
     started: bool = False
+    arena_draft_started: bool = False
+    arena_drafts: dict[int, dict] = field(default_factory=dict)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
@@ -201,6 +317,15 @@ async def send_error(ws: WebSocket, message: str):
         pass
 
 
+def _arena_ready_to_start(match: Match) -> bool:
+    if not match.arena_draft_started:
+        return False
+    return all(
+        len((match.arena_drafts.get(pid) or {}).get("selected") or []) >= ARENA_CHOICES_TOTAL
+        for pid in (0, 1)
+    )
+
+
 async def start_match_if_ready(match: Match):
     """Quando os sockets necessários estão conectados, iniciamos o jogo."""
     if match.started:
@@ -209,7 +334,19 @@ async def start_match_if_ready(match: Match):
     if len(match.sockets) < required_sockets:
         return
 
-    if match.game_mode in DECKLESS_GAME_MODES:
+    if match.game_mode == "arena":
+        if not match.guest_nickname:
+            return
+        if not match.arena_draft_started:
+            init_arena_drafts(match)
+            await broadcast_arena_draft(match)
+            return
+        if not _arena_ready_to_start(match):
+            await broadcast_arena_draft(match)
+            return
+        host_deck = _arena_deck_from_selected(match.arena_drafts[0]["selected"])
+        guest_deck = _arena_deck_from_selected(match.arena_drafts[1]["selected"])
+    elif match.game_mode in DECKLESS_GAME_MODES:
         host_deck = generate_random_deck()
         guest_deck = generate_random_deck()
         if match.game_mode == "dev":
@@ -235,3 +372,30 @@ async def start_match_if_ready(match: Match):
         engine.confirm_mulligan(match.state, 1, [])
     match.started = True
     await broadcast_state(match)
+
+
+async def choose_arena_card(match: Match, player_id: int, card_id: str | None) -> tuple[bool, str]:
+    if match.game_mode != "arena":
+        return False, "Esta partida não está no modo Arena"
+    if match.started:
+        return False, "O draft da Arena já terminou"
+    if not match.arena_draft_started:
+        init_arena_drafts(match)
+    draft = match.arena_drafts.get(player_id)
+    if draft is None:
+        return False, "Draft da Arena indisponível"
+    if len(draft["selected"]) >= ARENA_CHOICES_TOTAL:
+        await broadcast_arena_draft(match)
+        return False, "Você já terminou suas escolhas"
+    if card_id not in draft.get("options", []):
+        return False, "Carta inválida para esta escolha"
+
+    draft["selected"].append(card_id)
+    if len(draft["selected"]) < ARENA_CHOICES_TOTAL:
+        _deal_arena_options(draft)
+
+    if _arena_ready_to_start(match):
+        await start_match_if_ready(match)
+    else:
+        await broadcast_arena_draft(match)
+    return True, "OK"
