@@ -11,11 +11,11 @@ import secrets
 import hashlib
 from collections import Counter
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, conlist, constr
+from pydantic import BaseModel, conlist, constr
 from typing import Optional
 
 from .db import init_db, get_session, User, Deck
@@ -126,23 +126,50 @@ def index():
 _SHELL_HEADERS = {"Cache-Control": "no-cache, must-revalidate"}
 
 
+def _shell_response() -> HTMLResponse:
+    """Serve a shell com o modo Arena integrado sem duplicar o HTML estático."""
+    html = (STATIC_DIR / "shell.html").read_text(encoding="utf-8")
+    if '<option value="arena">Arena</option>' not in html:
+        html = html.replace(
+            '<option value="dev">Modo dev</option>',
+            '<option value="dev">Modo dev</option>\n              <option value="arena">Arena</option>',
+        )
+    html = html.replace(
+        'if (mode === "random" || mode === "dev") {',
+        'if (mode === "random" || mode === "dev" || mode === "arena") {',
+    )
+    html = html.replace(
+        'createBtn.textContent = mode === "dev" ? "Iniciar Teste" : "Criar Sala";',
+        'createBtn.textContent = mode === "dev" ? "Iniciar Teste" : "Criar Sala";',
+    )
+    html = html.replace(
+        ': "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";',
+        ': (mode === "arena" ? "Modo <b>Arena</b>: cada jogador escolhe 30 cartas individualmente antes da partida." : "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.");',
+    )
+    return HTMLResponse(html, headers=_SHELL_HEADERS)
+
+
 @app.get("/lobby")
 def lobby_page():
-    return FileResponse(STATIC_DIR / "shell.html", headers=_SHELL_HEADERS)
+    return _shell_response()
 
 
 @app.get("/deckbuilder")
 def deckbuilder_page():
-    return FileResponse(STATIC_DIR / "shell.html", headers=_SHELL_HEADERS)
+    return _shell_response()
 
 
 @app.get("/portraits")
 def portraits_page():
-    return FileResponse(STATIC_DIR / "shell.html", headers=_SHELL_HEADERS)
+    return _shell_response()
 
 
 @app.get("/play")
-def play_page():
+def play_page(request: Request):
+    match_id = request.query_params.get("match")
+    match = lobby.get(match_id) if match_id else None
+    if match and match.game_mode == "arena" and not match.started:
+        return FileResponse(STATIC_DIR / "arena.html")
     return FileResponse(STATIC_DIR / "game.html")
 
 
