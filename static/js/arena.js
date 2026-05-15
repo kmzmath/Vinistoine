@@ -2,31 +2,19 @@ const token = localStorage.getItem("auth_token");
 const nickname = localStorage.getItem("nickname");
 if (!token) window.location.href = "/";
 
-const params = new URLSearchParams(window.location.search);
-let matchId = params.get("match") || "";
+const qs = new URLSearchParams(window.location.search);
+let matchId = qs.get("match") || "";
 let ws = null;
-let allCards = {};
-let cardImages = {};
-let currentDraft = null;
-let selecting = false;
-let hoverPreview = null;
+let cards = {};
+let images = {};
+let picking = false;
+let preview = null;
+let goingToGame = false;
+const BUCKETS = ["0", "1", "2", "3", "4", "5", "6", "7+"];
 
-const COST_BUCKETS = ["0", "1", "2", "3", "4", "5", "6", "7+"];
-
-const DECK_ROW_ART_DEFAULTS = {
-  MINION: { x: "50%", y: "22%", size: "136% auto" },
-  SPELL: { x: "50%", y: "24%", size: "128% auto" },
-};
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function esc(v) {
+  return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
-
 function toast(msg) {
   const t = document.createElement("div");
   t.className = "toast";
@@ -34,248 +22,170 @@ function toast(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2600);
 }
-
 async function api(path, opts = {}) {
-  opts.headers = {
-    ...(opts.headers || {}),
-    "X-Auth-Token": token,
-    "Content-Type": "application/json",
-  };
+  opts.headers = { ...(opts.headers || {}), "X-Auth-Token": token, "Content-Type": "application/json" };
   const r = await fetch(path, opts);
-  if (r.status === 401) {
-    localStorage.clear();
-    window.location.href = "/";
-    return null;
-  }
+  if (r.status === 401) { localStorage.clear(); window.location.href = "/"; return null; }
   return r;
 }
-
-async function loadAssets() {
-  const cardsResp = await fetch("/api/cards");
-  const cards = await cardsResp.json();
-  allCards = Object.fromEntries(cards.map(c => [c.id, c]));
-  try {
-    const imgResp = await fetch("/api/card-images");
-    const imgData = await imgResp.json();
-    cardImages = imgData.cards || {};
-  } catch (e) {
-    cardImages = {};
-  }
-}
-
-function cardCost(card) {
+function cost(card) {
   const n = parseInt(card?.cost ?? 0, 10);
   return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
+async function loadAssets() {
+  const c = await (await fetch("/api/cards")).json();
+  cards = Object.fromEntries(c.map(x => [x.id, x]));
+  try { images = (await (await fetch("/api/card-images")).json()).cards || {}; } catch { images = {}; }
+}
 
-function renderChoiceCard(cardId, index) {
-  const card = allCards[cardId] || { id: cardId, name: cardId, cost: 0, type: "MINION", text: "" };
+function choiceCard(cardId) {
+  const c = cards[cardId] || { id: cardId, name: cardId, cost: 0, type: "MINION", text: "" };
   const el = document.createElement("button");
   el.type = "button";
-  el.className = "arena-choice-card" + (cardImages[cardId] ? " full-art" : "");
-  el.setAttribute("aria-label", `Escolher ${card.name || cardId}`);
-  el.title = `${card.name || cardId}\n${card.text || ""}`;
-  if (cardImages[cardId]) {
-    el.style.backgroundImage = `url('${cardImages[cardId]}')`;
-  } else {
-    el.innerHTML = `
-      <div class="fallback">
-        <div class="cost">${cardCost(card)}</div>
-        <div class="name">${escapeHtml(card.name || cardId)}</div>
-        <div class="text">${escapeHtml(card.text || "")}</div>
-        ${card.type === "MINION" ? `<div class="stats"><span>${card.attack ?? 0}</span><span>${card.health ?? 0}</span></div>` : ""}
-      </div>
-    `;
-  }
-  el.onclick = () => pickArenaCard(cardId, el);
+  el.className = "arena-choice-card" + (images[cardId] ? " full-art" : "");
+  el.title = `${c.name || cardId}\n${c.text || ""}`;
+  if (images[cardId]) el.style.backgroundImage = `url('${images[cardId]}')`;
+  else el.innerHTML = `<div class="fallback"><div class="cost">${cost(c)}</div><div class="name">${esc(c.name || cardId)}</div><div class="text">${esc(c.text || "")}</div>${c.type === "MINION" ? `<div class="stats"><span>${c.attack ?? 0}</span><span>${c.health ?? 0}</span></div>` : ""}</div>`;
+  el.onclick = () => pick(cardId, el);
   return el;
 }
 
 function renderCurve(curve) {
   const root = document.getElementById("arena-curve");
   if (!root) return;
-  const max = Math.max(1, ...COST_BUCKETS.map(k => curve?.[k] || 0));
+  const max = Math.max(1, ...BUCKETS.map(k => curve?.[k] || 0));
   root.innerHTML = "";
-  for (const bucket of COST_BUCKETS) {
-    const value = curve?.[bucket] || 0;
-    const wrap = document.createElement("div");
-    wrap.className = "arena-bar-wrap";
-    const bar = document.createElement("div");
-    bar.className = "arena-bar";
-    bar.style.height = `${Math.max(2, Math.round((value / max) * 160))}px`;
-    bar.title = `${bucket}: ${value} cartas`;
-    const label = document.createElement("div");
-    label.className = "arena-cost-label";
-    label.textContent = bucket;
-    const count = document.createElement("div");
-    count.className = "faint";
-    count.textContent = String(value);
-    wrap.appendChild(bar);
-    wrap.appendChild(label);
-    wrap.appendChild(count);
-    root.appendChild(wrap);
+  for (const b of BUCKETS) {
+    const v = curve?.[b] || 0;
+    const w = document.createElement("div");
+    w.className = "arena-bar-wrap";
+    w.innerHTML = `<div class="arena-bar" style="height:${Math.max(2, Math.round((v / max) * 160))}px" title="${b}: ${v} cartas"></div><div class="arena-cost-label">${b}</div><div class="faint">${v}</div>`;
+    root.appendChild(w);
   }
 }
 
-function applyDeckRowArt(row, card) {
-  const artUrl = cardImages[card.id];
-  if (!artUrl) return;
-  const defaults = DECK_ROW_ART_DEFAULTS[card.type] || DECK_ROW_ART_DEFAULTS.MINION;
-  row.classList.add("has-art");
-  row.style.setProperty("--deck-row-art", `url('${artUrl}')`);
-  row.style.setProperty("--deck-row-art-x", defaults.x);
-  row.style.setProperty("--deck-row-art-y", defaults.y);
-  row.style.setProperty("--deck-row-art-size", defaults.size);
+function removePreview() {
+  if (preview) preview.remove();
+  preview = null;
 }
-
-function showCardPreview(cardId, event) {
-  hideCardPreview();
-  const card = allCards[cardId] || {};
-  const preview = document.createElement("div");
+function movePreview(ev) {
+  if (!preview || !ev) return;
+  const W = 260, H = 377, m = 18;
+  let x = ev.clientX + m, y = ev.clientY + m;
+  if (x + W > innerWidth - 8) x = ev.clientX - W - m;
+  if (y + H > innerHeight - 8) y = innerHeight - H - 8;
+  preview.style.left = `${Math.max(8, x)}px`;
+  preview.style.top = `${Math.max(8, y)}px`;
+}
+function showPreview(cardId, ev) {
+  removePreview();
+  const c = cards[cardId] || {};
+  preview = document.createElement("div");
   preview.className = "arena-card-preview";
-  if (cardImages[cardId]) {
-    preview.style.backgroundImage = `url('${cardImages[cardId]}')`;
-  } else {
-    preview.innerHTML = `
-      <div class="fallback-preview">
-        <div class="preview-cost">${cardCost(card)}</div>
-        <div class="preview-name">${escapeHtml(card.name || cardId)}</div>
-        <div class="preview-text">${escapeHtml(card.text || "")}</div>
-      </div>
-    `;
-  }
+  if (images[cardId]) preview.style.backgroundImage = `url('${images[cardId]}')`;
+  else preview.innerHTML = `<div class="fallback-preview"><div class="preview-cost">${cost(c)}</div><div class="preview-name">${esc(c.name || cardId)}</div><div class="preview-text">${esc(c.text || "")}</div></div>`;
   document.body.appendChild(preview);
-  hoverPreview = preview;
-  moveCardPreview(event);
+  movePreview(ev);
 }
-
-function moveCardPreview(event) {
-  if (!hoverPreview || !event) return;
-  const margin = 18;
-  const width = 260;
-  const height = 377;
-  let x = event.clientX + margin;
-  let y = event.clientY + margin;
-  if (x + width > window.innerWidth - 8) x = event.clientX - width - margin;
-  if (y + height > window.innerHeight - 8) y = window.innerHeight - height - 8;
-  hoverPreview.style.left = `${Math.max(8, x)}px`;
-  hoverPreview.style.top = `${Math.max(8, y)}px`;
+function rowArt(row, card) {
+  const url = images[card.id];
+  if (!url) return;
+  const y = card.type === "SPELL" ? "24%" : "22%";
+  const size = card.type === "SPELL" ? "128% auto" : "136% auto";
+  row.classList.add("has-art");
+  row.style.setProperty("--deck-row-art", `url('${url}')`);
+  row.style.setProperty("--deck-row-art-x", "50%");
+  row.style.setProperty("--deck-row-art-y", y);
+  row.style.setProperty("--deck-row-art-size", size);
 }
-
-function hideCardPreview() {
-  if (hoverPreview) hoverPreview.remove();
-  hoverPreview = null;
-}
-
-function renderSelected(selected, copiesPerChoice) {
+function renderDeck(selected, copies) {
   const root = document.getElementById("arena-selected-list");
   if (!root) return;
   root.innerHTML = "";
-  if (!selected?.length) {
-    root.innerHTML = '<div class="faint" style="padding:.75rem 0;">Nenhuma carta escolhida ainda.</div>';
-    return;
-  }
-
+  if (!selected?.length) { root.innerHTML = '<div class="faint" style="padding:.75rem 0;">Nenhuma carta escolhida ainda.</div>'; return; }
   const counts = new Map();
-  for (const item of selected) counts.set(item.card_id, (counts.get(item.card_id) || 0) + copiesPerChoice);
-  const rows = Array.from(counts.entries()).map(([cardId, qty]) => ({
-    cardId,
-    qty,
-    card: allCards[cardId] || { id: cardId, name: cardId, cost: 0 },
-  }));
-  rows.sort((a, b) => cardCost(a.card) - cardCost(b.card) || String(a.card.name || a.cardId).localeCompare(String(b.card.name || b.cardId)));
-
-  for (const rowData of rows) {
+  selected.forEach(x => counts.set(x.card_id, (counts.get(x.card_id) || 0) + copies));
+  const rows = [...counts.entries()].map(([id, qty]) => ({ id, qty, card: cards[id] || { id, name: id, cost: 0 } }));
+  rows.sort((a, b) => cost(a.card) - cost(b.card) || String(a.card.name || a.id).localeCompare(String(b.card.name || b.id)));
+  for (const r of rows) {
     const row = document.createElement("div");
     row.className = "arena-deck-row";
-    applyDeckRowArt(row, rowData.card);
-    row.innerHTML = `
-      <div class="mana">${cardCost(rowData.card)}</div>
-      <div class="nm">${escapeHtml(rowData.card.name || rowData.cardId)}</div>
-      <div class="qty">${rowData.qty > 1 ? `×${rowData.qty}` : ""}</div>
-    `;
-    row.addEventListener("mouseenter", (e) => showCardPreview(rowData.cardId, e));
-    row.addEventListener("mousemove", moveCardPreview);
-    row.addEventListener("mouseleave", hideCardPreview);
+    rowArt(row, r.card);
+    row.innerHTML = `<div class="mana">${cost(r.card)}</div><div class="nm">${esc(r.card.name || r.id)}</div><div class="qty">${r.qty > 1 ? `×${r.qty}` : ""}</div>`;
+    row.addEventListener("mouseenter", e => showPreview(r.id, e));
+    row.addEventListener("mousemove", movePreview);
+    row.addEventListener("mouseleave", removePreview);
     root.appendChild(row);
   }
 }
 
 function renderDraft(draft) {
-  currentDraft = draft;
-  selecting = false;
-
-  document.getElementById("arena-status").textContent = "";
+  if (goingToGame) return;
+  picking = false;
   document.getElementById("arena-draft").hidden = false;
   document.getElementById("arena-setup").hidden = true;
   document.getElementById("arena-waiting").hidden = true;
-  document.getElementById("arena-room-code").textContent = params.get("code") || localStorage.getItem("current_code") || "";
-
-  const made = draft.choices_made || 0;
-  const total = draft.total || 30;
-  const copies = draft.copies_per_choice || 1;
-  const deckCount = made * copies;
+  document.getElementById("arena-status").textContent = "";
+  document.getElementById("arena-room-code").textContent = qs.get("code") || localStorage.getItem("current_code") || "";
+  const made = draft.choices_made || 0, total = draft.total || 30, copies = draft.copies_per_choice || 1;
   document.getElementById("arena-progress").textContent = `Escolha ${Math.min(made + 1, total)}/${total}`;
-  document.getElementById("arena-progress-detail").textContent = `${deckCount}/30 cartas no deck · cada escolha adiciona ${copies} carta${copies > 1 ? "s" : ""}`;
-
-  const cardsRoot = document.getElementById("arena-options");
-  cardsRoot.innerHTML = "";
-
-  if (draft.done) {
-    cardsRoot.innerHTML = `
-      <div class="panel" style="text-align:center; max-width:620px; margin:0 auto;">
-        <h2>Deck finalizado</h2>
-        <div class="muted">Aguarde o oponente terminar. A partida iniciará automaticamente.</div>
-      </div>
-    `;
-  } else {
-    (draft.options || []).forEach((opt, idx) => cardsRoot.appendChild(renderChoiceCard(opt.card_id, idx)));
-  }
-
+  document.getElementById("arena-progress-detail").textContent = `${made * copies}/30 cartas no deck · cada escolha adiciona ${copies} carta${copies > 1 ? "s" : ""}`;
+  const options = document.getElementById("arena-options");
+  options.innerHTML = "";
+  if (draft.done) options.innerHTML = '<div class="panel" style="text-align:center; max-width:620px; margin:0 auto;"><h2>Deck finalizado</h2><div class="muted">Aguarde o oponente terminar. A partida iniciará automaticamente.</div></div>';
+  else (draft.options || []).forEach(opt => options.appendChild(choiceCard(opt.card_id)));
   renderCurve(draft.cost_curve || {});
-  renderSelected(draft.selected || [], copies);
+  renderDeck(draft.selected || [], copies);
+}
+
+function goToGame() {
+  if (goingToGame || !matchId) return;
+  goingToGame = true;
+  removePreview();
+  const setup = document.getElementById("arena-setup");
+  const draft = document.getElementById("arena-draft");
+  const waiting = document.getElementById("arena-waiting");
+  if (setup) setup.hidden = true;
+  if (draft) draft.hidden = true;
+  if (waiting) {
+    waiting.hidden = false;
+    waiting.innerHTML = '<h2>Iniciando partida</h2><p class="muted">Decks finalizados. Carregando a mesa...</p><div class="pulse-dots" aria-hidden="true"><span></span><span></span><span></span></div>';
+  }
+  window.location.replace(`/play?match=${encodeURIComponent(matchId)}&arena_started=1&v=${Date.now()}`);
 }
 
 function connectArena() {
-  const proto = window.location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${window.location.host}/ws/match/${encodeURIComponent(matchId)}?token=${encodeURIComponent(token)}`);
-  ws.onmessage = (ev) => {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws/match/${encodeURIComponent(matchId)}?token=${encodeURIComponent(token)}`);
+  ws.onmessage = ev => {
     let msg;
-    try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    try { msg = JSON.parse(ev.data); } catch { return; }
     if (msg.type === "joined") {
       if (msg.code) {
         localStorage.setItem("current_code", msg.code);
-        const codeEl = document.getElementById("arena-room-code");
-        if (codeEl) codeEl.textContent = msg.code;
-        const waitingCodeEl = document.getElementById("arena-created-code");
-        if (waitingCodeEl) waitingCodeEl.textContent = msg.code;
+        const a = document.getElementById("arena-room-code");
+        const b = document.getElementById("arena-created-code");
+        if (a) a.textContent = msg.code;
+        if (b) b.textContent = msg.code;
       }
-      if (msg.mode && msg.mode !== "arena") {
-        window.location.href = `/play?match=${encodeURIComponent(matchId)}`;
-      }
-    } else if (msg.type === "arena_draft") {
-      renderDraft(msg.draft || {});
-    } else if (msg.type === "state") {
-      window.location.href = `/play?match=${encodeURIComponent(matchId)}`;
-    } else if (msg.type === "error") {
+      if (msg.mode && msg.mode !== "arena") goToGame();
+    } else if (msg.type === "arena_draft") renderDraft(msg.draft || {});
+    else if (msg.type === "state") goToGame();
+    else if (msg.type === "error") {
       toast(msg.message || msg.msg || "Erro");
-      selecting = false;
+      picking = false;
       document.querySelectorAll(".arena-choice-card").forEach(b => b.disabled = false);
-    } else if (msg.type === "opponent_disconnected") {
-      toast("Oponente desconectou");
-    }
+    } else if (msg.type === "opponent_disconnected") toast("Oponente desconectou");
   };
-  ws.onclose = () => toast("Conexão encerrada");
+  ws.onclose = () => { if (!goingToGame) toast("Conexão encerrada"); };
 }
-
-function pickArenaCard(cardId, el) {
-  if (selecting || !ws || ws.readyState !== WebSocket.OPEN) return;
-  selecting = true;
+function pick(cardId, el) {
+  if (picking || !ws || ws.readyState !== WebSocket.OPEN) return;
+  picking = true;
   document.querySelectorAll(".arena-choice-card").forEach(b => b.disabled = true);
   if (el) el.classList.add("selected");
   ws.send(JSON.stringify({ action: "arena_pick", card_id: cardId }));
 }
-
 async function createArenaRoom() {
   const r = await api("/api/match/create", { method: "POST", body: JSON.stringify({ mode: "arena" }) });
   if (!r) return;
@@ -290,7 +200,6 @@ async function createArenaRoom() {
   document.getElementById("arena-created-code").textContent = data.code;
   connectArena();
 }
-
 async function joinArenaRoom() {
   const code = document.getElementById("arena-join-code").value.trim().toUpperCase();
   if (!code) return;
@@ -298,10 +207,7 @@ async function joinArenaRoom() {
   if (!r) return;
   const data = await r.json();
   if (!r.ok) { toast(data.detail || "Erro ao entrar"); return; }
-  if (data.mode !== "arena") {
-    window.location.href = `/play?match=${encodeURIComponent(data.match_id)}`;
-    return;
-  }
+  if (data.mode !== "arena") { location.href = `/play?match=${encodeURIComponent(data.match_id)}`; return; }
   matchId = data.match_id;
   localStorage.setItem("current_match", data.match_id);
   localStorage.setItem("current_code", data.code);
@@ -310,25 +216,19 @@ async function joinArenaRoom() {
   document.getElementById("arena-waiting").hidden = true;
   connectArena();
 }
-
 async function initArena() {
   await loadAssets();
   document.getElementById("arena-user").textContent = nickname || "?";
   document.getElementById("arena-create-btn").onclick = createArenaRoom;
   document.getElementById("arena-join-btn").onclick = joinArenaRoom;
-  document.getElementById("arena-back-btn").onclick = () => window.location.href = "/lobby";
-  document.getElementById("arena-logout-btn").onclick = () => { localStorage.clear(); window.location.href = "/"; };
+  document.getElementById("arena-back-btn").onclick = () => location.href = "/lobby";
+  document.getElementById("arena-logout-btn").onclick = () => { localStorage.clear(); location.href = "/"; };
   if (matchId) {
     document.getElementById("arena-setup").hidden = true;
     document.getElementById("arena-waiting").hidden = false;
     connectArena();
   }
 }
-
-window.addEventListener("scroll", hideCardPreview, { passive: true });
-window.addEventListener("blur", hideCardPreview);
-
-initArena().catch(err => {
-  console.error(err);
-  toast("Falha ao carregar Arena");
-});
+window.addEventListener("scroll", removePreview, { passive: true });
+window.addEventListener("blur", removePreview);
+initArena().catch(err => { console.error(err); toast("Falha ao carregar Arena"); });
