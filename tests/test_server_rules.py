@@ -85,15 +85,20 @@ def test_update_deck_edita_deck_existente_sem_duplicar(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "get_session", lambda: Session(engine))
     monkeypatch.setattr(main, "require_user", lambda request: SimpleNamespace(id=user_id))
 
-    response = main.update_deck(deck_id, main.DeckIn(name="Atualizado", cards=updated_cards), None)
+    response = main.update_deck(
+        deck_id,
+        main.DeckIn(name="Atualizado", cards=updated_cards, cover_card_id=updated_cards[5]),
+        None,
+    )
 
-    assert response == {"id": deck_id, "name": "Atualizado", "cards": updated_cards}
+    assert response == {"id": deck_id, "name": "Atualizado", "cards": updated_cards, "cover_card_id": updated_cards[5]}
     with Session(engine) as s:
         decks = s.query(Deck).filter(Deck.user_id == user_id).all()
         assert len(decks) == 1
         assert decks[0].id == deck_id
         assert decks[0].name == "Atualizado"
         assert decks[0].card_ids() == updated_cards
+        assert decks[0].cover_card_id == updated_cards[5]
 
 
 def test_deck_code_roundtrip_e_import_salva_deck(tmp_path, monkeypatch):
@@ -117,9 +122,9 @@ def test_deck_code_roundtrip_e_import_salva_deck(tmp_path, monkeypatch):
             break
     cards = card_ids[:30]
 
-    code = main.encode_deck_code("Deck Compartilhado", cards)
+    code = main.encode_deck_code("Deck Compartilhado", cards, cards[3])
     decoded = main.decode_deck_code(code)
-    assert decoded == {"name": "Deck Compartilhado", "cards": cards}
+    assert decoded == {"name": "Deck Compartilhado", "cards": cards, "cover_card_id": cards[3]}
     assert main.validate_deck(decoded["cards"]) is None
 
     engine = create_engine(f"sqlite:///{tmp_path / 'decks.db'}", future=True)
@@ -138,7 +143,9 @@ def test_deck_code_roundtrip_e_import_salva_deck(tmp_path, monkeypatch):
 
     assert response["name"] == "Deck Compartilhado"
     assert response["cards"] == cards
+    assert response["cover_card_id"] == cards[3]
     with Session(engine) as s:
         decks = s.query(Deck).filter(Deck.user_id == user_id).all()
         assert len(decks) == 1
         assert decks[0].card_ids() == cards
+        assert decks[0].cover_card_id == cards[3]

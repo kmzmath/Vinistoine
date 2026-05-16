@@ -101,11 +101,13 @@ class LoginIn(BaseModel):
 class DeckIn(BaseModel):
     name: constr(min_length=1, max_length=60, strip_whitespace=True)
     cards: conlist(_CARD_ID, max_length=DECK_SIZE)
+    cover_card_id: Optional[_CARD_ID] = None
 
 
 class DeckCodeIn(BaseModel):
     name: constr(min_length=1, max_length=60, strip_whitespace=True)
     cards: conlist(_CARD_ID, max_length=DECK_SIZE)
+    cover_card_id: Optional[_CARD_ID] = None
 
 
 class DeckImportIn(BaseModel):
@@ -322,11 +324,25 @@ def validate_deck(card_ids: list[str]) -> Optional[str]:
     return None
 
 
-def encode_deck_code(name: str, card_ids: list[str]) -> str:
+def normalize_deck_cover(card_ids: list[str], cover_card_id: Optional[str] = None) -> Optional[str]:
+    cover = (cover_card_id or "").strip()
+    if cover and cover in card_ids:
+        return cover
+    return card_ids[0] if card_ids else None
+
+
+def deck_response(deck: Deck) -> dict:
+    cards = deck.card_ids()
+    cover_card_id = normalize_deck_cover(cards, deck.cover_card_id)
+    return {"id": deck.id, "name": deck.name, "cards": cards, "cover_card_id": cover_card_id}
+
+
+def encode_deck_code(name: str, card_ids: list[str], cover_card_id: Optional[str] = None) -> str:
     payload = {
         "v": 1,
         "name": (name or "Deck").strip()[:60] or "Deck",
         "cards": list(card_ids),
+        "cover_card_id": normalize_deck_cover(card_ids, cover_card_id),
     }
     raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     packed = zlib.compress(raw, level=9)
@@ -353,7 +369,10 @@ def decode_deck_code(code: str) -> dict:
     cards = data.get("cards")
     if not isinstance(cards, list) or not all(isinstance(cid, str) for cid in cards):
         raise ValueError("Codigo de deck sem lista de cartas")
-    return {"name": name, "cards": cards}
+    cover_card_id = data.get("cover_card_id")
+    if cover_card_id is not None and not isinstance(cover_card_id, str):
+        cover_card_id = None
+    return {"name": name, "cards": cards, "cover_card_id": normalize_deck_cover(cards, cover_card_id)}
 
 
 @app.post("/api/decks")
@@ -362,12 +381,18 @@ def save_deck(payload: DeckIn, request: Request):
     err = validate_deck(payload.cards)
     if err:
         raise HTTPException(400, err)
+    cover_card_id = normalize_deck_cover(payload.cards, payload.cover_card_id)
     with get_session() as s:
-        d = Deck(user_id=user.id, name=payload.name.strip()[:60] or "Deck", cards_json=json.dumps(payload.cards))
+        d = Deck(
+            user_id=user.id,
+            name=payload.name.strip()[:60] or "Deck",
+            cards_json=json.dumps(payload.cards),
+            cover_card_id=cover_card_id,
+        )
         s.add(d)
         s.commit()
         s.refresh(d)
-        return {"id": d.id, "name": d.name, "cards": payload.cards}
+        return deck_response(d)
 
 
 @app.put("/api/decks/{deck_id}")
@@ -382,9 +407,10 @@ def update_deck(deck_id: int, payload: DeckIn, request: Request):
             raise HTTPException(404, "Deck não encontrado")
         d.name = payload.name.strip()[:60] or "Deck"
         d.cards_json = json.dumps(payload.cards)
+        d.cover_card_id = normalize_deck_cover(payload.cards, payload.cover_card_id)
         s.commit()
         s.refresh(d)
-        return {"id": d.id, "name": d.name, "cards": d.card_ids()}
+        return deck_response(d)
 
 
 @app.post("/api/decks/code")
@@ -393,7 +419,7 @@ def create_deck_code(payload: DeckCodeIn, request: Request):
     err = validate_deck(payload.cards)
     if err:
         raise HTTPException(400, err)
-    return {"code": encode_deck_code(payload.name, payload.cards)}
+    return {"code": encode_deck_code(payload.name, payload.cards, payload.cover_card_id)}
 
 
 @app.post("/api/decks/import")
@@ -408,12 +434,13 @@ def import_deck_code(payload: DeckImportIn, request: Request):
     if err:
         raise HTTPException(400, err)
     name = (payload.name or decoded["name"] or "Deck Importado").strip()[:60] or "Deck Importado"
+    cover_card_id = normalize_deck_cover(cards, decoded.get("cover_card_id"))
     with get_session() as s:
-        d = Deck(user_id=user.id, name=name, cards_json=json.dumps(cards))
+        d = Deck(user_id=user.id, name=name, cards_json=json.dumps(cards), cover_card_id=cover_card_id)
         s.add(d)
         s.commit()
         s.refresh(d)
-        return {"id": d.id, "name": d.name, "cards": d.card_ids()}
+        return deck_response(d)
 
 
 @app.get("/api/decks")
@@ -421,7 +448,7 @@ def list_decks(request: Request):
     user = require_user(request)
     with get_session() as s:
         decks = s.query(Deck).filter(Deck.user_id == user.id).order_by(Deck.created_at.desc()).all()
-        return [{"id": d.id, "name": d.name, "cards": d.card_ids()} for d in decks]
+        return [deck_response(d) for d in decks]
 
 
 @app.delete("/api/decks/{deck_id}")

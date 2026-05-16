@@ -40,6 +40,7 @@ class Deck(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(60))
     cards_json: Mapped[str] = mapped_column(Text)  # lista de card_ids
+    cover_card_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     user: Mapped[User] = relationship(back_populates="decks")
 
@@ -57,8 +58,12 @@ def init_db():
         if DATABASE_URL.startswith("sqlite"):
             if "selected_portrait" not in cols:
                 conn.exec_driver_sql("ALTER TABLE users ADD COLUMN selected_portrait VARCHAR(120)")
+            deck_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(decks)")}
+            if "cover_card_id" not in deck_cols:
+                conn.exec_driver_sql("ALTER TABLE decks ADD COLUMN cover_card_id VARCHAR(64)")
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_portrait VARCHAR(120)"))
+            conn.execute(text("ALTER TABLE decks ADD COLUMN IF NOT EXISTS cover_card_id VARCHAR(64)"))
 
 
 def get_session() -> Session:

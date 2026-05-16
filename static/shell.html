@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vinístone</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=20260516-2" />
+  <link rel="stylesheet" href="/static/css/main.css?v=20260516-3" />
   <script src="/static/js/audio.js" defer></script>
 </head>
 <body>
@@ -68,45 +68,60 @@
     <!-- ================== DECKS ================== -->
     <section class="view" data-view="decks">
       <div class="container deckbuilder-container">
-        <div class="row" style="margin-bottom: 1rem;">
-          <h2 style="margin: 0;">Construtor de Decks</h2>
-          <span class="spacer"></span>
-          <input type="text" id="deck-name" placeholder="Nome do deck" maxlength="60" />
-          <button class="btn primary" id="save-btn">Salvar Deck</button>
-          <button class="btn small" id="new-btn">Novo</button>
-        </div>
-
-        <div class="panel" style="margin-bottom: 1rem;">
-          <h3 style="margin-top: 0;">Decks Salvos</h3>
-          <div id="saved-decks"></div>
-        </div>
-
-        <div class="panel deck-share-panel" style="margin-bottom: 1rem;">
-          <h3 style="margin-top: 0;">Compartilhar Deck</h3>
-          <div class="deck-code-row">
-            <textarea id="deck-code-input" rows="3" placeholder="Código do deck"></textarea>
-            <div class="deck-code-actions">
-              <button class="btn small" id="copy-current-code-btn">Copiar Atual</button>
-              <button class="btn primary small" id="import-code-btn">Importar Código</button>
-            </div>
+        <div id="deck-library-view" class="deck-view">
+          <div class="deck-library-head">
+            <h2 style="margin: 0;">Decks</h2>
+            <button class="btn primary" id="create-deck-btn">Criar Deck</button>
           </div>
+          <div id="saved-decks" class="saved-deck-grid"></div>
         </div>
 
-        <div class="deckbuilder">
-          <div>
-            <div class="filters" id="filters"></div>
-            <input type="text" id="search-input" placeholder="Buscar por nome ou texto..." style="width: 100%; margin-bottom: 0.8rem;" />
-            <div class="card-grid" id="card-grid"></div>
+        <div id="deck-editor-view" class="deck-view" hidden>
+          <div class="deck-editor-toolbar">
+            <button class="btn small" id="back-to-decks-btn">Voltar</button>
+            <input type="text" id="deck-name" placeholder="Nome do deck" maxlength="60" />
+            <span class="spacer"></span>
+            <button class="btn small danger" id="delete-current-deck-btn" hidden>Excluir</button>
+            <button class="btn primary" id="save-btn">Salvar Deck</button>
           </div>
 
-          <div class="deck-side">
-            <div class="row">
-              <h3 id="deck-title" class="deck-title" contenteditable="true" spellcheck="false" title="Clique para editar o nome do deck">Deck Sem Nome</h3>
-              <span class="spacer"></span>
-              <span id="deck-counter" style="font-family: 'Cinzel'; color: var(--gold);">0/30</span>
+          <div class="deck-editor-meta">
+            <div class="deck-cover-panel">
+              <div id="deck-cover-preview" class="deck-cover-preview"></div>
+              <div>
+                <div class="faint">Capa do deck</div>
+                <div id="deck-cover-name" class="deck-cover-name">Escolha uma carta no deck</div>
+              </div>
             </div>
-            <div class="sep" style="margin: 0.5rem 0;"></div>
-            <div class="deck-list" id="deck-list"></div>
+
+            <div class="panel deck-share-panel">
+              <h3 style="margin-top: 0;">Compartilhar Deck</h3>
+              <div class="deck-code-row">
+                <textarea id="deck-code-input" rows="3" placeholder="Código do deck"></textarea>
+                <div class="deck-code-actions">
+                  <button class="btn small" id="copy-current-code-btn">Copiar Atual</button>
+                  <button class="btn primary small" id="import-code-btn">Importar Código</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="deckbuilder">
+            <div>
+              <div class="filters" id="filters"></div>
+              <input type="text" id="search-input" placeholder="Buscar por nome ou texto..." style="width: 100%; margin-bottom: 0.8rem;" />
+              <div class="card-grid" id="card-grid"></div>
+            </div>
+
+            <div class="deck-side">
+              <div class="row">
+                <h3 id="deck-title" class="deck-title" contenteditable="true" spellcheck="false" title="Clique para editar o nome do deck">Deck Sem Nome</h3>
+                <span class="spacer"></span>
+                <span id="deck-counter" style="font-family: 'Cinzel'; color: var(--gold);">0/30</span>
+              </div>
+              <div class="sep" style="margin: 0.5rem 0;"></div>
+              <div class="deck-list" id="deck-list"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -192,6 +207,8 @@ let savedDecks = [];    // decks do usuário (compartilhado)
 // estado do construtor
 let currentDeck = [];
 let currentDeckId = null;
+let currentDeckCoverId = null;
+let deckEditorOpen = false;
 let currentFilter = "ALL";
 let currentSearch = "";
 
@@ -570,6 +587,39 @@ function displayedDeckName() {
   return deckNameInput().value.trim() || "Deck Sem Nome";
 }
 
+function cardById(cardId) {
+  return allCards.find(c => c.id === cardId) || null;
+}
+
+function deckCoverId(deck) {
+  const cards = deck && Array.isArray(deck.cards) ? deck.cards : [];
+  if (deck && deck.cover_card_id && cards.includes(deck.cover_card_id)) return deck.cover_card_id;
+  return cards[0] || null;
+}
+
+function ensureCurrentDeckCover() {
+  if (currentDeckCoverId && currentDeck.includes(currentDeckCoverId)) return currentDeckCoverId;
+  currentDeckCoverId = currentDeck[0] || null;
+  return currentDeckCoverId;
+}
+
+function setDeckCover(cardId) {
+  if (!cardId || !currentDeck.includes(cardId)) return;
+  currentDeckCoverId = cardId;
+  renderDeck();
+}
+
+function renderDeckCoverPreview() {
+  const preview = document.getElementById("deck-cover-preview");
+  const label = document.getElementById("deck-cover-name");
+  if (!preview || !label) return;
+  const coverId = ensureCurrentDeckCover();
+  const card = cardById(coverId);
+  preview.classList.toggle("empty", !card);
+  preview.style.backgroundImage = card && cardImages[coverId] ? `url('${cardImages[coverId]}')` : "";
+  label.textContent = card ? card.name : "Escolha uma carta no deck";
+}
+
 function syncDeckTitleFromInput() {
   const title = deckTitleEl();
   if (!title || document.activeElement === title) return;
@@ -606,7 +656,10 @@ function setupDeckNameEditing() {
 }
 
 async function requestDeckCode(name, cards) {
-  const r = await api("/api/decks/code", { method: "POST", body: JSON.stringify({ name, cards }) });
+  const r = await api("/api/decks/code", {
+    method: "POST",
+    body: JSON.stringify({ name, cards, cover_card_id: ensureCurrentDeckCover() }),
+  });
   if (!r) return null;
   const data = await r.json();
   if (!r.ok) {
@@ -645,6 +698,7 @@ function addToDeck(cardId) {
   const count = currentDeck.filter(x => x === cardId).length;
   if (count >= 2) { toast("Máximo 2 cópias de cada carta"); return; }
   currentDeck.push(cardId);
+  if (!currentDeckCoverId) currentDeckCoverId = cardId;
   renderDeck();
 }
 function removeFromDeck(cardId) {
@@ -653,6 +707,7 @@ function removeFromDeck(cardId) {
   renderDeck();
 }
 function renderDeck() {
+  ensureCurrentDeckCover();
   syncDeckTitleFromInput();
   document.getElementById("deck-counter").textContent = `${currentDeck.length}/30`;
   const list = document.getElementById("deck-list");
@@ -671,14 +726,21 @@ function renderDeck() {
       <div class="cost-badge">${e.card.cost ?? 0}</div>
       <div class="nm">${escapeHtml(e.card.name)}</div>
       <div class="qty">×${e.qty}</div>
+      <button type="button" class="deck-cover-btn${currentDeckCoverId === e.cid ? " active" : ""}" title="Usar como capa">Capa</button>
     `;
     row.title = e.card.text || "";
     row.onclick = () => removeFromDeck(e.cid);
+    const coverBtn = row.querySelector(".deck-cover-btn");
+    coverBtn.onclick = (ev) => {
+      ev.stopPropagation();
+      setDeckCover(e.cid);
+    };
     list.appendChild(row);
   }
   updateCardGridDeckBadges();
+  renderDeckCoverPreview();
 }
-function renderDecksSavedList() {
+function renderDecksSavedListLegacy() {
   const box = document.getElementById("saved-decks");
   if (!box) return;
   if (savedDecks.length === 0) {
@@ -717,34 +779,116 @@ function renderDecksSavedList() {
     box.appendChild(row);
   }
 }
-function loadDeckIntoEditor(d) {
+function loadDeckIntoEditorLegacy(d) {
   currentDeck = [...d.cards];
   currentDeckId = d.id;
   document.getElementById("deck-name").value = d.name;
   renderDeck();
   window.scrollTo(0, 0);
 }
+
+function renderDecksSavedList() {
+  const box = document.getElementById("saved-decks");
+  if (!box) return;
+  box.innerHTML = "";
+
+  const createTile = document.createElement("button");
+  createTile.type = "button";
+  createTile.className = "saved-deck-tile create-deck-tile";
+  createTile.innerHTML = `
+    <div class="create-deck-plus">+</div>
+    <div class="saved-deck-name">Criar Deck</div>
+    <div class="saved-deck-meta">Monte um novo deck</div>
+  `;
+  createTile.onclick = startNewDeck;
+  box.appendChild(createTile);
+
+  for (const d of savedDecks) {
+    const coverId = deckCoverId(d);
+    const coverCard = cardById(coverId);
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "saved-deck-tile";
+    if (coverId && cardImages[coverId]) {
+      tile.classList.add("has-cover");
+      tile.style.setProperty("--deck-cover-art", `url('${cardImages[coverId]}')`);
+    }
+    tile.innerHTML = `
+      <div class="saved-deck-art"></div>
+      <div class="saved-deck-info">
+        <div class="saved-deck-name">${escapeHtml(d.name)}</div>
+        <div class="saved-deck-meta">${d.cards.length} cartas${coverCard ? ` · ${escapeHtml(coverCard.name)}` : ""}</div>
+      </div>
+    `;
+    tile.onclick = () => loadDeckIntoEditor(d);
+    box.appendChild(tile);
+  }
+}
+
+function showDeckLibrary() {
+  deckEditorOpen = false;
+  document.getElementById("deck-library-view").hidden = false;
+  document.getElementById("deck-editor-view").hidden = true;
+}
+
+function showDeckEditor() {
+  deckEditorOpen = true;
+  document.getElementById("deck-library-view").hidden = true;
+  document.getElementById("deck-editor-view").hidden = false;
+  document.getElementById("delete-current-deck-btn").hidden = !currentDeckId;
+  renderDeck();
+  renderCardGrid();
+  window.scrollTo(0, 0);
+}
+
+function startNewDeck() {
+  currentDeck = [];
+  currentDeckId = null;
+  currentDeckCoverId = null;
+  document.getElementById("deck-name").value = "";
+  document.getElementById("deck-code-input").value = "";
+  showDeckEditor();
+}
+
+function loadDeckIntoEditor(d) {
+  currentDeck = [...d.cards];
+  currentDeckId = d.id;
+  currentDeckCoverId = deckCoverId(d);
+  document.getElementById("deck-name").value = d.name;
+  document.getElementById("deck-code-input").value = "";
+  showDeckEditor();
+}
+
 function setupDecksHandlers() {
   document.getElementById("save-btn").onclick = async () => {
     if (currentDeck.length !== 30) { toast(`Deck precisa de 30 cartas (tem ${currentDeck.length})`); return; }
     const name = document.getElementById("deck-name").value.trim() || "Deck Sem Nome";
     const path = currentDeckId ? `/api/decks/${currentDeckId}` : "/api/decks";
     const method = currentDeckId ? "PUT" : "POST";
-    const r = await api(path, { method, body: JSON.stringify({ name, cards: currentDeck }) });
+    const r = await api(path, {
+      method,
+      body: JSON.stringify({ name, cards: currentDeck, cover_card_id: ensureCurrentDeckCover() }),
+    });
     if (!r) return;
     const data = await r.json();
     if (!r.ok) { toast(data.detail || "Erro ao salvar"); return; }
     currentDeckId = data.id;
+    currentDeckCoverId = data.cover_card_id || ensureCurrentDeckCover();
     document.getElementById("deck-name").value = data.name;
+    document.getElementById("delete-current-deck-btn").hidden = false;
     syncDeckTitleFromInput();
+    renderDeck();
     toast("Deck salvo!");
     await refreshDecksEverywhere();
   };
-  document.getElementById("new-btn").onclick = () => {
-    currentDeck = [];
-    currentDeckId = null;
-    document.getElementById("deck-name").value = "";
-    renderDeck();
+  document.getElementById("create-deck-btn").onclick = startNewDeck;
+  document.getElementById("back-to-decks-btn").onclick = showDeckLibrary;
+  document.getElementById("delete-current-deck-btn").onclick = async () => {
+    if (!currentDeckId) return;
+    if (!confirm(`Excluir o deck "${displayedDeckName()}"?`)) return;
+    await api(`/api/decks/${currentDeckId}`, { method: "DELETE" });
+    await refreshDecksEverywhere();
+    showDeckLibrary();
   };
   document.getElementById("copy-current-code-btn").onclick = () => {
     copyDeckCode(displayedDeckName(), currentDeck);
@@ -759,11 +903,11 @@ function setupDecksHandlers() {
     if (!r.ok) { toast(data.detail || "Erro ao importar"); return; }
     currentDeck = [...data.cards];
     currentDeckId = data.id;
+    currentDeckCoverId = data.cover_card_id || deckCoverId(data);
     document.getElementById("deck-name").value = data.name;
-    renderDeck();
     await refreshDecksEverywhere();
+    showDeckEditor();
     toast("Deck importado!");
-    window.scrollTo(0, 0);
   };
   document.getElementById("search-input").addEventListener("input", (e) => {
     currentSearch = e.target.value;
