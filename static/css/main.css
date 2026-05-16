@@ -562,6 +562,29 @@ input:focus { border-color: var(--gold); }
 .deckbuilder { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 2rem; align-items: start; }
 @media (max-width: 1050px) { .deckbuilder { grid-template-columns: 1fr; } }
 
+.deck-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: stretch;
+}
+.deck-code-row textarea {
+  min-height: 76px;
+  resize: vertical;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+}
+.deck-code-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  justify-content: center;
+}
+@media (max-width: 720px) {
+  .deck-code-row { grid-template-columns: 1fr; }
+  .deck-code-actions { flex-direction: row; flex-wrap: wrap; }
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -2934,12 +2957,14 @@ input:focus { border-color: var(--gold); }
   left: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
-  min-width: 180px;
-  max-width: 260px;
+  min-width: 240px;
+  max-width: 380px;
+  max-height: 72vh;
+  overflow-y: auto;
   background: rgba(15, 10, 6, 0.96);
   border: 1px solid var(--gold-dim);
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-family: 'EB Garamond', serif;
   font-size: 0.82rem;
   color: var(--ink);
@@ -2970,11 +2995,12 @@ input:focus { border-color: var(--gold); }
 .log-tooltip .tip-details {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 .log-tooltip .tip-detail-line {
   padding-left: 10px;
   position: relative;
+  overflow-wrap: anywhere;
 }
 .log-tooltip .tip-detail-line::before {
   content: "•";

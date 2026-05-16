@@ -66,6 +66,9 @@ class Minion:
         # Mantemos a tag DORMANT visível para a UI, mas desativamos as demais.
         if "DORMANT" in self.tags:
             return False
+        # Provocar fica guardado, mas inativo, enquanto Furtividade existir.
+        if tag == "TAUNT" and "STEALTH" in self.tags:
+            return False
         return tag in self.tags
 
     def has_tribe(self, tribe: str) -> bool:
@@ -108,6 +111,10 @@ class Minion:
         return True
 
     def to_dict(self) -> dict:
+        visible_tags = [
+            t for t in self.tags
+            if not (t == "TAUNT" and "STEALTH" in self.tags)
+        ]
         return {
             "instance_id": self.instance_id,
             "card_id": self.card_id,
@@ -115,7 +122,7 @@ class Minion:
             "attack": self.attack,
             "health": self.health,
             "max_health": self.max_health,
-            "tags": list(self.tags),
+            "tags": visible_tags,
             "tribes": list(self.tribes),
             "summoning_sick": self.summoning_sick,
             "attacks_this_turn": self.attacks_this_turn,
@@ -134,7 +141,7 @@ class Minion:
             # Lista de keywords ativas (visíveis). Silence já remove as keywords
             # antigas de `tags`; keywords adicionadas depois devem aparecer.
             "keywords": [
-                t for t in self.tags
+                t for t in visible_tags
                 if t in ("TAUNT", "DIVINE_SHIELD", "STEALTH", "LIFESTEAL",
                          "POISONOUS", "WINDFURY", "CHARGE", "RUSH",
                          "DEATHRATTLE", "BATTLECRY", "RESISTANT",

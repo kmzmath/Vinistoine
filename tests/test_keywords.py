@@ -263,6 +263,53 @@ def test_stealth_nao_bloqueia_aoe():
     assert other_m.health == 2
 
 
+def test_stealth_suspende_taunt_e_taunt_volta_ao_perder_stealth():
+    state = _new_blank_match()
+    pid = state.current_player
+    foe = 1 - pid
+    attacker = _force_minion(state, pid, attack=2, health=4, ready=True)
+    stealth_taunt = _force_minion(state, foe, attack=1, health=4,
+                                  tags=["TAUNT", "STEALTH"])
+
+    assert "TAUNT" in stealth_taunt.tags
+    assert stealth_taunt.has_tag("STEALTH") is True
+    assert stealth_taunt.has_tag("TAUNT") is False
+    view = stealth_taunt.to_dict()
+    assert "STEALTH" in view["keywords"]
+    assert "TAUNT" not in view["keywords"]
+    assert "TAUNT" not in view["tags"]
+
+    ok, msg = engine.attack(state, pid, attacker.instance_id, f"hero:{foe}")
+    assert ok, msg
+
+    stealth_taunt.tags.remove("STEALTH")
+    assert stealth_taunt.has_tag("TAUNT") is True
+    view = stealth_taunt.to_dict()
+    assert "TAUNT" in view["keywords"]
+    assert "TAUNT" in view["tags"]
+
+    attacker2 = _force_minion(state, pid, attack=2, health=4, ready=True)
+    ok, _ = engine.attack(state, pid, attacker2.instance_id, f"hero:{foe}")
+    assert not ok
+    ok, msg = engine.attack(state, pid, attacker2.instance_id, stealth_taunt.instance_id)
+    assert ok, msg
+
+
+def test_lacaio_com_taunt_e_stealth_recupera_taunt_depois_de_atacar():
+    state = _new_blank_match()
+    pid = state.current_player
+    foe = 1 - pid
+    stealth_taunt = _force_minion(state, pid, attack=2, health=4,
+                                  tags=["TAUNT", "STEALTH"], ready=True)
+    target = _force_minion(state, foe, attack=1, health=4)
+
+    assert stealth_taunt.has_tag("TAUNT") is False
+    ok, msg = engine.attack(state, pid, stealth_taunt.instance_id, target.instance_id)
+    assert ok, msg
+    assert "STEALTH" not in stealth_taunt.tags
+    assert stealth_taunt.has_tag("TAUNT") is True
+
+
 # ============ SILENCIAR ============
 
 def test_silence_remove_buffs():

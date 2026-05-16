@@ -4384,20 +4384,67 @@ function buildLogItems(events) {
   return items.slice(-LOG_MAX_ITEMS).reverse();
 }
 
-const LOG_MAJOR_TYPES = new Set(["game_start", "turn_start", "game_end", "concede", "play_card", "attack"]);
+const LOG_MAJOR_TYPES = new Set([
+  "game_start", "turn_start", "game_end", "concede",
+  "play_card", "attack", "forced_attack", "activate_ability",
+]);
 const LOG_DETAIL_TYPES = new Set([
   "summon", "summon_token", "summon_copy", "resummon",
-  "damage", "damage_prevented", "damage_reduced", "divine_shield_break",
+  "damage", "damage_prevented", "damage_reduced", "damage_reduced_attack_instead_of_health",
+  "divine_shield_break",
   "heal", "death", "death_replaced_shuffle_into_deck", "poison_kill",
+  "buff", "destroy", "destroy_and_gain_attributes", "devour_gain_attributes",
   "draw", "draw_from_choice", "draw_minion", "draw_spell", "draw_card_type",
   "draw_minion_from_deck", "draw_card_from_deck_filtered", "draw_highest_revealed",
   "draw_lowest_cost_minion", "draw_minion_with_tag", "draw_repeat", "draw_playable_card",
+  "cast_when_drawn",
   "discard", "discard_from_deck_choice", "discard_lowest_revealed",
   "burn", "burn_delayed_draw", "burn_returned_minion", "burn_stolen",
   "return_to_hand", "return_to_hand_burned", "return_to_hand_modify_cost",
   "reveal_top_card", "reveal_top_each_deck", "reveal_and_steal_top_deck_cards", "reveal_drawn_card", "reveal_hand_card", "reveal_hand_edges",
   "silence", "freeze", "freeze_hero",
+  "temporary_tag", "temporary_tag_removed", "spell_target_immunity", "enemy_spell_target_immunity",
+  "temporary_spell_target_immunity", "temporary_spell_target_immunity_removed",
+  "cannot_attack_target", "cannot_deal_damage_this_turn", "redirect_attack_to_self_ready",
+  "skip_next_attack", "skip_next_attack_consumed", "attack_redirected",
+  "friendly_minions_summoned_threshold", "awaken", "gain_attack_on_damage",
+  "pay_health_for_spell", "choice_resolved",
 ]);
+
+const LOG_ACTION_LABELS = {
+  ADD_CARD_TO_HAND: "adicionar carta a mao",
+  ADD_TAG: "conceder palavra-chave",
+  ADD_TAGS: "conceder palavras-chave",
+  AWAKEN: "despertar",
+  BUFF_ATTACK: "aumentar ataque",
+  BUFF_HEALTH: "aumentar vida",
+  BUFF_STATS: "aumentar atributos",
+  DAMAGE: "causar dano",
+  DESTROY: "destruir",
+  DRAW_CARD: "comprar carta",
+  FREEZE: "congelar",
+  HEAL: "curar",
+  HEAL_FULL: "curar totalmente",
+  REMOVE_TAG: "remover palavra-chave",
+  RETURN_TO_HAND: "devolver para a mao",
+  SILENCE: "silenciar",
+  SUMMON: "evocar",
+  SUMMON_COPY: "evocar copia",
+  SUMMON_TOKEN: "evocar ficha",
+};
+
+const LOG_TAG_LABELS = {
+  BATTLECRY: "Grito de Guerra",
+  CHARGE: "Investida",
+  DEATHRATTLE: "Ultimo Suspiro",
+  DIVINE_SHIELD: "Escudo Divino",
+  LIFESTEAL: "Roubo de Vida",
+  POISONOUS: "Venenoso",
+  RUSH: "Rapidez",
+  STEALTH: "Furtividade",
+  TAUNT: "Provocar",
+  WINDFURY: "Furia dos Ventos",
+};
 
 function eventSeq(ev) { return ev && ev.seq !== undefined ? ev.seq : null; }
 function markConsumed(consumed, ev) {
@@ -4411,11 +4458,48 @@ function shortLogName(name, fallback = "?") {
   const raw = String(name || fallback).trim();
   if (!raw) return fallback;
   const words = raw.split(/\s+/).filter(Boolean);
-  if (words.length === 1) return words[0].slice(0, 10);
   const useful = words.filter(w => !/^(de|da|do|dos|das|e)$/i.test(w));
-  return (useful.length ? useful : words).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+  const picked = (useful.length ? useful : words)[0] || fallback;
+  return picked.length > 9 ? `${picked.slice(0, 8)}.` : picked;
 }
 function heroLabel(pid) { return `Herói de ${playerName(Number(pid))}`; }
+
+function actionLabel(action) {
+  const key = String(action || "").toUpperCase();
+  if (!key) return "acao";
+  return LOG_ACTION_LABELS[key] || key.replaceAll("_", " ").toLowerCase();
+}
+
+function tagLabel(tag) {
+  const key = String(tag || "").toUpperCase();
+  return LOG_TAG_LABELS[key] || key.replaceAll("_", " ").toLowerCase();
+}
+
+function cardTypeLabel(cardId) {
+  const type = String(allCards[cardId]?.type || "").toUpperCase();
+  if (type === "MINION") return "lacaio";
+  if (type === "SPELL") return "feitico";
+  return "carta";
+}
+
+function compactEffectSummary(cardId) {
+  const card = allCards[cardId] || {};
+  const text = String(card.text || "").trim();
+  if (text) return `Texto: ${text}`;
+  const actions = [];
+  const visit = (eff) => {
+    if (!eff || typeof eff !== "object") return;
+    if (eff.action) actions.push(actionLabel(eff.action));
+    for (const sub of eff.effects || []) visit(sub);
+    for (const sub of eff.additional_effects || []) visit(sub);
+    for (const sub of eff.choices || []) visit(sub);
+  };
+  for (const eff of card.effects || []) {
+    if (["ON_PLAY", "ON_COMBO", "ON_DEATH", "DURING_YOUR_TURN"].includes(eff.trigger)) visit(eff);
+  }
+  const unique = [...new Set(actions)].slice(0, 4);
+  return unique.length ? `Efeitos: ${unique.join(", ")}.` : "";
+}
 
 function logContext(events, idx) {
   const minions = new Map();
@@ -4424,6 +4508,26 @@ function logContext(events, idx) {
     if (!ev) continue;
     if ((ev.type === "summon" || ev.type === "summon_token") && ev.minion?.instance_id) {
       minions.set(ev.minion.instance_id, { ...ev.minion, owner: ev.owner });
+    }
+    if (ev.type === "attack" || ev.type === "forced_attack") {
+      if (ev.attacker && ev.attacker_name) {
+        minions.set(ev.attacker, {
+          ...(minions.get(ev.attacker) || {}),
+          instance_id: ev.attacker,
+          name: ev.attacker_name,
+          card_id: ev.attacker_card_id,
+          owner: ev.attacker_owner,
+        });
+      }
+      if (ev.target && !String(ev.target).startsWith("hero:") && ev.target_name) {
+        minions.set(ev.target, {
+          ...(minions.get(ev.target) || {}),
+          instance_id: ev.target,
+          name: ev.target_name,
+          card_id: ev.target_card_id,
+          owner: ev.target_owner,
+        });
+      }
     }
     if (ev.type === "play_card" && ev.card_id && ev.card_name) {
       // Ajuda cardName mesmo quando allCards ainda não terminou de carregar.
@@ -4442,8 +4546,15 @@ function minionFromContext(ctx, id) {
   return boardMinion || ctx.minions.get(id) || null;
 }
 
+function minionNameById(ctx, id, fallback = "alvo") {
+  if (!id) return fallback;
+  if (String(id).startsWith("hero:")) return heroLabel(String(id).split(":")[1]);
+  const minion = minionFromContext(ctx, id);
+  return minion?.name || id || fallback;
+}
+
 function targetNameFromEvent(ev, ctx) {
-  const id = ev.target || ev.target_id || ev.minion;
+  const id = ev.target || ev.target_id || ev.minion || ev.victim || ev.source || ev.old || ev.new_minion;
   if (ev.target_kind === "hero") return heroLabel(ev.target_id);
   if (String(id || "").startsWith("hero:")) return heroLabel(String(id).split(":")[1]);
   const minion = minionFromContext(ctx, id);
@@ -4457,7 +4568,10 @@ function cardFromEvent(ev, ctx) {
   if ((type.startsWith("draw") || type.startsWith("discard") || type.startsWith("burn")) && owner !== myPid) {
     return null;
   }
+  if (ev.type === "attack" || ev.type === "forced_attack") return ev.attacker_card_id || minionFromContext(ctx, ev.attacker)?.card_id || null;
+  if (ev.type === "damage" && ev.source_card_id) return ev.source_card_id;
   if (ev.card_id) return ev.card_id;
+  if (ev.source_card_id) return ev.source_card_id;
   if (ev.target_card_id) return ev.target_card_id;
   if (ev.minion?.card_id) return ev.minion.card_id;
   const minion = minionFromContext(ctx, ev.minion || ev.target_id || ev.target);
@@ -4473,16 +4587,28 @@ function detailForEvent(ev, ctx, sourceName = null) {
   }
   if (ev.type === "summon_copy") return `Evocou uma cópia${ev.copies ? ` (${ev.copies}x)` : ""}.`;
   if (ev.type === "resummon") return `Reevocou ${cardName(ev.card_id, "um lacaio")}.`;
+  if (ev.type === "activate_ability") return `${playerName(ev.player)} ativou ${cardName(ev.card_id, "habilidade")}: ${actionLabel(ev.action)}${ev.cost !== undefined ? ` (custo ${ev.cost})` : ""}.`;
   if (ev.type === "damage") {
     const target = targetNameFromEvent(ev, ctx);
     const armor = ev.armor_absorbed ? ` (${ev.armor_absorbed} absorvido por armadura)` : "";
     const src = ev.source_name || sourceName;
-    return `${target} sofreu ${ev.amount} de dano${src ? ` por ${src}` : ""}${armor}.`;
+    const reflected = ev.reflected ? " refletido" : "";
+    return `${target} recebeu ${ev.amount} de dano${reflected}${src ? ` de ${src}` : ""}${armor}.`;
   }
   if (ev.type === "damage_prevented") return `Dano prevenido em ${targetNameFromEvent(ev, ctx)}${ev.reason ? ` (${ev.reason})` : ""}.`;
-  if (ev.type === "damage_reduced") return `Dano reduzido em ${targetNameFromEvent(ev, ctx)}: ${ev.source_amount} → ${ev.final_amount}.`;
+  if (ev.type === "damage_reduced") return `Dano reduzido em ${targetNameFromEvent(ev, ctx)}: ${ev.source_amount} para ${ev.final_amount}.`;
+  if (ev.type === "damage_reduced_attack_instead_of_health") return `${targetNameFromEvent(ev, ctx)} perdeu ${ev.amount} de ataque em vez de vida (${ev.old_attack} para ${ev.new_attack}).`;
   if (ev.type === "divine_shield_break") return `Escudo Divino quebrado em ${targetNameFromEvent(ev, ctx)}.`;
   if (ev.type === "heal") return `${targetNameFromEvent(ev, ctx)} curou ${ev.amount}.`;
+  if (ev.type === "buff") {
+    const parts = [];
+    if (ev.attack_delta) parts.push(`${ev.attack_delta > 0 ? "+" : ""}${ev.attack_delta} ataque`);
+    if (ev.health_delta) parts.push(`${ev.health_delta > 0 ? "+" : ""}${ev.health_delta} vida`);
+    return `${targetNameFromEvent(ev, ctx)} recebeu ${parts.join(" e ") || "um efeito"}.`;
+  }
+  if (ev.type === "destroy") return `${targetNameFromEvent(ev, ctx)} foi destruido.`;
+  if (ev.type === "destroy_and_gain_attributes") return `${minionNameById(ctx, ev.source, "Fonte")} destruiu ${minionNameById(ctx, ev.victim, "alvo")} e ganhou atributos.`;
+  if (ev.type === "devour_gain_attributes") return `${minionNameById(ctx, ev.source, "Fonte")} devorou ${minionNameById(ctx, ev.victim, "alvo")} e ganhou atributos.`;
   if (ev.type === "death") return `${targetNameFromEvent(ev, ctx)} morreu${ev.owner !== undefined ? ` (${playerName(ev.owner)})` : ""}.`;
   if (ev.type === "death_replaced_shuffle_into_deck") return `${cardName(ev.card_id, targetNameFromEvent(ev, ctx))} morreria, mas voltou ao deck.`;
   if (ev.type === "poison_kill") return `${targetNameFromEvent(ev, ctx)} foi destruído por Venenoso.`;
@@ -4491,6 +4617,7 @@ function detailForEvent(ev, ctx, sourceName = null) {
     const drawn = isMine ? cardName(ev.card_id, "uma carta") : "uma carta do baralho";
     return `${playerName(ev.player)} comprou ${drawn}${sourceName ? ` por ${sourceName}` : ""}.`;
   }
+  if (ev.type === "cast_when_drawn") return `${cardName(ev.card_id, "Uma carta")} foi conjurada ao ser comprada.`;
   if (String(ev.type).startsWith("reveal")) {
     if (ev.type === "reveal_top_each_deck") {
       const cards = (ev.cards || []).map(c => `${playerName(c.owner)}: ${cardName(c.card_id, c.card_id)}`).join("; ");
@@ -4522,31 +4649,84 @@ function detailForEvent(ev, ctx, sourceName = null) {
   if (ev.type === "silence") return `${targetNameFromEvent(ev, ctx)} foi silenciado.`;
   if (ev.type === "freeze") return `${targetNameFromEvent(ev, ctx)} foi congelado.`;
   if (ev.type === "freeze_hero") return `${heroLabel(ev.player)} foi congelado.`;
+  if (ev.type === "temporary_tag") return `${targetNameFromEvent(ev, ctx)} ganhou ${tagLabel(ev.tag)} temporariamente.`;
+  if (ev.type === "temporary_tag_removed") return `${targetNameFromEvent(ev, ctx)} perdeu ${tagLabel(ev.tag)} temporario.`;
+  if (ev.type === "spell_target_immunity" || ev.type === "enemy_spell_target_immunity") return `${targetNameFromEvent(ev, ctx)} ficou protegido contra alvos de feitico.`;
+  if (ev.type === "temporary_spell_target_immunity") return `${targetNameFromEvent(ev, ctx)} recebeu protecao temporaria contra feiticos.`;
+  if (ev.type === "temporary_spell_target_immunity_removed") return `Protecao temporaria contra feiticos removida de ${targetNameFromEvent(ev, ctx)}.`;
+  if (ev.type === "cannot_attack_target") return `${minionNameById(ctx, ev.attacker_id, "Atacante")} nao pode atacar ${minionNameById(ctx, ev.source_minion_id, "alvo")}.`;
+  if (ev.type === "cannot_deal_damage_this_turn") return `${targetNameFromEvent(ev, ctx)} nao pode causar dano neste turno.`;
+  if (ev.type === "redirect_attack_to_self_ready") return `${targetNameFromEvent(ev, ctx)} redirecionara ataques para si.`;
+  if (ev.type === "skip_next_attack") return `${targetNameFromEvent(ev, ctx)} perdera o proximo ataque.`;
+  if (ev.type === "skip_next_attack_consumed") return `${targetNameFromEvent(ev, ctx)} consumiu a penalidade de ataque.`;
+  if (ev.type === "attack_redirected") return `Ataque redirecionado de ${minionNameById(ctx, ev.from, "alvo original")} para ${minionNameById(ctx, ev.to, "novo alvo")}.`;
+  if (ev.type === "friendly_minions_summoned_threshold") return `${targetNameFromEvent(ev, ctx)} atingiu ${ev.count} evocacoes aliadas.`;
+  if (ev.type === "awaken") return `${targetNameFromEvent(ev, ctx)} despertou.`;
+  if (ev.type === "gain_attack_on_damage") return `${targetNameFromEvent(ev, ctx)} ganhou +${ev.amount} de ataque por dano recebido.`;
+  if (ev.type === "pay_health_for_spell") return `${playerName(ev.player)} pagou ${ev.amount} de vida por um feitico.`;
+  if (ev.type === "choice_resolved") return `${playerName(ev.player)} resolveu uma escolha (${String(ev.kind || "").replaceAll("_", " ")}).`;
   return null;
 }
 
-function collectForwardDetails(all, idx, consumed, ctx, sourceName) {
+function collectForwardEventDetails(all, idx, consumed, ctx, sourceName) {
   const details = [];
-  for (let j = idx + 1; j < all.length && details.length < 10; j++) {
+  const events = [];
+  for (let j = idx + 1; j < all.length && details.length < 12; j++) {
     const ev = all[j];
     if (LOG_MAJOR_TYPES.has(ev.type)) break;
     if (!LOG_DETAIL_TYPES.has(ev.type)) continue;
     const detail = detailForEvent(ev, ctx, sourceName);
     if (!detail) continue;
     details.push(detail);
+    events.push(ev);
     markConsumed(consumed, ev);
   }
-  return details;
+  return { details, events };
+}
+
+function collectForwardDetails(all, idx, consumed, ctx, sourceName) {
+  return collectForwardEventDetails(all, idx, consumed, ctx, sourceName).details;
+}
+
+function appendImpact(map, key, name, text) {
+  if (!key) return;
+  if (!map.has(key)) map.set(key, { name, impacts: [] });
+  if (text) map.get(key).impacts.push(text);
+}
+
+function summarizeAffectedTargets(events, ctx) {
+  const affected = new Map();
+  for (const ev of events || []) {
+    if (ev.type === "damage") appendImpact(affected, ev.target_kind === "hero" ? `hero:${ev.target_id}` : ev.target_id, targetNameFromEvent(ev, ctx), `${ev.amount} dano`);
+    else if (ev.type === "heal") appendImpact(affected, ev.target_kind === "hero" ? `hero:${ev.target_id}` : ev.target_id, targetNameFromEvent(ev, ctx), `${ev.amount} cura`);
+    else if (ev.type === "buff") {
+      const parts = [];
+      if (ev.attack_delta) parts.push(`${ev.attack_delta > 0 ? "+" : ""}${ev.attack_delta} ataque`);
+      if (ev.health_delta) parts.push(`${ev.health_delta > 0 ? "+" : ""}${ev.health_delta} vida`);
+      appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), parts.join(", ") || "buff");
+    } else if (ev.type === "death") appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), "morreu");
+    else if (ev.type === "destroy") appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), "destruido");
+    else if (ev.type === "divine_shield_break") appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), "perdeu Escudo Divino");
+    else if (ev.type === "freeze") appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), "congelado");
+    else if (ev.type === "silence") appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), "silenciado");
+    else if (ev.type === "temporary_tag") appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), `ganhou ${tagLabel(ev.tag)}`);
+    else if (String(ev.type || "").startsWith("return_to_hand")) appendImpact(affected, ev.minion, targetNameFromEvent(ev, ctx), "voltou para a mao");
+  }
+  if (!affected.size) return "";
+  const parts = [...affected.values()].slice(0, 5).map(rec => `${rec.name} (${rec.impacts.join(", ")})`);
+  const suffix = affected.size > 5 ? ` e mais ${affected.size - 5}` : "";
+  return `Alvos afetados: ${parts.join("; ")}${suffix}.`;
 }
 
 function collectAttackDetails(ev, all, idx, consumed, ctx) {
   const attacker = minionFromContext(ctx, ev.attacker);
   const targetId = ev.target;
   const target = minionFromContext(ctx, targetId);
-  const attackerName = attacker?.name || ev.attacker || "Atacante";
-  const targetName = String(targetId || "").startsWith("hero:") ? heroLabel(String(targetId).split(":")[1]) : (target?.name || targetId || "alvo");
+  const attackerName = ev.attacker_name || attacker?.name || ev.attacker || "Atacante";
+  const targetName = ev.target_name || (String(targetId || "").startsWith("hero:") ? heroLabel(String(targetId).split(":")[1]) : (target?.name || targetId || "alvo"));
   const related = new Set([ev.attacker, targetId].filter(Boolean));
   const details = [`${attackerName} atacou ${targetName}.`];
+  const relatedEvents = [];
 
   const prev = [];
   for (let j = idx - 1; j >= 0 && prev.length < 4; j--) {
@@ -4558,7 +4738,10 @@ function collectAttackDetails(ev, all, idx, consumed, ctx) {
       markConsumed(consumed, e);
     }
   }
-  for (const e of prev) details.push(detailForEvent(e, ctx, e.target_id === ev.attacker ? targetName : attackerName));
+  for (const e of prev) {
+    relatedEvents.push(e);
+    details.push(detailForEvent(e, ctx, e.target_id === ev.attacker ? targetName : attackerName));
+  }
 
   for (let j = idx + 1; j < all.length && details.length < 12; j++) {
     const e = all[j];
@@ -4567,9 +4750,12 @@ function collectAttackDetails(ev, all, idx, consumed, ctx) {
     if (!related.has(id) && !LOG_DETAIL_TYPES.has(e.type)) continue;
     const detail = detailForEvent(e, ctx, attackerName);
     if (!detail) continue;
+    relatedEvents.push(e);
     details.push(detail);
     markConsumed(consumed, e);
   }
+  const summary = summarizeAffectedTargets(relatedEvents, ctx);
+  if (summary) details.splice(1, 0, summary);
   return { attackerName, targetName, details };
 }
 
@@ -4579,17 +4765,26 @@ function makeLogItem(ev, all, idx) {
   const ctx = logContext(all, idx);
   switch (ev.type) {
     case "game_start":
-      return { kind: "game", icon: "✦", title: "Início da partida",
+      return { kind: "game", icon: "*", title: "Início da partida",
                text: `Começa: ${playerName(ev.first_player)}` };
     case "turn_start":
       return { kind: "turn", icon: `T${ev.turn}`, title: `Turno ${ev.turn}`,
                text: `Vez de ${playerName(ev.player)}` };
     case "play_card": {
       const cardTitle = ev.card_name || cardName(ev.card_id, "Carta");
-      const details = [`${playerLabel} jogou ${cardTitle}.`, `Custo pago: ${ev.cost ?? "?"}.`];
+      const forward = collectForwardEventDetails(all, idx, consumed, ctx, cardTitle);
+      const targetSummary = summarizeAffectedTargets(forward.events, ctx);
+      const details = [
+        `Ação: ${playerLabel} jogou ${cardTitle} (${cardTypeLabel(ev.card_id)}).`,
+        `Custo pago: ${ev.cost ?? "?"}.`,
+      ];
+      const effectSummary = compactEffectSummary(ev.card_id);
+      if (effectSummary) details.push(effectSummary);
+      if (targetSummary) details.push(targetSummary);
       if (ev.empowered) details.push("Foi jogada fortalecida.");
       if (ev.combo_active) details.push("Combo estava ativo.");
-      details.push(...collectForwardDetails(all, idx, consumed, ctx, cardTitle));
+      if (ev.direction) details.push(`Direção escolhida: ${ev.direction}.`);
+      details.push(...forward.details);
       return {
         kind: "play",
         cardId: ev.card_id,
@@ -4616,11 +4811,42 @@ function makeLogItem(ev, all, idx) {
     case "attack": {
       const grouped = collectAttackDetails(ev, all, idx, consumed, ctx);
       return { kind: "attack",
-               cardId: minionFromContext(ctx, ev.attacker)?.card_id,
-               label: `${shortLogName(grouped.attackerName)}→${shortLogName(grouped.targetName)}`,
+               cardId: ev.attacker_card_id || minionFromContext(ctx, ev.attacker)?.card_id,
+               label: `${shortLogName(grouped.attackerName)} vs ${shortLogName(grouped.targetName)}`,
                title: `${grouped.attackerName} atacou ${grouped.targetName}`,
                text: grouped.details.join("\n"),
                details: grouped.details,
+               consumedSeqs: consumed };
+    }
+    case "forced_attack": {
+      const grouped = collectAttackDetails(ev, all, idx, consumed, ctx);
+      const details = [`Ataque forçado: ${grouped.attackerName} atacou ${grouped.targetName}.`, ...grouped.details.slice(1)];
+      return { kind: "attack",
+               cardId: ev.attacker_card_id || minionFromContext(ctx, ev.attacker)?.card_id,
+               label: `${shortLogName(grouped.attackerName)} vs ${shortLogName(grouped.targetName)}`,
+               title: `Ataque forçado: ${grouped.attackerName}`,
+               text: details.join("\n"),
+               details,
+               consumedSeqs: consumed };
+    }
+    case "activate_ability": {
+      const sourceName = minionNameById(ctx, ev.minion, cardName(ev.card_id, "Lacaio"));
+      const forward = collectForwardEventDetails(all, idx, consumed, ctx, sourceName);
+      const targetSummary = summarizeAffectedTargets(forward.events, ctx);
+      const details = [
+        `Ação: ${playerLabel} ativou ${sourceName}.`,
+        `Efeito: ${actionLabel(ev.action)}.`,
+        `Custo pago: ${ev.cost ?? 0}.`,
+      ];
+      if (targetSummary) details.push(targetSummary);
+      if (ev.uses_remaining !== null && ev.uses_remaining !== undefined) details.push(`Usos restantes: ${ev.uses_remaining}.`);
+      details.push(...forward.details);
+      return { kind: "play",
+               cardId: ev.card_id,
+               label: shortLogName(sourceName, "Hab"),
+               title: `${playerLabel} ativou ${sourceName}`,
+               text: details.join("\n"),
+               details,
                consumedSeqs: consumed };
     }
     case "damage": {
@@ -4643,7 +4869,7 @@ function makeLogItem(ev, all, idx) {
       const targetName = targetNameFromEvent(ev, ctx);
       const details = [detailForEvent(ev, ctx)].filter(Boolean);
       return { kind: "death", cardId: cardFromEvent(ev, ctx),
-               label: `☠ ${shortLogName(targetName)}`,
+               label: `KO ${shortLogName(targetName)}`,
                title: `${targetName} morreu`, text: details.join("\n"), details };
     }
     case "draw": {
@@ -4754,7 +4980,7 @@ function buildLogIcon(item) {
   tip.appendChild(t1);
   const detailLines = Array.isArray(item.details) && item.details.length
     ? item.details
-    : (item.text ? [item.text] : []);
+    : (item.text ? String(item.text).split("\n").filter(Boolean) : []);
   if (detailLines.length) {
     const details = document.createElement("div");
     details.className = "tip-details";

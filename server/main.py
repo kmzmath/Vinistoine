@@ -5,10 +5,13 @@ FastAPI app principal. Tudo em um único processo:
 - Servir arquivos estáticos do cliente
 """
 from __future__ import annotations
+import base64
+import binascii
 import json
 import os
 import secrets
 import hashlib
+import zlib
 from collections import Counter
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
@@ -35,6 +38,7 @@ STATIC_DIR = ROOT_DIR / "static"
 MOEDA_CARD_ID = "mo" + "eda"
 MOEDA_FOUND_CARD_ID = MOEDA_CARD_ID + "_encontrada"
 NON_COLLECTIBLE_CARD_IDS = {"coin", MOEDA_CARD_ID, MOEDA_FOUND_CARD_ID}
+DECK_CODE_PREFIX = "VINIDECK1:"
 ALLOWED_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -97,6 +101,16 @@ class LoginIn(BaseModel):
 class DeckIn(BaseModel):
     name: constr(min_length=1, max_length=60, strip_whitespace=True)
     cards: conlist(_CARD_ID, max_length=DECK_SIZE)
+
+
+class DeckCodeIn(BaseModel):
+    name: constr(min_length=1, max_length=60, strip_whitespace=True)
+    cards: conlist(_CARD_ID, max_length=DECK_SIZE)
+
+
+class DeckImportIn(BaseModel):
+    code: constr(min_length=1, max_length=12000, strip_whitespace=True)
+    name: Optional[constr(min_length=1, max_length=60, strip_whitespace=True)] = None
 
 
 class CreateMatchIn(BaseModel):
@@ -323,6 +337,40 @@ def validate_deck(card_ids: list[str]) -> Optional[str]:
     return None
 
 
+def encode_deck_code(name: str, card_ids: list[str]) -> str:
+    payload = {
+        "v": 1,
+        "name": (name or "Deck").strip()[:60] or "Deck",
+        "cards": list(card_ids),
+    }
+    raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    packed = zlib.compress(raw, level=9)
+    token = base64.urlsafe_b64encode(packed).decode("ascii").rstrip("=")
+    return DECK_CODE_PREFIX + token
+
+
+def decode_deck_code(code: str) -> dict:
+    raw_code = (code or "").strip()
+    if raw_code.startswith(DECK_CODE_PREFIX):
+        raw_code = raw_code[len(DECK_CODE_PREFIX):]
+    raw_code = "".join(raw_code.split())
+    if not raw_code:
+        raise ValueError("Codigo vazio")
+    padding = "=" * (-len(raw_code) % 4)
+    try:
+        packed = base64.urlsafe_b64decode((raw_code + padding).encode("ascii"))
+        data = json.loads(zlib.decompress(packed).decode("utf-8"))
+    except (binascii.Error, UnicodeDecodeError, zlib.error, json.JSONDecodeError) as exc:
+        raise ValueError("Codigo de deck invalido") from exc
+    if not isinstance(data, dict) or data.get("v") != 1:
+        raise ValueError("Versao de codigo de deck nao suportada")
+    name = str(data.get("name") or "Deck Importado").strip()[:60] or "Deck Importado"
+    cards = data.get("cards")
+    if not isinstance(cards, list) or not all(isinstance(cid, str) for cid in cards):
+        raise ValueError("Codigo de deck sem lista de cartas")
+    return {"name": name, "cards": cards}
+
+
 @app.post("/api/decks")
 def save_deck(payload: DeckIn, request: Request):
     user = require_user(request)
@@ -349,6 +397,35 @@ def update_deck(deck_id: int, payload: DeckIn, request: Request):
             raise HTTPException(404, "Deck não encontrado")
         d.name = payload.name.strip()[:60] or "Deck"
         d.cards_json = json.dumps(payload.cards)
+        s.commit()
+        s.refresh(d)
+        return {"id": d.id, "name": d.name, "cards": d.card_ids()}
+
+
+@app.post("/api/decks/code")
+def create_deck_code(payload: DeckCodeIn, request: Request):
+    require_user(request)
+    err = validate_deck(payload.cards)
+    if err:
+        raise HTTPException(400, err)
+    return {"code": encode_deck_code(payload.name, payload.cards)}
+
+
+@app.post("/api/decks/import")
+def import_deck_code(payload: DeckImportIn, request: Request):
+    user = require_user(request)
+    try:
+        decoded = decode_deck_code(payload.code)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    cards = decoded["cards"]
+    err = validate_deck(cards)
+    if err:
+        raise HTTPException(400, err)
+    name = (payload.name or decoded["name"] or "Deck Importado").strip()[:60] or "Deck Importado"
+    with get_session() as s:
+        d = Deck(user_id=user.id, name=name, cards_json=json.dumps(cards))
+        s.add(d)
         s.commit()
         s.refresh(d)
         return {"id": d.id, "name": d.name, "cards": d.card_ids()}

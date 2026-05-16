@@ -33,6 +33,17 @@
       <div id="saved-decks"></div>
     </div>
 
+    <div class="panel deck-share-panel" style="margin-bottom: 1rem;">
+      <h3 style="margin-top: 0;">Compartilhar Deck</h3>
+      <div class="deck-code-row">
+        <textarea id="deck-code-input" rows="3" placeholder="Código do deck"></textarea>
+        <div class="deck-code-actions">
+          <button class="btn small" id="copy-current-code-btn">Copiar Atual</button>
+          <button class="btn primary small" id="import-code-btn">Importar Código</button>
+        </div>
+      </div>
+    </div>
+
     <div class="deckbuilder">
       <div>
         <div class="filters" id="filters"></div>
@@ -334,6 +345,42 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2400);
 }
 
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    const input = document.getElementById("deck-code-input");
+    input.value = text;
+    input.focus();
+    input.select();
+    return document.execCommand("copy");
+  }
+}
+
+async function requestDeckCode(name, cards) {
+  const r = await api("/api/decks/code", { method: "POST", body: JSON.stringify({ name, cards }) });
+  if (!r) return null;
+  const data = await r.json();
+  if (!r.ok) {
+    toast(data.detail || "Erro ao gerar código");
+    return null;
+  }
+  return data.code;
+}
+
+async function copyDeckCode(name, cards) {
+  if ((cards || []).length !== 30) {
+    toast(`Deck precisa de 30 cartas (tem ${(cards || []).length})`);
+    return;
+  }
+  const code = await requestDeckCode(name, cards);
+  if (!code) return;
+  document.getElementById("deck-code-input").value = code;
+  const copied = await copyText(code);
+  toast(copied ? "Código copiado!" : "Código gerado.");
+}
+
 document.getElementById("save-btn").onclick = async () => {
   if (currentDeck.length !== 30) { toast(`Deck precisa de 30 cartas (tem ${currentDeck.length})`); return; }
   const name = document.getElementById("deck-name").value.trim() || "Deck Sem Nome";
@@ -354,6 +401,27 @@ document.getElementById("new-btn").onclick = () => {
   currentDeckId = null;
   document.getElementById("deck-name").value = "";
   renderDeck();
+};
+
+document.getElementById("copy-current-code-btn").onclick = () => {
+  copyDeckCode(displayedDeckName(), currentDeck);
+};
+
+document.getElementById("import-code-btn").onclick = async () => {
+  const input = document.getElementById("deck-code-input");
+  const code = input.value.trim();
+  if (!code) { toast("Cole um código de deck"); return; }
+  const r = await api("/api/decks/import", { method: "POST", body: JSON.stringify({ code }) });
+  if (!r) return;
+  const data = await r.json();
+  if (!r.ok) { toast(data.detail || "Erro ao importar"); return; }
+  currentDeck = [...data.cards];
+  currentDeckId = data.id;
+  document.getElementById("deck-name").value = data.name;
+  renderDeck();
+  await loadSavedDecks();
+  toast("Deck importado!");
+  window.scrollTo(0, 0);
 };
 
 document.getElementById("search-input").addEventListener("input", (e) => {
@@ -384,6 +452,11 @@ async function loadSavedDecks() {
     editBtn.textContent = "Editar";
     editBtn.onclick = () => loadDeckIntoEditor(d);
     row.appendChild(editBtn);
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn small";
+    copyBtn.textContent = "Copiar Código";
+    copyBtn.onclick = () => copyDeckCode(d.name, d.cards);
+    row.appendChild(copyBtn);
     const delBtn = document.createElement("button");
     delBtn.className = "btn small danger";
     delBtn.textContent = "Excluir";
