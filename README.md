@@ -32,10 +32,11 @@ cardgame/
 │   └── main.py            # FastAPI: /api/* + /ws/match/{id}
 ├── static/                # Frontend
 │   ├── index.html         # Login / Registro
-│   ├── lobby.html         # Saguão
-│   ├── deckbuilder.html   # Construtor de decks
+│   ├── shell.html         # Saguão, Decks e Portraits em uma SPA leve
 │   ├── game.html          # Tela de partida
-│   └── css/main.css
+│   ├── arena.html         # Draft da Arena
+│   ├── js/                # Scripts compartilhados
+│   └── css/               # Estilos globais e da Arena
 ├── docs/
 │   └── CARD_COVERAGE.md # Relatório gerado de cobertura cards.json × engine
 ├── scripts/

@@ -46,13 +46,13 @@ def _force_minion(state, pid, *, card_id="test", name="Test", attack=2, health=2
 
 def test_tribo_fruta_implica_comida():
     """Helper card_has_tribe e Minion.has_tribe consideram FRUTA→COMIDA."""
-    banana = get_card("banana")
-    assert "FRUTA" in (banana.get("tribes") or [])
+    fruta = get_card("acai")
+    assert "FRUTA" in (fruta.get("tribes") or [])
     # Embora "COMIDA" não esteja explícita
-    assert "COMIDA" not in (banana.get("tribes") or [])
+    assert "COMIDA" not in (fruta.get("tribes") or [])
     # mas card_has_tribe enxerga
-    assert card_has_tribe(banana, "FRUTA")
-    assert card_has_tribe(banana, "COMIDA")
+    assert card_has_tribe(fruta, "FRUTA")
+    assert card_has_tribe(fruta, "COMIDA")
     # Minion também
     state = _new_blank_match()
     m = _force_minion(state, 0, card_id="banana")

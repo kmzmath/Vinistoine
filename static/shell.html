@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vinístone</title>
-  <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="stylesheet" href="/static/css/main.css?v=20260516-2" />
   <script src="/static/js/audio.js" defer></script>
 </head>
 <body>
@@ -43,6 +43,7 @@
               <option value="constructed">Deck construído</option>
               <option value="random">Decks aleatórios</option>
               <option value="dev">Modo dev</option>
+              <option value="arena">Arena</option>
             </select>
             <label id="deck-label">Deck:</label>
             <select id="deck-select"></select>
@@ -78,6 +79,17 @@
         <div class="panel" style="margin-bottom: 1rem;">
           <h3 style="margin-top: 0;">Decks Salvos</h3>
           <div id="saved-decks"></div>
+        </div>
+
+        <div class="panel deck-share-panel" style="margin-bottom: 1rem;">
+          <h3 style="margin-top: 0;">Compartilhar Deck</h3>
+          <div class="deck-code-row">
+            <textarea id="deck-code-input" rows="3" placeholder="Código do deck"></textarea>
+            <div class="deck-code-actions">
+              <button class="btn small" id="copy-current-code-btn">Copiar Atual</button>
+              <button class="btn primary small" id="import-code-btn">Importar Código</button>
+            </div>
+          </div>
         </div>
 
         <div class="deckbuilder">
@@ -154,6 +166,19 @@ function toast(msg) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2400);
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    const input = document.getElementById("deck-code-input");
+    if (!input) return false;
+    input.value = text;
+    input.focus();
+    input.select();
+    return document.execCommand("copy");
+  }
 }
 
 // ---------- estado global ----------
@@ -298,16 +323,20 @@ function updateLobbyModeControls() {
   const joinCode = document.getElementById("join-code");
   const status = document.getElementById("status");
 
-  if (mode === "random" || mode === "dev") {
+  if (mode === "random" || mode === "dev" || mode === "arena") {
     deckSelect.disabled = true;
     deckLabel.style.opacity = "0.45";
     createBtn.disabled = false;
     joinBtn.disabled = mode === "dev";
     if (joinCode) joinCode.disabled = mode === "dev";
     createBtn.textContent = mode === "dev" ? "Iniciar Teste" : "Criar Sala";
-    status.innerHTML = mode === "dev"
-      ? "Modo <b>dev</b>: inicia uma plataforma singleplayer de testes com acesso rápido ao catálogo de cartas."
-      : "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";
+    if (mode === "dev") {
+      status.innerHTML = "Modo <b>dev</b>: inicia uma plataforma singleplayer de testes com acesso rápido ao catálogo de cartas.";
+    } else if (mode === "arena") {
+      status.innerHTML = "Modo <b>Arena</b>: cada jogador escolhe 30 cartas individualmente antes da partida.";
+    } else {
+      status.innerHTML = "Modo <b>Decks aleatórios</b>: cada jogador recebe um deck aleatório de 30 cartas quando a partida começar.";
+    }
     return;
   }
   deckSelect.disabled = false;
@@ -576,6 +605,30 @@ function setupDeckNameEditing() {
   syncDeckTitleFromInput();
 }
 
+async function requestDeckCode(name, cards) {
+  const r = await api("/api/decks/code", { method: "POST", body: JSON.stringify({ name, cards }) });
+  if (!r) return null;
+  const data = await r.json();
+  if (!r.ok) {
+    toast(data.detail || "Erro ao gerar código");
+    return null;
+  }
+  return data.code;
+}
+
+async function copyDeckCode(name, cards) {
+  if ((cards || []).length !== 30) {
+    toast(`Deck precisa de 30 cartas (tem ${(cards || []).length})`);
+    return;
+  }
+  const code = await requestDeckCode(name, cards);
+  if (!code) return;
+  const input = document.getElementById("deck-code-input");
+  if (input) input.value = code;
+  const copied = await copyText(code);
+  toast(copied ? "Código copiado!" : "Código gerado.");
+}
+
 function renderCardGrid() {
   const grid = document.getElementById("card-grid");
   grid.innerHTML = "";
@@ -647,6 +700,11 @@ function renderDecksSavedList() {
     editBtn.textContent = "Editar";
     editBtn.onclick = () => loadDeckIntoEditor(d);
     row.appendChild(editBtn);
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn small";
+    copyBtn.textContent = "Copiar Código";
+    copyBtn.onclick = () => copyDeckCode(d.name, d.cards);
+    row.appendChild(copyBtn);
     const delBtn = document.createElement("button");
     delBtn.className = "btn small danger";
     delBtn.textContent = "Excluir";
@@ -687,6 +745,25 @@ function setupDecksHandlers() {
     currentDeckId = null;
     document.getElementById("deck-name").value = "";
     renderDeck();
+  };
+  document.getElementById("copy-current-code-btn").onclick = () => {
+    copyDeckCode(displayedDeckName(), currentDeck);
+  };
+  document.getElementById("import-code-btn").onclick = async () => {
+    const input = document.getElementById("deck-code-input");
+    const code = input ? input.value.trim() : "";
+    if (!code) { toast("Cole um código de deck"); return; }
+    const r = await api("/api/decks/import", { method: "POST", body: JSON.stringify({ code }) });
+    if (!r) return;
+    const data = await r.json();
+    if (!r.ok) { toast(data.detail || "Erro ao importar"); return; }
+    currentDeck = [...data.cards];
+    currentDeckId = data.id;
+    document.getElementById("deck-name").value = data.name;
+    renderDeck();
+    await refreshDecksEverywhere();
+    toast("Deck importado!");
+    window.scrollTo(0, 0);
   };
   document.getElementById("search-input").addEventListener("input", (e) => {
     currentSearch = e.target.value;
